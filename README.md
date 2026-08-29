@@ -1,56 +1,95 @@
-# Amryn™ AI Growth Intelligence®
+# Amryn™ AIGrowthIntelligence®
 
-Static single-page dashboard for Amryn — a business intelligence and growth
-monitoring service for SMBs. Plain HTML, CSS and JS. No build step.
+Static front end for Amryn — AI growth intelligence for businesses building a
+growth engine. The page leads with a working **Executive Command Centre** demo
+rather than describing one. Plain HTML, CSS and JS. No build step.
 
 ## Structure
 
 ```
-docs/            → everything GitHub Pages serves
-  index.html     → the page
-  styles.css     → design system + layout
-  app.js         → chart, dial, counters, radar interactions
-  .nojekyll      → tells Pages to serve the folder as-is
+docs/                → everything GitHub Pages serves
+  index.html         → positioning band, Command Centre shell, content bands
+  styles.css         → design system + layout
+  app.js             → workspace data + all Command Centre behaviour
+  brand/             → supplied brand artwork (see BRAND-USAGE.txt)
+  .nojekyll          → tells Pages to serve the folder as-is
 .github/workflows/deploy.yml
 ```
 
 ## Deploying
 
-1. Push this to the `main` branch of `DanielSmith960416/Amryn`.
-2. In the repo, open **Settings → Pages**.
-3. Under **Build and deployment → Source**, choose **GitHub Actions**.
+Pages is already enabled with **Source: GitHub Actions**. Every push to `main`
+redeploys; the site lands at `https://danielsmith960416.github.io/Amryn/`.
 
-Every push to `main` then rebuilds the site. It lands at
-`https://danielsmith960416.github.io/Amryn/`.
+## The Command Centre
 
-If you would rather not use Actions at all, you can instead set Source to
-**Deploy from a branch → main → /docs**. The workflow becomes unnecessary in
-that case, but leaving it in place does no harm.
+`app.js` renders every view from the `WORKSPACES` object — nothing in the
+dashboard is hard-coded in the HTML. Switching workspace or period recomputes
+the whole view.
 
-## Editing the sample data
+Three workspaces ship, at deliberately different scales, because Amryn is sized
+to a decision rather than to a company:
 
-The briefing shown is illustrative — a fictional client, Highveld Supply Co.
+| Key | Business | Scale |
+|---|---|---|
+| `highveld` | Highveld Supply Co. | Single site · 14 staff |
+| `meridian` | Meridian Retail Group | Multi-branch · 9 sites · 210 staff |
+| `kalahari` | Kalahari Freight & Logistics | National · 4 depots · 480 staff |
 
-- **Revenue trend** — the `revenue` array at the top of `app.js` (monthly, in
-  thousands of Rand). Add or remove months and the chart redraws itself.
-- **Health score** — `data-score` on the `.score__fill` circle in `index.html`.
-- **Animated numbers** — any element with `data-count`. Optional
-  `data-dec` (decimal places), `data-comma="1"` (thousands separators),
-  `data-suffix`.
-- **Radar blips** — the `cx` / `cy` on each `.blip` in `index.html`. Distance
-  from centre reads as urgency, radius reads as revenue at stake. The
-  `data-op` value links a blip to its opportunity card.
+Each carries its own `revenue` series, health `score` and `bars`, `metrics`,
+`feed`, `risks`, `ops` (radar signals) and `acts` (action register). To add a
+workspace, add a key with the same shape — the selector populates itself.
 
-## Design notes
+Views: **Command Centre** (summary), **DigitalTwin®**, **OpportunityRadar®**,
+**Actions**, **Intelligence Loop**. The rail switches them; `data-goto` buttons
+inside tiles jump between them.
 
-The mark is a split triangle: the black half is the inside view
-(Amryn™ AI Digital Twin®), the blue half is the outside view
-(Amryn™ AI Opportunity Radar®). Each panel is headed by its own half of the
-mark, so the logo doubles as wayfinding.
+Interactive behaviour worth knowing about:
 
-The dashboard uses no red or green. Blue carries opportunity and improvement,
-black carries attention — which keeps every signal on-brand and avoids the
-traffic-light look of generic BI tools.
+- **Period** re-slices the revenue series and redraws the chart and its note.
+- **Filter** on the radar narrows signals; blips are regenerated to match, and
+  blip ↔ card highlighting is wired both ways.
+- **Action register** ticks persist per workspace in `localStorage`, and drive
+  the progress bar, the rail badge and the Command Centre summary.
+- Radar blip position is derived from each signal's `urgency` (distance from
+  centre) and `size` (revenue at stake), with a stable per-id angle.
 
-Fonts are Archivo (display), IBM Plex Sans (body) and IBM Plex Mono (data and
-labels), loaded from Google Fonts.
+## Brand
+
+Artwork in `docs/brand/` is used exactly as supplied. `BRAND-USAGE.txt` is the
+pack's own rule sheet; the short version:
+
+- Never re-colour, stretch, rotate or outline a mark.
+- Lockups never below 90px wide; the icon mark never below 24px.
+- Use the `-ondark` variants on backgrounds darker than 50% luminance.
+- Brand names are never uppercased — the solid capitalisation
+  (`AIGrowthIntelligence®`, `DigitalTwin®`, `OpportunityRadar®`) is part of
+  the mark.
+
+Palette: `#004AAD` brand blue, `#081B33` dark navy, `#3E7BD6` lifted blue
+(on navy only — brand blue is near-invisible there).
+
+**Known conflict:** the brand pack sets the products solid and without an "AI"
+prefix (`Amryn™DigitalTwin®`), and ships product-mark artwork that way. The
+Master Business-Building Blueprint writes them as `Amryn™ AI Digital Twin®`.
+The site follows the pack, since that is the trademark form and the artwork
+that exists. If the blueprint wins instead, the two product-mark PNGs need
+reissuing and the panel headings go back to live text.
+
+## Editing the demo data
+
+All of it lives at the top of `app.js`:
+
+- **Revenue** — the `revenue` array per workspace, monthly, in thousands of Rand.
+  Twelve entries; `MONTHS` labels them.
+- **Health score** — `score` and `scoreDelta`; the ring and the counter both read it.
+- **Radar signals** — `ops[]`. `kind` is `opportunity` or `threat`, `urgency`
+  is 0–1 (0 = centre), `size` is the blip radius in SVG units.
+- **Actions** — `acts[]` as `[title, rationale, owner, effort, outcome]`.
+
+## Positioning
+
+Copy follows section 11 of the Master Business-Building Blueprint: *See Your
+Business. See Your Market. Know What To Do Next.* — with the philosophy line
+*Business Inside + Market Outside = Intelligent Growth* carried through the
+page and the footer.
