@@ -19,7 +19,7 @@ docs/                → everything GitHub Pages serves
 ## Deploying
 
 Pages is already enabled with **Source: GitHub Actions**. Every push to `main`
-redeploys; the site lands at `https://danielsmith960416.github.io/Amryn/`.
+redeploys. See **Custom domain** below for where the site is served.
 
 ## The Command Centre
 
@@ -93,3 +93,27 @@ Copy follows section 11 of the Master Business-Building Blueprint: *See Your
 Business. See Your Market. Know What To Do Next.* — with the philosophy line
 *Business Inside + Market Outside = Intelligent Growth* carried through the
 page and the footer.
+
+## Custom domain
+
+The site is served at `amryn.co.za`. `docs/CNAME` carries the domain so it
+survives every redeploy rather than living only in repo settings.
+
+DNS at the registrar:
+
+| Host | Type | Value |
+|---|---|---|
+| `@` | A | `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153` |
+| `@` | AAAA | `2606:50c0:8000::153`, `:8001::153`, `:8002::153`, `:8003::153` |
+| `www` | CNAME | `danielsmith960416.github.io` |
+
+Then **Settings → Pages → Custom domain** → `amryn.co.za`, wait for the DNS
+check, and tick **Enforce HTTPS** once the certificate is issued.
+
+Ordering matters: configuring the domain makes GitHub redirect
+`danielsmith960416.github.io/Amryn/` to it, so point DNS *before* this lands on
+`main` or the live site goes dark in between.
+
+`og:url`, `og:image` and the canonical link are absolute against
+`https://amryn.co.za/` — they are wrong until the domain resolves, which is
+why they ship in the same commit as the CNAME.
