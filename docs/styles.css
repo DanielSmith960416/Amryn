@@ -1,14 +1,19 @@
 /* ═══════════════════════════════════════════════
-   Amryn™ AI Growth Intelligence®
-   Palette is deliberately two-tone: blue reads as
-   opportunity, black reads as attention. No red,
-   no green — the brand does the signalling.
+   Amryn™ AIGrowthIntelligence®
+   Palette per Brand Asset Pack v1.0 (brand/BRAND-USAGE.txt):
+     #004AAD  brand blue (primary)
+     #081B33  dark navy (dark surfaces)
+     #3E7BD6  lifted blue — on navy only, never on paper
+   Blue reads as opportunity, black reads as attention.
+   No red, no green — the brand does the signalling.
    ═══════════════════════════════════════════════ */
 
 :root{
   --ink:      #000000;
-  --signal:   #0057FF;
-  --signal-d: #0043C4;
+  --navy:     #081B33;
+  --signal:   #004AAD;
+  --signal-d: #003A87;
+  --lift:     #3E7BD6;
   --paper:    #FFFFFF;
   --fog:      #F3F5F9;
   --rule:     #DCE1EA;
@@ -52,12 +57,32 @@ em{ font-style:normal; color:var(--signal); }
 
 :focus-visible{ outline:3px solid var(--signal); outline-offset:3px; }
 
-/* ── the mark ───────────────────────────────── */
-.mark__l{ fill:var(--ink); }
-.mark__r{ fill:var(--signal); }
-.mark--sm{ width:26px; height:auto; display:block; }
-.mark--lg{ width:64px; height:auto; }
-.mark--xl{ width:100%; height:auto; max-width:340px; }
+/* ── the mark ───────────────────────────────────
+   Supplied artwork only. Usage rules: never
+   re-colour, stretch, rotate, outline or add
+   effects; lockups never below 90px wide, icon
+   mark never below 24px. Clear space around a
+   lockup = the AMRYN cap height (~.42 × height).
+   ─────────────────────────────────────────────── */
+/* The full lockup needs room for its tagline to read, so it is used
+   at footer scale only. The nav pairs the icon mark with set type —
+   at nav height the lockup's tagline collapses to unreadable. */
+.lockup{ display:block; width:auto; }
+.lockup--foot{ height:52px; }         /* ≈144px wide, over the 90px floor */
+
+.iconmark{ display:block; width:auto; height:auto; }
+.iconmark--nav{ height:28px; }        /* over the 24px icon floor */
+
+.nav__word{
+  font-family:var(--f-display); font-weight:800; font-size:1.15rem;
+  letter-spacing:-.045em;
+}
+
+/* visually hidden, still read by assistive tech */
+.vh{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
 
 /* ── nav ────────────────────────────────────── */
 .nav{
@@ -69,10 +94,6 @@ em{ font-style:normal; color:var(--signal); }
   border-bottom:1px solid var(--rule);
 }
 .nav__brand{ display:flex; align-items:center; gap:.6rem; text-decoration:none; }
-.nav__word{
-  font-family:var(--f-display); font-weight:800; font-size:1.15rem;
-  letter-spacing:-.045em;
-}
 .nav__links{ display:flex; align-items:center; gap:clamp(.75rem,2vw,1.75rem); }
 .nav__links > a:not(.btn){
   font-family:var(--f-mono); font-size:.72rem; font-weight:500;
@@ -122,10 +143,6 @@ em{ font-style:normal; color:var(--signal); }
 }
 .delta--flat{ color:var(--mute); }
 
-.dot{ width:9px; height:9px; display:inline-block; margin-right:.45rem; }
-.dot--ink{ background:var(--ink); }
-.dot--sig{ background:var(--signal); }
-
 /* ── hero ───────────────────────────────────── */
 .hero{ padding:clamp(2.5rem,7vw,5.5rem) var(--pad) 0; }
 .hero__grid{
@@ -138,12 +155,7 @@ em{ font-style:normal; color:var(--signal); }
   .hero__mark{ max-width:220px; }
 }
 
-.hero__legend{
-  display:flex; flex-wrap:wrap; gap:1.25rem; margin-top:1.5rem;
-  font-family:var(--f-mono); font-size:.7rem; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--mute);
-}
-.hero__legend span{ display:flex; align-items:center; }
+.hero__mark .iconmark{ width:100%; max-width:300px; }
 
 .hero__h1{
   font-size:clamp(2.6rem,7.5vw,5rem);
@@ -199,7 +211,8 @@ em{ font-style:normal; color:var(--signal); }
   max-width:var(--max); margin:0 auto clamp(2rem,5vw,3rem);
   display:flex; gap:clamp(1rem,3vw,2rem); align-items:flex-start;
 }
-.halfmark{ width:clamp(38px,6vw,58px); height:auto; flex:none; margin-top:.35rem; }
+/* product marks — set solid by design, do not respace */
+.prodmark{ display:block; width:auto; height:clamp(20px,2.6vw,30px); margin-bottom:.7rem; }
 .panel__h2{ font-size:clamp(1.65rem,4vw,2.6rem); font-weight:700; margin-bottom:.7rem; }
 .panel__sub{ color:var(--mute); max-width:62ch; }
 
@@ -312,7 +325,9 @@ em{ font-style:normal; color:var(--signal); }
   grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);
 }
 .dial-wrap{
-  background:var(--ink); color:var(--paper);
+  /* dark navy surface → brand blue lifts to #3E7BD6 for contrast */
+  --signal: var(--lift);
+  background:var(--navy); color:var(--paper);
   border-radius:3px; padding:clamp(1.25rem,3vw,2rem);
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.5rem;
 }
@@ -383,11 +398,13 @@ em{ font-style:normal; color:var(--signal); }
 
 /* ── cta ────────────────────────────────────── */
 .cta{
-  background:var(--ink); color:var(--paper);
+  background:var(--navy); color:var(--paper);
   padding:clamp(3.5rem,9vw,7rem) var(--pad); text-align:center;
 }
-.cta .mark__r{ fill:var(--signal); }
-.cta .mark__l{ fill:var(--paper); }
+.cta .iconmark{ width:64px; margin:0 auto; }
+/* brand blue is too close to the navy ground to carry a button here */
+.cta .btn{ background:var(--paper); color:var(--navy); }
+.cta .btn:hover{ background:#D8E2F2; }
 .cta h2{
   font-size:clamp(1.8rem,4.5vw,3rem); font-weight:700;
   margin:1.75rem auto 1rem; max-width:20ch;
@@ -400,10 +417,6 @@ em{ font-style:normal; color:var(--signal); }
   display:grid; gap:1.5rem;
   grid-template-columns:1fr auto; align-items:start;
   border-top:1px solid var(--rule);
-}
-.foot__brand p{
-  font-family:var(--f-mono); font-size:.68rem; text-transform:uppercase;
-  letter-spacing:.14em; color:var(--mute); margin-top:.25rem;
 }
 .foot__contact{ display:flex; flex-direction:column; align-items:flex-end; gap:.3rem; }
 .foot__contact a{ font-family:var(--f-mono); font-size:.8rem; text-decoration:none; }
@@ -421,15 +434,13 @@ em{ font-style:normal; color:var(--signal); }
 .reveal{ opacity:0; transform:translateY(18px); }
 .reveal.is-in{ opacity:1; transform:none; transition:opacity .7s ease, transform .7s cubic-bezier(.16,1,.3,1); }
 
-.mark--xl .mark__l{ transform:translateX(-10px); opacity:0; animation:closeL .9s cubic-bezier(.16,1,.3,1) .15s forwards; }
-.mark--xl .mark__r{ transform:translateX(10px);  opacity:0; animation:closeR .9s cubic-bezier(.16,1,.3,1) .15s forwards; }
-@keyframes closeL{ to{ transform:translateX(0); opacity:1; } }
-@keyframes closeR{ to{ transform:translateX(0); opacity:1; } }
+.hero__mark .iconmark{ opacity:0; transform:translateY(12px); animation:riseIn .9s cubic-bezier(.16,1,.3,1) .15s forwards; }
+@keyframes riseIn{ to{ transform:none; opacity:1; } }
 
 @media (prefers-reduced-motion:reduce){
   html{ scroll-behavior:auto; }
   *,*::before,*::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
   .reveal{ opacity:1; transform:none; }
-  .mark--xl .mark__l,.mark--xl .mark__r{ opacity:1; transform:none; }
+  .hero__mark .iconmark{ opacity:1; transform:none; }
   .chart__area,.chart__pin{ opacity:1; }
 }
