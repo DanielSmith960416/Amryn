@@ -14,6 +14,9 @@ const config = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
     rules: {
+      // This rule targets the Pages Router's _document. In the App Router the
+      // font link belongs in the root layout's <head>, which is where it is.
+      '@next/next/no-page-custom-font': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',

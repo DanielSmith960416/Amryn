@@ -56,7 +56,36 @@ const columns = query(`
   order by c.relname, a.attnum
 `);
 
-const pascal = (s) => s.split('_').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+const relationships = query(`
+  select
+    con.conname as constraint_name,
+    child.relname as table_name,
+    (select array_agg(a.attname order by k.ord)
+       from unnest(con.conkey) with ordinality k(attnum, ord)
+       join pg_attribute a on a.attrelid = con.conrelid and a.attnum = k.attnum) as columns,
+    parent.relname as referenced_relation,
+    (select array_agg(a.attname order by k.ord)
+       from unnest(con.confkey) with ordinality k(attnum, ord)
+       join pg_attribute a on a.attrelid = con.confrelid and a.attnum = k.attnum) as referenced_columns,
+    exists (
+      select 1 from pg_index i
+      where i.indrelid = con.conrelid and i.indisunique
+        and i.indkey::int2[] @> con.conkey and con.conkey @> i.indkey::int2[]
+    ) as is_one_to_one
+  from pg_constraint con
+  join pg_class child on child.oid = con.conrelid
+  join pg_class parent on parent.oid = con.confrelid
+  join pg_namespace n on n.oid = child.relnamespace
+  where con.contype = 'f' and n.nspname = 'public'
+  order by child.relname, con.conname
+`);
+
+const relsByTable = new Map();
+for (const rel of relationships) {
+  if (!relsByTable.has(rel.table_name)) relsByTable.set(rel.table_name, []);
+  relsByTable.get(rel.table_name).push(rel);
+}
+
 const enumNames = new Set(enums.map((e) => e.name));
 
 /** Map a PostgreSQL type onto the shape supabase-js actually hands back. */
@@ -130,11 +159,22 @@ for (const [table, cols] of [...byTable.entries()].sort()) {
     out.push(`          ${c.column_name}?: ${tsType(c)}${c.nullable ? ' | null' : ''};`);
   }
   out.push('        };');
+  out.push('        Relationships: [');
+  for (const rel of relsByTable.get(table) ?? []) {
+    out.push('          {');
+    out.push(`            foreignKeyName: '${rel.constraint_name}';`);
+    out.push(`            columns: [${rel.columns.map((c) => `'${c}'`).join(', ')}];`);
+    out.push(`            isOneToOne: ${rel.is_one_to_one};`);
+    out.push(`            referencedRelation: '${rel.referenced_relation}';`);
+    out.push(`            referencedColumns: [${rel.referenced_columns.map((c) => `'${c}'`).join(', ')}];`);
+    out.push('          },');
+  }
+  out.push('        ];');
   out.push('      };');
 }
 
 out.push('    };');
-out.push('    Views: Record<string, never>;');
+out.push("    Views: { [_ in never]: never };");
 out.push('    Functions: {');
 out.push('      create_organisation: {');
 out.push('        Args: {');
@@ -148,6 +188,7 @@ out.push('        Returns: string;');
 out.push('      };');
 out.push('    };');
 out.push('    Enums: Enums;');
+out.push("    CompositeTypes: { [_ in never]: never };");
 out.push('  };');
 out.push('}');
 out.push('');

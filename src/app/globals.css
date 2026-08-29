@@ -1,0 +1,338 @@
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Amryn™ AIGrowthIntelligence® — design system
+
+   Brand colours are fixed by the asset pack and are not negotiable per theme:
+     #004AAD  brand blue      — primary, on light surfaces
+     #081B33  dark navy       — the intelligence environment
+     #3E7BD6  lifted blue     — on navy only; brand blue disappears there
+
+   Three themes ship, as the specification requires: light, medium and dark.
+   Every colour below is a token. No component hard-codes a hex value, which is
+   what makes a third theme a data change rather than a rewrite.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  --font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius-card: 14px;
+  --radius-tile: 12px;
+  --radius-pill: 999px;
+}
+
+/* ── light (default) ────────────────────────────────────────────────────── */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --card-elevated: #ffffff;
+  --card-inset: #f5f7fa;
+
+  --text-primary: #1a2332;
+  --text-secondary: #6b7c93;
+  --text-tertiary: #94a3b8;
+  --text-inverse: #ffffff;
+
+  --brand: #004aad;
+  --brand-strong: #003a87;
+  --brand-soft: #e8eef8;
+  --on-brand: #ffffff;
+
+  --accent: #00c9a7;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --positive: #0d9488;
+  --positive-soft: #e6f7f4;
+  --warning: #b45309;
+  --warning-soft: #fdf3e4;
+  --negative: #dc2626;
+  --negative-soft: #fdeaea;
+  --info: #3b82f6;
+  --info-soft: #e8f0fe;
+
+  --chart-1: #004aad;
+  --chart-2: #3b82f6;
+  --chart-3: #6366f1;
+  --chart-4: #8b5cf6;
+  --chart-5: #00c9a7;
+  --chart-grid: #eef2f7;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-lift: 0 4px 12px rgb(16 24 40 / 0.08), 0 2px 4px rgb(16 24 40 / 0.04);
+  --shadow-pop: 0 12px 32px rgb(16 24 40 / 0.14);
+}
+
+/* ── medium: the daytime intelligence environment ───────────────────────── */
+:root[data-theme='medium'] {
+  color-scheme: light;
+
+  --bg: #e8eef5;
+  --surface: #f7f9fc;
+  --card: #ffffff;
+  --card-elevated: #ffffff;
+  --card-inset: #eef3f9;
+
+  --text-primary: #12213a;
+  --text-secondary: #5a6b84;
+  --text-tertiary: #8095ae;
+  --text-inverse: #ffffff;
+
+  --brand: #004aad;
+  --brand-strong: #003a87;
+  --brand-soft: #dde8f7;
+  --on-brand: #ffffff;
+
+  --accent: #00b294;
+  --border: #d3dde9;
+  --border-strong: #b8c7d8;
+
+  --positive: #0b8a75;
+  --positive-soft: #ddf2ed;
+  --warning: #a3560a;
+  --warning-soft: #fbeed8;
+  --negative: #c62828;
+  --negative-soft: #fadedd;
+  --info: #2f6fd0;
+  --info-soft: #dde9fb;
+
+  --chart-1: #004aad;
+  --chart-2: #3b82f6;
+  --chart-3: #6366f1;
+  --chart-4: #8b5cf6;
+  --chart-5: #00c9a7;
+  --chart-grid: #dde5ee;
+
+  --shadow-card: 0 1px 2px rgb(8 27 51 / 0.06), 0 1px 3px rgb(8 27 51 / 0.08);
+  --shadow-lift: 0 4px 14px rgb(8 27 51 / 0.10), 0 2px 4px rgb(8 27 51 / 0.06);
+  --shadow-pop: 0 12px 32px rgb(8 27 51 / 0.18);
+}
+
+/* ── dark ───────────────────────────────────────────────────────────────── */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #081b33;
+  --surface: #0f243f;
+  --card: #132037;
+  --card-elevated: #1a2a45;
+  --card-inset: #0d1c31;
+
+  --text-primary: #ffffff;
+  --text-secondary: #8ba3c7;
+  --text-tertiary: #64799a;
+  --text-inverse: #081b33;
+
+  /* Brand blue is near-invisible on navy; the pack's lifted blue takes over. */
+  --brand: #3e7bd6;
+  --brand-strong: #5a92e3;
+  --brand-soft: #12294a;
+  --on-brand: #ffffff;
+
+  --accent: #00d4aa;
+  --border: #1e3a5f;
+  --border-strong: #2b4d78;
+
+  --positive: #00d4aa;
+  --positive-soft: #0c3040;
+  --warning: #f59e0b;
+  --warning-soft: #3a2c14;
+  --negative: #ef6a6a;
+  --negative-soft: #3a1d21;
+  --info: #3b82f6;
+  --info-soft: #12294a;
+
+  --chart-1: #00c9a7;
+  --chart-2: #3b82f6;
+  --chart-3: #6366f1;
+  --chart-4: #8b5cf6;
+  --chart-5: #3e7bd6;
+  --chart-grid: #17304f;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.30);
+  --shadow-lift: 0 6px 18px rgb(0 0 0 / 0.38);
+  --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.50);
+}
+
+/* Viewers who never chose a theme follow their system. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg: #081b33;
+    --surface: #0f243f;
+    --card: #132037;
+    --card-elevated: #1a2a45;
+    --card-inset: #0d1c31;
+
+    --text-primary: #ffffff;
+    --text-secondary: #8ba3c7;
+    --text-tertiary: #64799a;
+    --text-inverse: #081b33;
+
+    --brand: #3e7bd6;
+    --brand-strong: #5a92e3;
+    --brand-soft: #12294a;
+
+    --accent: #00d4aa;
+    --border: #1e3a5f;
+    --border-strong: #2b4d78;
+
+    --positive: #00d4aa;
+    --positive-soft: #0c3040;
+    --warning: #f59e0b;
+    --warning-soft: #3a2c14;
+    --negative: #ef6a6a;
+    --negative-soft: #3a1d21;
+    --info: #3b82f6;
+    --info-soft: #12294a;
+
+    --chart-1: #00c9a7;
+    --chart-2: #3b82f6;
+    --chart-3: #6366f1;
+    --chart-4: #8b5cf6;
+    --chart-5: #3e7bd6;
+    --chart-grid: #17304f;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.30);
+    --shadow-lift: 0 6px 18px rgb(0 0 0 / 0.38);
+    --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.50);
+  }
+}
+
+/* Expose the tokens to Tailwind's utility generator. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-elevated: var(--card-elevated);
+  --color-card-inset: var(--card-inset);
+
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-tertiary: var(--text-tertiary);
+  --color-inverse: var(--text-inverse);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+
+  --color-accent: var(--accent);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* The specification asks for subtle motion, and never at the cost of
+     someone who has asked the operating system for less of it. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Trademark superscripts: part of the mark, never scaled with the text. */
+  .tm {
+    font-size: 0.55em;
+    vertical-align: 0.5em;
+    letter-spacing: 0;
+    font-weight: 500;
+  }
+
+  .numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+}
+
+/* ── intelligence-specific loading states (specification §33) ───────────── */
+
+@keyframes amryn-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes amryn-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes amryn-radar {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes amryn-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--brand) 12%, transparent), transparent);
+  animation: amryn-sweep 1.6s ease-in-out infinite;
+}
+
+.animate-radar { animation: amryn-radar 4s linear infinite; transform-origin: center; }
+.animate-rise { animation: amryn-rise 0.35s ease-out both; }
+.animate-soft-pulse { animation: amryn-pulse 1.8s ease-in-out infinite; }

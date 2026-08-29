@@ -59,6 +59,22 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'ai_conversations_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_conversations_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       ai_messages: {
         Row: {
@@ -100,6 +116,22 @@ export interface Database {
           model?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'ai_messages_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'ai_conversations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_messages_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       ai_recommendations: {
         Row: {
@@ -171,6 +203,36 @@ export interface Database {
           updated_at?: string;
           expires_on?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'ai_recommendations_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_recommendations_opportunity_id_fkey';
+            columns: ['opportunity_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunities';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_recommendations_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_recommendations_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       alerts: {
         Row: {
@@ -230,6 +292,57 @@ export interface Database {
           resolved_at?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'alerts_assignee_id_fkey';
+            columns: ['assignee_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'alerts_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'alerts_business_event_id_fkey';
+            columns: ['business_event_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_events';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'alerts_department_id_fkey';
+            columns: ['department_id'];
+            isOneToOne: false;
+            referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'alerts_opportunity_id_fkey';
+            columns: ['opportunity_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunities';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'alerts_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'alerts_risk_id_fkey';
+            columns: ['risk_id'];
+            isOneToOne: false;
+            referencedRelation: 'risks';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       audit_logs: {
         Row: {
@@ -271,6 +384,22 @@ export interface Database {
           user_agent?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'audit_logs_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'audit_logs_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       billing_records: {
         Row: {
@@ -309,6 +438,15 @@ export interface Database {
           external_ref?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'billing_records_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       branches: {
         Row: {
@@ -350,6 +488,22 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'branches_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'branches_region_id_fkey';
+            columns: ['region_id'];
+            isOneToOne: false;
+            referencedRelation: 'regions';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       business_events: {
         Row: {
@@ -394,6 +548,36 @@ export interface Database {
           occurred_at?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'business_events_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_events_department_id_fkey';
+            columns: ['department_id'];
+            isOneToOne: false;
+            referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_events_metric_id_fkey';
+            columns: ['metric_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_metrics';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_events_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       business_health_scores: {
         Row: {
@@ -432,6 +616,22 @@ export interface Database {
           calculated_for?: string;
           calculated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'business_health_scores_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_health_scores_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       business_insights: {
         Row: {
@@ -485,6 +685,22 @@ export interface Database {
           valid_to?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'business_insights_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_insights_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       business_metrics: {
         Row: {
@@ -532,6 +748,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'business_metrics_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       competitor_events: {
         Row: {
@@ -570,6 +795,22 @@ export interface Database {
           observed_on?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'competitor_events_competitor_id_fkey';
+            columns: ['competitor_id'];
+            isOneToOne: false;
+            referencedRelation: 'competitors';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'competitor_events_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       competitors: {
         Row: {
@@ -608,6 +849,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'competitors_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       data_connections: {
         Row: {
@@ -655,6 +905,22 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'data_connections_data_source_id_fkey';
+            columns: ['data_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_connections_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       data_health_checks: {
         Row: {
@@ -687,6 +953,22 @@ export interface Database {
           missing_fields?: string[];
           checked_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'data_health_checks_data_source_id_fkey';
+            columns: ['data_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_health_checks_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       data_imports: {
         Row: {
@@ -737,6 +1019,29 @@ export interface Database {
           created_at?: string;
           completed_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'data_imports_data_source_id_fkey';
+            columns: ['data_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_imports_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_imports_uploaded_by_fkey';
+            columns: ['uploaded_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       data_sources: {
         Row: {
@@ -775,6 +1080,22 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'data_sources_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_sources_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       departments: {
         Row: {
@@ -807,6 +1128,22 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'departments_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'departments_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       financial_records: {
         Row: {
@@ -854,6 +1191,36 @@ export interface Database {
           data_source_id?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'financial_records_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'financial_records_data_source_id_fkey';
+            columns: ['data_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'financial_records_department_id_fkey';
+            columns: ['department_id'];
+            isOneToOne: false;
+            referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'financial_records_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       goal_progress: {
         Row: {
@@ -886,6 +1253,29 @@ export interface Database {
           recorded_by?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'goal_progress_goal_id_fkey';
+            columns: ['goal_id'];
+            isOneToOne: false;
+            referencedRelation: 'goals';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'goal_progress_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'goal_progress_recorded_by_fkey';
+            columns: ['recorded_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       goals: {
         Row: {
@@ -945,6 +1335,43 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'goals_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'goals_department_id_fkey';
+            columns: ['department_id'];
+            isOneToOne: false;
+            referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'goals_metric_id_fkey';
+            columns: ['metric_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_metrics';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'goals_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'goals_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       health_score_weights: {
         Row: {
@@ -965,6 +1392,15 @@ export interface Database {
           weight?: number;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'health_score_weights_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       market_signals: {
         Row: {
@@ -1018,6 +1454,22 @@ export interface Database {
           observed_at?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'market_signals_market_source_id_fkey';
+            columns: ['market_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'market_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'market_signals_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       market_sources: {
         Row: {
@@ -1059,6 +1511,15 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'market_sources_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       member_permission_overrides: {
         Row: {
@@ -1085,6 +1546,29 @@ export interface Database {
           granted?: boolean;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'member_permission_overrides_member_id_fkey';
+            columns: ['member_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisation_members';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'member_permission_overrides_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'member_permission_overrides_permission_key_fkey';
+            columns: ['permission_key'];
+            isOneToOne: false;
+            referencedRelation: 'permissions';
+            referencedColumns: ['key'];
+          },
+        ];
       };
       metric_values: {
         Row: {
@@ -1126,6 +1610,43 @@ export interface Database {
           data_source_id?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'metric_values_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'metric_values_data_source_id_fkey';
+            columns: ['data_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'metric_values_department_id_fkey';
+            columns: ['department_id'];
+            isOneToOne: false;
+            referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'metric_values_metric_id_fkey';
+            columns: ['metric_id'];
+            isOneToOne: false;
+            referencedRelation: 'business_metrics';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'metric_values_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       notifications: {
         Row: {
@@ -1161,6 +1682,22 @@ export interface Database {
           read_at?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'notifications_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       operational_records: {
         Row: {
@@ -1199,6 +1736,36 @@ export interface Database {
           data_source_id?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'operational_records_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'operational_records_data_source_id_fkey';
+            columns: ['data_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'operational_records_department_id_fkey';
+            columns: ['department_id'];
+            isOneToOne: false;
+            referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'operational_records_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       opportunities: {
         Row: {
@@ -1273,6 +1840,22 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'opportunities_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunities_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       opportunity_activities: {
         Row: {
@@ -1305,6 +1888,29 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'opportunity_activities_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunity_activities_opportunity_id_fkey';
+            columns: ['opportunity_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunities';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunity_activities_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       opportunity_assignments: {
         Row: {
@@ -1340,6 +1946,36 @@ export interface Database {
           released_at?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'opportunity_assignments_assigned_by_fkey';
+            columns: ['assigned_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunity_assignments_assignee_id_fkey';
+            columns: ['assignee_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunity_assignments_opportunity_id_fkey';
+            columns: ['opportunity_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunities';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunity_assignments_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       opportunity_score_weights: {
         Row: {
@@ -1357,6 +1993,15 @@ export interface Database {
           weights?: Json;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'opportunity_score_weights_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: true;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       opportunity_scores: {
         Row: {
@@ -1404,6 +2049,22 @@ export interface Database {
           rationale?: string | null;
           scored_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'opportunity_scores_opportunity_id_fkey';
+            columns: ['opportunity_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunities';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunity_scores_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       organisation_members: {
         Row: {
@@ -1448,6 +2109,29 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'organisation_members_invited_by_fkey';
+            columns: ['invited_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'organisation_members_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'organisation_members_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       organisations: {
         Row: {
@@ -1495,6 +2179,8 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
         };
+        Relationships: [
+        ];
       };
       permissions: {
         Row: {
@@ -1512,6 +2198,8 @@ export interface Database {
           category?: string;
           description?: string;
         };
+        Relationships: [
+        ];
       };
       regions: {
         Row: {
@@ -1541,6 +2229,15 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'regions_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       reports: {
         Row: {
@@ -1579,6 +2276,22 @@ export interface Database {
           generated_by?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'reports_generated_by_fkey';
+            columns: ['generated_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reports_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       risk_events: {
         Row: {
@@ -1611,6 +2324,29 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'risk_events_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'risk_events_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'risk_events_risk_id_fkey';
+            columns: ['risk_id'];
+            isOneToOne: false;
+            referencedRelation: 'risks';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       risks: {
         Row: {
@@ -1664,6 +2400,29 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'risks_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'risks_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'risks_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       role_permissions: {
         Row: {
@@ -1678,6 +2437,15 @@ export interface Database {
           role?: Enums['org_role'];
           permission_key?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'role_permissions_permission_key_fkey';
+            columns: ['permission_key'];
+            isOneToOne: false;
+            referencedRelation: 'permissions';
+            referencedColumns: ['key'];
+          },
+        ];
       };
       sales_records: {
         Row: {
@@ -1728,6 +2496,36 @@ export interface Database {
           data_source_id?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'sales_records_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_records_data_source_id_fkey';
+            columns: ['data_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_records_department_id_fkey';
+            columns: ['department_id'];
+            isOneToOne: false;
+            referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_records_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       strategic_initiatives: {
         Row: {
@@ -1772,6 +2570,22 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'strategic_initiatives_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'strategic_initiatives_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       subscriptions: {
         Row: {
@@ -1825,6 +2639,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'subscriptions_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: true;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       user_profiles: {
         Row: {
@@ -1863,9 +2686,18 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'user_profiles_id_fkey';
+            columns: ['id'];
+            isOneToOne: true;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
-    Views: Record<string, never>;
+    Views: { [_ in never]: never };
     Functions: {
       create_organisation: {
         Args: {
@@ -1879,6 +2711,7 @@ export interface Database {
       };
     };
     Enums: Enums;
+    CompositeTypes: { [_ in never]: never };
   };
 }
 
