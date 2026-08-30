@@ -82,9 +82,12 @@ Two different things, kept apart deliberately:
 
 ### Deploying
 
-Vercel, root directory. Set `NEXT_PUBLIC_SUPABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_SITE_URL`; add `AI_API_KEY`
-when you want conversational answers and cross-cutting recommendations.
+Vercel, root directory. Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+`NEXT_PUBLIC_SITE_URL`; add `AI_API_KEY` when you want conversational answers
+and cross-cutting recommendations.
+
+`NEXT_PUBLIC_SUPABASE_URL` is optional — it is derived from the anon key, which
+names its own project in a public claim. Set it only for a custom domain.
 
 ### Supabase configuration
 
@@ -156,11 +159,16 @@ request. No secrets are stored in GitHub and there is no workflow to maintain.
    page explains what is still missing rather than erroring.
 
 2. **Add the environment variables** under Project → Settings → Environment
-   Variables, from `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_SITE_URL` set to the
-   deployment's own URL. Redeploy to pick them up.
+   Variables, from `.env.example`: `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
+   `NEXT_PUBLIC_SITE_URL` set to the deployment's own URL. Redeploy to pick
+   them up.
 
-   Keep the `NEXT_PUBLIC_` prefix on those three. They are meant to reach the
+   `NEXT_PUBLIC_SUPABASE_URL` is not in that list on purpose. It is worked out
+   from the anon key, so there is no second value to get wrong — requiring two
+   settings that must agree is what produced a live deployment answering
+   "Invalid API key" while both settings looked plausible.
+
+   Keep the `NEXT_PUBLIC_` prefix on the ones you do set. They are meant to reach the
    browser — the anon key grants nothing on its own, since Row Level Security
    decides every row it can read. `SUPABASE_SERVICE_ROLE_KEY` is the one that
    must never be public, and it is deliberately unprefixed.

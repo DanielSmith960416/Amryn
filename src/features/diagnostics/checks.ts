@@ -22,7 +22,7 @@ import 'server-only';
  * never by value.
  */
 import { createClient } from '@/lib/supabase/server';
-import { aiConfig, siteUrl, supabaseConfigError } from '@/lib/env';
+import { aiConfig, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped';
@@ -97,24 +97,38 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
   // Report per variable. A single lumped verdict blamed "Supabase
   // configuration" for a fault in NEXT_PUBLIC_SITE_URL, which sent the reader
   // to check two settings that were already correct.
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  // The resolved URL, not the raw variable: an unset URL is derived from the
+  // anon key, and one that contradicts the key defers to it. Reporting the raw
+  // value here would describe a setting the application is not using.
+  const resolved = resolveSupabaseUrl();
+  const supabaseUrl = resolved.url;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
   const configuration: Check[] = [
     {
       name: 'Supabase project URL',
-      status: !supabaseUrl ? 'fail' : isUrl(supabaseUrl) ? 'ok' : 'fail',
+      status: !supabaseUrl
+        ? 'fail'
+        : !isUrl(supabaseUrl)
+          ? 'fail'
+          : resolved.source === 'corrected'
+            ? 'warn'
+            : 'ok',
       detail: !supabaseUrl
-        ? 'NEXT_PUBLIC_SUPABASE_URL is not set.'
-        : isUrl(supabaseUrl)
-          ? `Set to ${supabaseUrl}.`
-          : `Set to “${supabaseUrl}”, which is not a valid URL.`,
+        ? 'NEXT_PUBLIC_SUPABASE_URL is not set, and there is no anon key to work it out from.'
+        : !isUrl(supabaseUrl)
+          ? `Set to “${supabaseUrl}”, which is not a valid URL.`
+          : resolved.source === 'configured'
+            ? `Set to ${supabaseUrl}.`
+            : `Using ${supabaseUrl}. ${resolved.note}`,
       remedy: !supabaseUrl
-        ? 'Set it to your project URL, then redeploy — values added after a build are not in the bundle until the next one.'
-        : isUrl(supabaseUrl)
-          ? undefined
-          : 'It must be the full address including https:// — for example https://your-project.supabase.co',
+        ? 'Set the anon key — the URL is worked out from it. Then redeploy: values added after a build are not in the bundle until the next one.'
+        : !isUrl(supabaseUrl)
+          ? 'It must be the full address including https:// — for example https://your-project.supabase.co'
+          : resolved.source === 'corrected'
+            ? 'The application is working regardless. Clearing NEXT_PUBLIC_SUPABASE_URL entirely is the tidiest fix — it is optional.'
+            : undefined,
     },
     {
       // Length alone said "long enough to be a real key" about a key Supabase

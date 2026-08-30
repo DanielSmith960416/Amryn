@@ -8,6 +8,7 @@
  *      a leaked service-role key.
  */
 import { z } from 'zod';
+import { inspectKey, projectRefFromUrl } from '@/lib/supabase/key-info';
 
 /**
  * An unset variable and one set to an empty string are the same intent, and
@@ -19,6 +20,65 @@ import { z } from 'zod';
 function present(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Where the Supabase project URL comes from.
+ *
+ * It does not have to be a setting at all. An anon key is a JWT the project
+ * signs, and one of its public claims is the project's own reference — so a
+ * correct key already knows which project it belongs to, and the URL can be
+ * derived from it.
+ *
+ * This exists because requiring two settings that must agree is a design that
+ * manufactures a failure mode: paste the pair from two different projects and
+ * every request is answered "Invalid API key", which names neither setting.
+ * One value cannot disagree with itself.
+ *
+ * So: an unset URL is derived, and a URL that contradicts the key defers to the
+ * key. That second case is not a preference. A key issued for project A cannot
+ * authenticate against project B under any circumstances, so the key's own
+ * project is the only pairing with a chance of working — and it is announced
+ * rather than done quietly.
+ */
+export type UrlSource = 'configured' | 'derived' | 'corrected';
+
+export interface ResolvedUrl {
+  url: string | undefined;
+  source: UrlSource;
+  /** What was done and why, when it was not simply taken as given. */
+  note?: string;
+}
+
+export function resolveSupabaseUrl(): ResolvedUrl {
+  const configured = present(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const key = present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const ref = key ? inspectKey(key).ref : null;
+  const fromKey = ref ? `https://${ref}.supabase.co` : undefined;
+
+  if (!configured) {
+    return fromKey
+      ? {
+          url: fromKey,
+          source: 'derived',
+          note: `Derived from the anon key, which was issued for project “${ref}”.`,
+        }
+      : { url: undefined, source: 'configured' };
+  }
+
+  const configuredRef = projectRefFromUrl(configured);
+  if (fromKey && configuredRef && ref && configuredRef !== ref) {
+    return {
+      url: fromKey,
+      source: 'corrected',
+      note:
+        `NEXT_PUBLIC_SUPABASE_URL names project “${configuredRef}”, but the anon key was ` +
+        `issued for “${ref}”. A key cannot authenticate against another project, so the ` +
+        `key’s project is being used. Correct the URL to match, or clear it — it is optional.`,
+    };
+  }
+
+  return { url: configured, source: 'configured' };
 }
 
 const publicSchema = z.object({
@@ -42,7 +102,7 @@ export type PublicEnv = z.infer<typeof publicSchema>;
  */
 export function publicEnv(): PublicEnv {
   const parsed = publicSchema.safeParse({
-    NEXT_PUBLIC_SUPABASE_URL: present(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    NEXT_PUBLIC_SUPABASE_URL: resolveSupabaseUrl().url,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
     NEXT_PUBLIC_SITE_URL: present(process.env.NEXT_PUBLIC_SITE_URL),
   });
@@ -67,14 +127,19 @@ export function publicEnv(): PublicEnv {
  * `publicEnv()`, turning a typo into a server-side exception.
  */
 export function supabaseConfigError(): string | null {
-  const url = present(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  // The resolved URL, not the raw variable — otherwise this reports a missing
+  // setting that publicEnv() goes on to derive, and the two disagree again.
+  const url = resolveSupabaseUrl().url;
   const key = present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-  const missing: string[] = [];
-  if (!url) missing.push('NEXT_PUBLIC_SUPABASE_URL');
-  if (!key) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  if (missing.length > 0) {
-    return `${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} not set.`;
+  if (!key) {
+    return 'NEXT_PUBLIC_SUPABASE_ANON_KEY is not set.';
+  }
+  if (!url) {
+    return (
+      'NEXT_PUBLIC_SUPABASE_URL is not set, and could not be worked out from the anon key. ' +
+      'Set the URL, or use a key that names its project.'
+    );
   }
 
   const parsed = publicSchema.safeParse({
