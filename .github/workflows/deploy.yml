@@ -1,3 +1,6 @@
+# Action majors are pinned deliberately. GitHub forces actions targeting
+# Node 20 onto Node 24 and warns; when Node 20 support is removed outright,
+# a workflow left on the old majors stops running rather than warning.
 name: Deploy /docs to GitHub Pages
 
 on:
@@ -24,16 +27,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload the /docs folder
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./docs
 
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
