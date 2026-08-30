@@ -25,7 +25,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </Link>
 
         <div className="relative max-w-md">
-          <p className="font-mono text-[0.6875rem] tracking-[0.16em] text-[#3E7BD6] uppercase">
+          {/* Not uppercased: the brand pack sets the solid capitalisation as
+              part of the mark, so AIGrowthIntelligence® must never be
+              transformed. The tracking carries the eyebrow treatment instead. */}
+          <p className="font-mono text-[0.6875rem] tracking-[0.16em] text-[#3E7BD6]">
             AIGrowthIntelligence<span className="tm">®</span> Software
           </p>
           <h1 className="font-display mt-4 text-[2.25rem] leading-[1.1] font-bold tracking-tight text-white">
