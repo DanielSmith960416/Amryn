@@ -23,13 +23,8 @@ export async function signOut(): Promise<void> {
 
 import { credentialsSchema, magicLinkSchema, signUpSchema, type ActionState } from './schemas';
 import { siteUrl } from '@/lib/env';
+import { classifyAuthError, signInErrorMessage } from './errors';
 
-/**
- * Errors are deliberately vague about *which* half was wrong: telling an
- * attacker that an address exists but the password is wrong turns a login form
- * into an account-enumeration tool.
- */
-const INVALID_CREDENTIALS = 'That email and password combination was not recognised.';
 
 export async function signInWithPassword(
   _previous: ActionState,
@@ -46,7 +41,10 @@ export async function signInWithPassword(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { status: 'error', message: INVALID_CREDENTIALS };
+  // Not every failure here is a wrong password. Sending someone to retype
+  // correct details because the deployment's API key was rejected is worse
+  // than saying so.
+  if (error) return { status: 'error', message: signInErrorMessage(error.message) };
 
   revalidatePath('/', 'layout');
   redirect('/command-centre');
@@ -76,7 +74,9 @@ export async function signUpWithPassword(
     },
   });
 
-  if (error) return { status: 'error', message: error.message };
+  // error.message verbatim is how "Invalid API key" came to be printed under
+  // the password field, as though the reader had typed one.
+  if (error) return { status: 'error', message: classifyAuthError(error.message).message };
 
   return {
     status: 'sent',
@@ -99,9 +99,17 @@ export async function signInWithMagicLink(
     options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
   });
 
-  if (error) return { status: 'error', message: error.message };
+  if (error) {
+    const fault = classifyAuthError(error.message);
+    // A configuration fault is not an enumeration risk — the request never
+    // reached the point of looking an address up — so it is reported plainly.
+    if (fault.kind === 'configuration' || fault.kind === 'service') {
+      return { status: 'error', message: fault.message };
+    }
+  }
 
-  // Same message whether or not the address exists, for the same reason as above.
+  // Same message whether or not the address exists, so the form cannot be used
+  // to discover which addresses have accounts.
   return { status: 'sent', message: 'If that address has an account, a sign-in link is on its way.' };
 }
 

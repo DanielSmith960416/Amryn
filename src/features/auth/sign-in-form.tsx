@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/field';
 import { signInWithMagicLink, signInWithPassword, signInWithProvider } from './actions';
 import type { ActionState } from './schemas';
+import { AuthError } from './auth-error';
 
 const idle: ActionState = { status: 'idle' };
 
@@ -45,9 +46,7 @@ export function SignInForm() {
         ) : null}
 
         {state.status === 'error' ? (
-          <p className="text-[0.8125rem] text-[var(--negative)]" role="alert">
-            {state.message}
-          </p>
+          <AuthError message={state.message} />
         ) : null}
 
         {state.status === 'sent' ? (

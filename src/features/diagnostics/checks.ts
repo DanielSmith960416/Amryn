@@ -23,6 +23,7 @@ import 'server-only';
  */
 import { createClient } from '@/lib/supabase/server';
 import { aiConfig, siteUrl, supabaseConfigError } from '@/lib/env';
+import { judgeAnonKey } from '@/lib/supabase/key-info';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped';
 
@@ -116,18 +117,12 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
           : 'It must be the full address including https:// — for example https://your-project.supabase.co',
     },
     {
+      // Length alone said "long enough to be a real key" about a key Supabase
+      // was rejecting outright. judgeAnonKey reads what the key says about
+      // itself — which project issued it, which role it carries, when it
+      // expires — and reports the specific fault instead.
       name: 'Supabase anon key',
-      status: anonKey && anonKey.length >= 20 ? 'ok' : 'fail',
-      detail:
-        anonKey && anonKey.length >= 20
-          ? 'Present, and long enough to be a real key.'
-          : anonKey
-            ? `Set, but only ${anonKey.length} characters — an anon key is several hundred.`
-            : 'NEXT_PUBLIC_SUPABASE_ANON_KEY is not set.',
-      remedy:
-        anonKey && anonKey.length >= 20
-          ? undefined
-          : 'Copy the anon public key from Supabase → Settings → API, then redeploy.',
+      ...judgeAnonKey(anonKey, supabaseUrl),
     },
     {
       name: 'Site URL',
