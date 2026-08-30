@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/field';
 import { signUpWithPassword } from './actions';
 import type { ActionState } from './schemas';
+import { AuthError } from './auth-error';
 
 export function SignUpForm() {
   const [state, action] = useActionState(signUpWithPassword, { status: 'idle' } as ActionState);
@@ -47,9 +48,7 @@ export function SignUpForm() {
       </div>
 
       {state.status === 'error' ? (
-        <p className="text-[0.8125rem] text-[var(--negative)]" role="alert">
-          {state.message}
-        </p>
+        <AuthError message={state.message} />
       ) : null}
 
       <Submit />
