@@ -9,7 +9,7 @@
      [data-app-link] on the page is revealed and pointed at it.
      Left empty, those links stay hidden — a marketing site with a
      "Sign in" button that 404s is worse than one without.       */
-  var APP_URL = '';
+  var APP_URL = 'https://amryn.vercel.app';
 
   (function wireAppLinks() {
     var links = document.querySelectorAll('[data-app-link]');

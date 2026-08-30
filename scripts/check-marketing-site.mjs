@@ -40,20 +40,24 @@ function assert(condition, message) {
   }
 }
 
-/** Copies the site to a temp dir, optionally setting APP_URL, and loads it. */
+const APP_URL_ASSIGNMENT = /var APP_URL = '[^']*';/;
+
+/**
+ * Copies the site to a temp dir, forces APP_URL to the given value, and loads
+ * it. Both states are exercised whatever the committed value happens to be, so
+ * setting a real deployment URL does not silently retire the hidden-link case.
+ */
 async function withSite(appUrl, run) {
   const dir = mkdtempSync(join(tmpdir(), 'amryn-site-'));
   cpSync(docs, dir, { recursive: true });
 
-  if (appUrl) {
-    const source = readFileSync(join(dir, 'app.js'), 'utf8');
-    const patched = source.replace("var APP_URL = '';", `var APP_URL = '${appUrl}';`);
-    if (patched === source) {
-      console.log('  FAIL  could not find APP_URL in app.js to patch');
-      failures += 1;
-    }
-    writeFileSync(join(dir, 'app.js'), patched);
+  const source = readFileSync(join(dir, 'app.js'), 'utf8');
+  const patched = source.replace(APP_URL_ASSIGNMENT, `var APP_URL = '${appUrl}';`);
+  if (patched === source && !APP_URL_ASSIGNMENT.test(source)) {
+    console.log('  FAIL  could not find the APP_URL assignment in app.js to patch');
+    failures += 1;
   }
+  writeFileSync(join(dir, 'app.js'), patched);
 
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
@@ -131,6 +135,25 @@ await withSite('', async (page) => {
   const text = await page.evaluate(() => document.body.textContent.replace(/\s+/g, ' '));
   assert(/tender/i.test(text), 'tenders appear as customer opportunities on the page');
 });
+
+console.log('\nAs committed — whatever APP_URL is currently set to');
+{
+  const committed = readFileSync(join(docs, 'app.js'), 'utf8').match(APP_URL_ASSIGNMENT)?.[0];
+  const value = committed?.match(/'([^']*)'/)?.[1] ?? null;
+
+  assert(value !== null, 'app.js declares an APP_URL');
+
+  if (value) {
+    assert(
+      /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(value),
+      `APP_URL is an absolute https URL (${value})`,
+    );
+    assert(!value.endsWith('//'), 'APP_URL has no trailing double slash');
+    console.log(`  note  platform links resolve to ${value.replace(/\/+$/, '')}/sign-in and /sign-up`);
+  } else {
+    console.log('  note  APP_URL is empty, so the platform links stay hidden');
+  }
+}
 
 await browser.close();
 console.log(failures === 0 ? '\nmarketing site checks passed\n' : `\n${failures} check(s) failed\n`);

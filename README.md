@@ -88,15 +88,19 @@ when you want conversational answers and cross-cutting recommendations.
 
 ## Linking the two
 
-The marketing site's "Sign in" and "Open the platform" links stay **hidden**
-until you set one constant, near the top of `docs/app.js`:
+The marketing site's "Sign in" and "Open the platform" links are driven by one
+constant near the top of `docs/app.js`:
 
 ```js
-var APP_URL = 'https://your-deployment.vercel.app';
+var APP_URL = 'https://amryn.vercel.app';
 ```
 
 Left empty they stay hidden, because a marketing site with a Sign in button
-that 404s is worse than one without. `npm run check:site` verifies both states.
+that 404s is worse than one without. `npm run check:site` exercises both states
+and reports what the committed value resolves to.
+
+Change it if the deployment moves — a custom domain, a different project name —
+and nothing else needs touching.
 
 ---
 
