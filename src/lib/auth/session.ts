@@ -42,10 +42,18 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   // throwing a server-side exception on every route.
   if (!isSupabaseConfigured()) return null;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user;
+  // The same guard the middleware carries. An upstream failure — Supabase
+  // unreachable, a rejected key, a network blip — should cost a redirect to
+  // sign-in, not a server-side exception on whichever page the caller was on.
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return null;
+    return data.user;
+  } catch (error) {
+    console.error('[amryn:auth] could not resolve the current user', error);
+    return null;
+  }
 });
 
 export async function requireUser(): Promise<User> {
