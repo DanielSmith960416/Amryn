@@ -2707,10 +2707,14 @@ export interface Database {
           p_name: string;
           p_slug: string;
           p_industry?: string | null;
-          p_country_code?: string;
-          p_currency_code?: string;
+          p_country_code?: string | null;
+          p_currency_code?: string | null;
         };
         Returns: string;
+      };
+      ensure_user_profile: {
+        Args: Record<string, never>;
+        Returns: undefined;
       };
     };
     Enums: Enums;
