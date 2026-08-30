@@ -65,6 +65,37 @@ with checks as (
   select 10, 'amryn schema hidden from anon', count(*)::text, '0', count(*) = 0
     from information_schema.role_usage_grants
    where object_schema = 'amryn' and grantee = 'anon'
+
+  -- Nothing between signing up and using the platform matters more than this
+  -- one call, and it is the one that failed in production. Exactly one, so a
+  -- leftover overload cannot make the call ambiguous.
+  union all
+  select 11, 'create_organisation exists, once (migration 08)', count(*)::text, '1', count(*) = 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'create_organisation'
+
+  union all
+  select 12, 'its parameters are all text (migration 08)',
+         coalesce((select string_agg(distinct t::regtype::text, ',')
+                     from pg_proc p
+                     join pg_namespace n on n.oid = p.pronamespace
+                     cross join lateral unnest(p.proargtypes) as t
+                    where n.nspname = 'public' and p.proname = 'create_organisation'), 'none'),
+         'text',
+         (select bool_and(t = 'text'::regtype)
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            cross join lateral unnest(p.proargtypes) as t
+           where n.nspname = 'public' and p.proname = 'create_organisation')
+
+  union all
+  select 13, 'authenticated may call it (migration 08)',
+         has_function_privilege('authenticated',
+           'public.create_organisation(text,text,text,text,text)', 'execute')::text,
+         'true',
+         has_function_privilege('authenticated',
+           'public.create_organisation(text,text,text,text,text)', 'execute')
 )
 select item, found, expected,
        case when ok then 'OK' else 'CHECK THIS' end as status
