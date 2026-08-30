@@ -1,0 +1,43 @@
+AMRYN(TM) AIGrowthIntelligence(R) - BRAND ASSET PACK v1.0
+Generated from founder-supplied source PNGs. Backgrounds keyed to transparency,
+trimmed to the mark, colours un-multiplied so edges stay clean at any size.
+
+FILE NAMING
+  <name>.png      standard resolution
+  <name>@2x.png   double resolution (use for print / large format)
+  <name>-ondark   reversed for dark navy backgrounds (#081B33)
+                  black elements -> white, brand blue lifted to #3E7BD6
+                  for contrast on navy
+
+LOCKUPS
+  amryn-lockup-primary        icon + AMRYN(TM) + AIGrowthIntelligence(R) Software
+  amryn-lockup-secondary      icon + AMRYN(TM) + AIGrowthIntelligence(R)
+  amryn-icon-mark             A icon mark, original colour
+  amryn-icon-mark-white       single-colour white
+  amryn-icon-mark-navy        single-colour #081B33
+  amryn-icon-mark-blue        single-colour #004AAD
+
+WORDMARKS
+  amryn-wordmark-amryn        AMRYN(TM) only
+  amryn-wordmark-tagline      AIGrowthIntelligence(R) only
+  amryn-wordmark-platform     AIGrowthIntelligence(R) Software
+
+PRODUCT MARKS
+  amryn-product-digital-twin          Amryn(TM) DigitalTwin(R)
+  amryn-product-opportunity-radar     Amryn(TM) OpportunityRadar(R)
+
+USAGE RULES
+  1. Clear space around any lockup = the height of the AMRYN cap height.
+  2. Minimum reproduction width: lockups 90px / 32mm; icon mark 24px / 8mm.
+  3. Never re-colour, stretch, rotate, outline or add effects to the marks.
+  4. On backgrounds darker than 50% luminance use the -ondark variants.
+  5. Product marks are set solid (no space around TM) by design - do not respace.
+  6. Always carry (TM) on Amryn and (R) on AIGrowthIntelligence, DigitalTwin
+     and OpportunityRadar.
+
+PALETTE
+  #004AAD  brand blue (primary)
+  #081B33  dark navy (dark variants, headers, gradients)
+  #3E7BD6  lifted blue (accent on navy only)
+
+(c)2026 Amryn. All Rights Reserved. AIGrowthIntelligence(R)
