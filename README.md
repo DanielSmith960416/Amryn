@@ -112,8 +112,14 @@ resolves to, so you can confirm the links before pushing.
    `NEXT_PUBLIC_SITE_URL` (set that last one to the deployment's own URL).
    Add `AI_API_KEY` when you want conversational answers.
 3. Apply `supabase/migrations/` to your Supabase project in filename order.
-4. Take the deployment URL Vercel assigns and set `APP_URL` above.
-5. `npm run check:site` to confirm, then push.
+4. In Supabase, under **Authentication → URL Configuration**, set the Site URL to
+   the deployment and add `https://<deployment>/auth/callback` to the redirect
+   allow-list. Supabase rejects auth redirects to domains it does not know
+   about, so without this, magic links and Google or Microsoft sign-in fail
+   after the user has already left the page — password sign-in keeps working,
+   which makes it an easy fault to miss.
+5. Take the deployment URL Vercel assigns and set `APP_URL` above.
+6. `npm run check:site` to confirm, then push.
 
 ---
 
