@@ -307,13 +307,39 @@ function checkRowLevelSecurity(): Promise<Check> {
     // Signed out, this must return nothing. A row here would mean tenant
     // isolation is not being enforced, which matters more than any outage.
     const { data, error } = await supabase.from('organisations').select('id').limit(1);
+
     if (error) {
+      // Every error used to be read as proof that the database had refused the
+      // read, and reported green. It is not proof of anything: a refused key,
+      // a paused project and a table that does not exist all produce an error,
+      // and all of them left this check announcing that tenant isolation was
+      // working when it had tested nothing at all.
+      //
+      // A security check must never infer safety from a failure it does not
+      // understand, so only an explicit permission denial counts as evidence.
+      const denied = /permission denied|row-level security|not authorized/i.test(error.message);
+      const missing = /does not exist/i.test(error.message);
+
+      if (denied) {
+        return {
+          name: 'Row Level Security',
+          status: 'ok',
+          detail: 'The database explicitly denied an unauthenticated read, which is correct.',
+        };
+      }
+
       return {
         name: 'Row Level Security',
-        status: 'ok',
-        detail: 'The database refused an unauthenticated read, which is correct.',
+        status: 'fail',
+        detail: missing
+          ? 'Could not be checked: the organisations table does not exist.'
+          : `Could not be checked — ${describe(error.message)}.`,
+        remedy: missing
+          ? 'Apply the files in supabase/migrations in filename order, then reload this page.'
+          : 'Isolation is unverified until this read succeeds. Fix the failures above, then reload this page.',
       };
     }
+
     const leaked = (data ?? []).length > 0;
     return {
       name: 'Row Level Security',
