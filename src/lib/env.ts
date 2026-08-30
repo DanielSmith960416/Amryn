@@ -8,7 +8,7 @@
  *      a leaked service-role key.
  */
 import { z } from 'zod';
-import { inspectKey, projectRefFromUrl } from '@/lib/supabase/key-info';
+import { cleanKey, inspectKey, projectRefFromUrl } from '@/lib/supabase/key-info';
 
 /**
  * An unset variable and one set to an empty string are the same intent, and
@@ -20,6 +20,20 @@ import { inspectKey, projectRefFromUrl } from '@/lib/supabase/key-info';
 function present(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * The anon key, with packaging removed.
+ *
+ * A value stored with its quotation marks, or with a line break folded into
+ * the middle of it, is rejected by Supabase as "Invalid API key" — the same
+ * four words it uses for a key from the wrong project, and with nothing
+ * visible in the dashboard to distinguish them. Neither character can occur in
+ * a real key, so stripping them is unambiguous and fixes the deployment
+ * instead of describing it.
+ */
+export function anonKey(): string | undefined {
+  return present(cleanKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY).key);
 }
 
 /**
@@ -52,7 +66,7 @@ export interface ResolvedUrl {
 
 export function resolveSupabaseUrl(): ResolvedUrl {
   const configured = present(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const key = present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const key = anonKey();
   const ref = key ? inspectKey(key).ref : null;
   const fromKey = ref ? `https://${ref}.supabase.co` : undefined;
 
@@ -103,7 +117,7 @@ export type PublicEnv = z.infer<typeof publicSchema>;
 export function publicEnv(): PublicEnv {
   const parsed = publicSchema.safeParse({
     NEXT_PUBLIC_SUPABASE_URL: resolveSupabaseUrl().url,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey(),
     NEXT_PUBLIC_SITE_URL: present(process.env.NEXT_PUBLIC_SITE_URL),
   });
 
@@ -130,7 +144,7 @@ export function supabaseConfigError(): string | null {
   // The resolved URL, not the raw variable — otherwise this reports a missing
   // setting that publicEnv() goes on to derive, and the two disagree again.
   const url = resolveSupabaseUrl().url;
-  const key = present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const key = anonKey();
 
   if (!key) {
     return 'NEXT_PUBLIC_SUPABASE_ANON_KEY is not set.';

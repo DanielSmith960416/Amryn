@@ -42,6 +42,75 @@ export interface KeyInfo {
   secret: boolean;
 }
 
+/**
+ * What a value had to have removed before it could be a key, and the result.
+ *
+ * Neither key format Supabase issues can legally contain whitespace or a
+ * quotation mark: a legacy key is base64url with dots, and a current one is
+ * alphanumerics and underscores after its prefix. So any of those characters
+ * is packaging picked up in transit — a dashboard that stored the value with
+ * the quotes around it, a line break folded in by a copy on a phone, a whole
+ * `NAME=value` line pasted into the value box.
+ *
+ * That makes them safe to strip rather than merely complain about. A key
+ * rejected for punctuation nobody can see is not a fault worth making someone
+ * diagnose; it is one worth repairing and mentioning.
+ */
+export interface CleanedKey {
+  key: string;
+  /** What was removed, in words, for the diagnostics page to report. */
+  repairs: string[];
+}
+
+const ASSIGNMENT = /^(?:NEXT_PUBLIC_)?SUPABASE_ANON_KEY\s*=\s*/i;
+
+export function cleanKey(raw: string | undefined): CleanedKey {
+  let key = (raw ?? '').trim();
+  const repairs: string[] = [];
+
+  if (ASSIGNMENT.test(key)) {
+    key = key.replace(ASSIGNMENT, '').trim();
+    repairs.push('removed the variable name from the front of the value');
+  }
+
+  // Wrapping quotes, possibly more than one layer deep.
+  let quoted = true;
+  while (quoted && key.length >= 2) {
+    const first = key[0]!;
+    const last = key[key.length - 1]!;
+    quoted = (first === '"' || first === "'" || first === '`') && first === last;
+    if (quoted) {
+      key = key.slice(1, -1).trim();
+      if (!repairs.includes('removed quotation marks around the value')) {
+        repairs.push('removed quotation marks around the value');
+      }
+    }
+  }
+
+  if (/\s/.test(key)) {
+    key = key.replace(/\s+/g, '');
+    repairs.push('removed spaces or line breaks from inside the value');
+  }
+
+  return { key, repairs };
+}
+
+/**
+ * A description of a value's shape, for when it is not a key and the reason is
+ * not obvious. Nothing here is the key or any part of it: a length, a count of
+ * segments, and whether the opening characters match a format Supabase issues.
+ */
+export function describeShape(key: string): string {
+  const segments = key.split('.').length;
+  const opening = key.startsWith('eyJ')
+    ? 'starts like a legacy key'
+    : key.startsWith('sb_')
+      ? 'starts like a current key'
+      : 'does not start like either key format';
+
+  return `${key.length} characters, ${segments} ${segments === 1 ? 'segment' : 'dot-separated segments'}, and ${opening}.`;
+}
+
 /** The project reference in a Supabase URL — the `abcd` of `https://abcd.supabase.co`. */
 export function projectRefFromUrl(url: string): string | null {
   try {
@@ -79,7 +148,7 @@ function decodeSegment(segment: string): unknown {
  * server's job, and doing it here would need the project's secret.
  */
 export function inspectKey(key: string): KeyInfo {
-  const trimmed = key.trim();
+  const trimmed = cleanKey(key).key;
 
   const unknown: KeyInfo = {
     kind: 'unrecognised',
@@ -143,7 +212,13 @@ export interface KeyVerdict {
  * than an inconvenience.
  */
 export function judgeAnonKey(key: string | undefined, url: string | undefined): KeyVerdict {
-  const trimmed = key?.trim();
+  const cleaned = cleanKey(key);
+  const trimmed = cleaned.key;
+  // Repairs are reported wherever the verdict lands. A key that only works
+  // because punctuation was stripped from it should say so, not pass silently.
+  const repaired = cleaned.repairs.length
+    ? ` The value needed repairing first — ${cleaned.repairs.join(', ')}. Fix it at source so this is not relied on.`
+    : '';
   if (!trimmed) {
     return {
       status: 'fail',
@@ -167,14 +242,17 @@ export function judgeAnonKey(key: string | undefined, url: string | undefined): 
   }
 
   if (info.kind === 'unrecognised') {
+    // Say what the value actually looks like. "It is most likely truncated"
+    // was a guess dressed as a finding, and it left the reader with nothing to
+    // check. A length and a segment count identify the fault immediately, and
+    // neither is any part of the key.
     return {
       status: 'fail',
       detail:
-        trimmed.length < 20
-          ? `Set, but only ${trimmed.length} characters — far shorter than any Supabase key.`
-          : 'Set, but it is not in any shape Supabase issues. It is most likely truncated, or has a stray line break or quotation mark in it.',
+        `Set, but not in any shape Supabase issues — ${describeShape(trimmed)}` +
+        ` A working legacy key is three segments and several hundred characters.${repaired}`,
       remedy:
-        'Copy the anon public key again from Supabase → Settings → API, taking the whole value in one go, then redeploy.',
+        'Copy the anon public key again from Supabase → Settings → API Keys, taking the whole value in one go, then redeploy.',
     };
   }
 
@@ -197,8 +275,8 @@ export function judgeAnonKey(key: string | undefined, url: string | undefined): 
 
   if (info.kind === 'publishable') {
     return {
-      status: 'ok',
-      detail: 'Present, and in the current publishable-key format.',
+      status: repaired ? 'warn' : 'ok',
+      detail: `Present, and in the current publishable-key format.${repaired}`,
     };
   }
 
@@ -211,9 +289,10 @@ export function judgeAnonKey(key: string | undefined, url: string | undefined): 
   }
 
   return {
-    status: 'ok',
-    detail: expected
-      ? `Present, an anon key, and issued for project “${expected}” — the same project as the URL.`
-      : 'Present, and an anon key.',
+    status: repaired ? 'warn' : 'ok',
+    detail:
+      (expected
+        ? `Present, an anon key, and issued for project “${expected}” — the same project as the URL.`
+        : 'Present, and an anon key.') + repaired,
   };
 }
