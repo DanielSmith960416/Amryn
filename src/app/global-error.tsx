@@ -71,6 +71,13 @@ export default function GlobalError({
             </p>
           ) : null}
 
+          <p style={{ margin: '1.25rem 0 0', color: '#8BA3C7', fontSize: '0.875rem' }}>
+            <a href="/diagnostics" style={{ color: '#3E7BD6' }}>
+              Open diagnostics
+            </a>{' '}
+            to see what is and is not configured.
+          </p>
+
           <button
             type="button"
             onClick={reset}

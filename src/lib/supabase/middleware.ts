@@ -4,7 +4,17 @@ import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, publicEnv } from '@/lib/env';
 import type { Database } from '@/types/database';
 
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/auth'];
+// Reachable without a session. /diagnostics especially: most of what it can
+// tell you is why signing in does not work, so gating it behind signing in
+// would make it useless exactly when it is needed.
+const PUBLIC_PATHS = [
+  '/sign-in',
+  '/sign-up',
+  '/forgot-password',
+  '/reset-password',
+  '/auth',
+  '/diagnostics',
+];
 
 /**
  * Refreshes the Supabase session on every request and guards the dashboard.
