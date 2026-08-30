@@ -12,6 +12,9 @@ export const metadata: Metadata = { title: 'Set up your organisation' };
  * Sits outside the platform layout, because that layout requires a workspace
  * and this is the page that creates one.
  */
+// Reads the session to decide whether the caller already has a workspace.
+export const dynamic = 'force-dynamic';
+
 export default async function OnboardingPage() {
   await requireUser();
   const workspace = await getWorkspace();
