@@ -109,13 +109,36 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
     memberships.find((m) => m.organisation_id === preferred) ?? memberships[0];
   if (!membership) return null;
 
-  const [{ data: organisation }, { data: profile }, permissions] = await Promise.all([
+  const [{ data: organisation }, { data: existingProfile }, permissions] = await Promise.all([
     supabase.from('organisations').select('*').eq('id', membership.organisation_id).single(),
     supabase.from('user_profiles').select('*').eq('id', user.id).maybeSingle(),
     resolvePermissions(membership.organisation_id, membership.id, membership.role),
   ]);
 
   if (!organisation) return null;
+
+  // A profile is normally written by a trigger on auth.users, which a hosted
+  // Supabase project may refuse to install — the SQL editor does not own that
+  // table. Where it is absent, nothing else creates the row, and the name and
+  // avatar are missing everywhere for the life of the account.
+  //
+  // Only when it is actually missing, which is once per account at most.
+  let profile = existingProfile;
+  if (!profile) {
+    const { error } = await supabase.rpc('ensure_user_profile');
+    if (error) {
+      // Not worth failing the page over: the profile is presentation, and the
+      // rest of the workspace is already loaded.
+      console.error('[amryn:auth] could not create the user profile', error.message);
+    } else {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      profile = data;
+    }
+  }
 
   return {
     user,

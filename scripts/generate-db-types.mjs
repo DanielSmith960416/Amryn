@@ -175,17 +175,66 @@ for (const [table, cols] of [...byTable.entries()].sort()) {
 
 out.push('    };');
 out.push("    Views: { [_ in never]: never };");
+// Introspected, not listed. This block was hand-written while the rest of the
+// file was generated, which is the drift this tool exists to prevent — and it
+// duly drifted: a function added by a migration was simply absent, and calling
+// it did not typecheck.
+const routines = query(`
+  select p.proname                                     as name,
+         pg_get_function_arguments(p.oid)              as args,
+         t.typname                                     as return_base,
+         p.pronargdefaults                             as defaults
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    join pg_type t on t.oid = p.prorettype
+   where n.nspname = 'public'
+     and p.prokind = 'f'
+     and has_function_privilege('authenticated', p.oid, 'execute')
+     -- citext and pgcrypto are created in public, so every one of their
+     -- functions is visible here. They are not part of this schema's API, and
+     -- their overloads collide on name — which is invalid TypeScript, not
+     -- merely noisy. Anything belonging to an extension is excluded.
+     and not exists (
+       select 1 from pg_depend d
+        where d.objid = p.oid and d.classid = 'pg_proc'::regclass and d.deptype = 'e'
+     )
+   order by p.proname
+`);
+
 out.push('    Functions: {');
-out.push('      create_organisation: {');
-out.push('        Args: {');
-out.push('          p_name: string;');
-out.push('          p_slug: string;');
-out.push('          p_industry?: string | null;');
-out.push('          p_country_code?: string;');
-out.push('          p_currency_code?: string;');
-out.push('        };');
-out.push('        Returns: string;');
-out.push('      };');
+if (routines.length === 0) {
+  out.push('      [_ in never]: never;');
+}
+for (const routine of routines) {
+  // "p_name text, p_industry text DEFAULT NULL::text" → one entry each. A
+  // parameter with a default is optional to the caller.
+  const params = (routine.args ?? '')
+    .split(/,(?![^(]*\))/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const hasDefault = / default /i.test(part);
+      const [name, ...rest] = part.replace(/ default .*/i, '').trim().split(/\s+/);
+      const sql = rest.join(' ').toLowerCase();
+      const base = sql.replace(/\(.*\)/, '').replace(/^character varying$/, 'varchar')
+        .replace(/^character$/, 'bpchar').replace(/^boolean$/, 'bool')
+        .replace(/^integer$/, 'int4').replace(/^double precision$/, 'float8');
+      return { name, ts: scalar(base, sql), hasDefault };
+    });
+
+  out.push(`      ${routine.name}: {`);
+  if (params.length === 0) {
+    out.push('        Args: Record<string, never>;');
+  } else {
+    out.push('        Args: {');
+    for (const p of params) {
+      out.push(`          ${p.name}${p.hasDefault ? '?' : ''}: ${p.ts}${p.hasDefault ? ' | null' : ''};`);
+    }
+    out.push('        };');
+  }
+  out.push(`        Returns: ${routine.return_base === 'void' ? 'undefined' : scalar(routine.return_base, routine.return_base)};`);
+  out.push('      };');
+}
 out.push('    };');
 out.push('    Enums: Enums;');
 out.push("    CompositeTypes: { [_ in never]: never };");

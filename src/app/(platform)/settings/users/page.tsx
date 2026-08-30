@@ -16,7 +16,10 @@ export default async function UsersPage() {
 
   const { data: members } = await supabase
     .from('organisation_members')
-    .select('*, user_profiles!inner(full_name, email, last_seen_at)')
+    // A left join, not an inner one. !inner drops any member whose profile row is
+    // missing — so a colleague would vanish from the list entirely rather than
+    // appear without a name, and the count would silently disagree with reality.
+    .select('*, user_profiles(full_name, email, last_seen_at)')
     .eq('organisation_id', workspace.organisation.id)
     .order('role');
 
