@@ -48,7 +48,7 @@ would provide, so the migrations can be exercised against plain PostgreSQL.
 
 ### What is built
 
-- **Multi-tenant PostgreSQL schema** — 46 tables, Row Level Security on every
+- **Multi-tenant PostgreSQL schema** — 45 tables, Row Level Security on every
   one. A user reads a row only if they are an active member of its
   organisation, its branch falls inside their scope, and they hold the
   permission gating that table. All three are decided in SQL. Thirty
@@ -171,8 +171,13 @@ request. No secrets are stored in GitHub and there is no workflow to maintain.
    npx supabase db push               # applies migrations/ in order
    ```
 
-   Or paste each file into the SQL editor in filename order — six files, and
+   Or paste each file into the SQL editor in filename order — seven files, and
    they are ordinary SQL with no CLI-specific syntax.
+
+   **Then check it landed.** Run `supabase/tests/verify-remote.sql` in the SQL
+   editor. A migration skipped or applied out of order does not fail loudly; it
+   fails later as a confusing runtime error somewhere unrelated. The query
+   returns ten rows, all of which should read `OK`.
 
 4. **Allow the auth redirect.** Set the Site URL to the deployment and add
    `https://<deployment>/auth/callback` to the redirect allow-list — either in
