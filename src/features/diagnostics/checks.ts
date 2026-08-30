@@ -307,13 +307,29 @@ function checkMembership(): Promise<Check> {
 
 function aiCheck(): Check {
   const ai = aiConfig();
+
+  // A model name belonging to the other provider is a 404 at request time,
+  // long after anyone would connect it to the setting that caused it.
+  const looksMismatched =
+    (ai.provider === 'anthropic' && /^(gpt|o[0-9])/i.test(ai.model)) ||
+    (ai.provider === 'openai' && /^claude/i.test(ai.model));
+
+  if (looksMismatched) {
+    return {
+      name: 'AI provider',
+      status: 'fail',
+      detail: `AI_PROVIDER is ${ai.provider} but AI_MODEL is ${ai.model}, which belongs to the other provider.`,
+      remedy: 'Clear AI_MODEL to take the provider’s default, or set one that provider recognises.',
+    };
+  }
+
   return {
     name: 'AI provider',
     status: ai.provider === 'none' ? 'warn' : 'ok',
     detail:
       ai.provider === 'none'
         ? 'None configured. The platform runs on its own analytical engines; only the assistant and cross-cutting recommendations are unavailable.'
-        : `${ai.provider} configured, model ${ai.model}.`,
+        : `${ai.provider}, model ${ai.model}, effort ${ai.effort}. The assistant and cross-cutting recommendations are available.`,
     remedy:
       ai.provider === 'none'
         ? 'Optional. Set AI_API_KEY to enable conversational answers.'
