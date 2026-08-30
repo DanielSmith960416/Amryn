@@ -98,7 +98,23 @@ export interface AiConfig {
   apiKey: string | null;
   model: string;
   maxOutputTokens: number;
+  /** How hard the model should work. Claude only; ignored elsewhere. */
+  effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 }
+
+/**
+ * The default model per provider.
+ *
+ * These are not interchangeable strings: an OpenAI model name sent to
+ * Anthropic is a 404, and a single shared default silently breaks whichever
+ * provider it does not belong to. Claude Opus 5 is the current most capable
+ * model, which is the right default for work whose whole value is the quality
+ * of the reasoning.
+ */
+const DEFAULT_MODEL: Record<'openai' | 'anthropic', string> = {
+  anthropic: 'claude-opus-5',
+  openai: 'gpt-4.1-mini',
+};
 
 /**
  * The AI layer is optional by design. With no key configured the platform runs
@@ -110,14 +126,24 @@ export function aiConfig(): AiConfig {
   const provider: AiConfig['provider'] =
     !apiKey || requested === 'none'
       ? 'none'
-      : requested === 'anthropic'
-        ? 'anthropic'
-        : 'openai';
+      : requested === 'openai'
+        ? 'openai'
+        : 'anthropic';
+
+  const effort = process.env.AI_EFFORT?.trim().toLowerCase();
 
   return {
     provider,
     apiKey: provider === 'none' ? null : apiKey,
-    model: process.env.AI_MODEL?.trim() || 'gpt-4.1-mini',
-    maxOutputTokens: Number.parseInt(process.env.AI_MAX_OUTPUT_TOKENS ?? '2000', 10) || 2000,
+    model:
+      process.env.AI_MODEL?.trim() ||
+      (provider === 'none' ? DEFAULT_MODEL.anthropic : DEFAULT_MODEL[provider]),
+    // Adaptive thinking spends tokens from this same budget, so a small ceiling
+    // truncates the answer rather than the reasoning.
+    maxOutputTokens: Number.parseInt(process.env.AI_MAX_OUTPUT_TOKENS ?? '16000', 10) || 16000,
+    effort:
+      effort === 'low' || effort === 'medium' || effort === 'high' || effort === 'xhigh' || effort === 'max'
+        ? effort
+        : 'high',
   };
 }

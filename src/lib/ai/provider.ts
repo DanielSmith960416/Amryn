@@ -12,6 +12,7 @@ import 'server-only';
  * falls back to its deterministic engines, and the interface says so rather
  * than pretending. An unconfigured Amryn is a smaller product, not a broken one.
  */
+import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { aiConfig, type AiConfig } from '@/lib/env';
 
@@ -173,53 +174,65 @@ async function completeOpenAi(
   };
 }
 
+/**
+ * Claude, through the official SDK.
+ *
+ * Three things this gets right that a hand-rolled fetch did not:
+ *
+ *   · No `temperature`. Sampling parameters were removed on the Claude 5
+ *     family and return a 400 — the previous implementation sent one on every
+ *     request, so this path could never have worked.
+ *   · Adaptive thinking. The work here is business analysis, which is exactly
+ *     what it is for; depth is controlled by effort rather than a token budget.
+ *   · The system prompt is its own parameter, not a message. Anthropic takes
+ *     it separately, and a system-role message is not the same thing.
+ */
 async function completeAnthropic(
   request: CompletionRequest,
   config: AiConfig,
 ): Promise<CompletionResult> {
-  // Anthropic takes the system prompt as its own parameter rather than a message.
+  const client = new Anthropic({
+    apiKey: config.apiKey ?? undefined,
+    timeout: REQUEST_TIMEOUT_MS,
+    maxRetries: 2,
+  });
+
   const system = request.messages
     .filter((m) => m.role === 'system')
     .map((m) => m.content)
     .join('\n\n');
-  const conversation = request.messages.filter((m) => m.role !== 'system');
 
-  const response = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.apiKey ?? '',
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: config.model,
-      system: system || undefined,
-      messages: conversation,
-      temperature: request.temperature ?? 0.2,
-      max_tokens: request.maxOutputTokens ?? config.maxOutputTokens,
-    }),
+  const conversation = request.messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+  const response = await client.messages.create({
+    model: config.model,
+    max_tokens: request.maxOutputTokens ?? config.maxOutputTokens,
+    ...(system ? { system } : {}),
+    messages: conversation,
+    thinking: { type: 'adaptive' },
+    output_config: { effort: config.effort },
   });
 
-  const body: unknown = await response.json();
-  if (!response.ok) {
-    throw new Error(`Anthropic request failed (${response.status}): ${describeError(body)}`);
+  // A safety decline is a real answer, not an exception. Surfacing it lets the
+  // caller fall back to the engine rather than retrying into the same wall.
+  if (response.stop_reason === 'refusal') {
+    throw new AiResponseError(
+      'The model declined this request.',
+      JSON.stringify(response.stop_details ?? {}),
+    );
   }
 
-  const parsed = anthropicResponse.safeParse(body);
-  if (!parsed.success) {
-    throw new AiResponseError('Unexpected response shape from Anthropic', JSON.stringify(body));
-  }
+  const text = response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
 
   return {
-    text: parsed.data.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join(''),
-    model: parsed.data.model,
-    tokensUsed:
-      parsed.data.usage === undefined
-        ? null
-        : parsed.data.usage.input_tokens + parsed.data.usage.output_tokens,
+    text,
+    model: response.model,
+    tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
     fromModel: true,
   };
 }
@@ -250,10 +263,3 @@ const openAiResponse = z.object({
   usage: z.object({ total_tokens: z.number() }).optional(),
 });
 
-const anthropicResponse = z.object({
-  model: z.string(),
-  content: z.array(z.object({ type: z.string(), text: z.string().optional() })).transform((blocks) =>
-    blocks.map((b) => ({ type: b.type, text: b.text ?? '' })),
-  ),
-  usage: z.object({ input_tokens: z.number(), output_tokens: z.number() }).optional(),
-});

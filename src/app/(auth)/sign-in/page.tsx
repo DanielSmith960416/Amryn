@@ -112,6 +112,13 @@ function NotConfigured() {
         .
       </p>
 
+      <p className="mt-4 text-[0.8125rem] text-[var(--text-secondary)]">
+        <a href="/diagnostics" className="font-medium text-[var(--brand)] hover:underline">
+          Open diagnostics
+        </a>{' '}
+        to see every setting checked in one place.
+      </p>
+
       <p className="mt-3 text-[0.8125rem] text-[var(--text-tertiary)]">
         Then apply{' '}
         <code className="rounded bg-[var(--card-inset)] px-1 py-0.5 font-mono text-[0.75rem]">
