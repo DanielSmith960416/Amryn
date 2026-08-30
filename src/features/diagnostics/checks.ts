@@ -40,6 +40,15 @@ export interface DiagnosticsReport {
   generatedAt: string;
 }
 
+function isUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Long enough for a healthy round trip, short enough to stay inside a function budget. */
 const CHECK_TIMEOUT_MS = 4_000;
 
@@ -82,24 +91,55 @@ async function attempt(name: string, run: () => Promise<Check>, onThrow?: string
 export async function runDiagnostics(): Promise<DiagnosticsReport> {
   const configProblem = supabaseConfigError();
 
+  // Report per variable. A single lumped verdict blamed "Supabase
+  // configuration" for a fault in NEXT_PUBLIC_SITE_URL, which sent the reader
+  // to check two settings that were already correct.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+
   const configuration: Check[] = [
     {
-      name: 'Supabase configuration',
-      status: configProblem ? 'fail' : 'ok',
-      detail: configProblem ?? 'Project URL and anon key are present and well-formed.',
-      remedy: configProblem
-        ? 'Set these in your host’s environment settings, then redeploy. Values added after a build are not in the bundle until the next one.'
-        : undefined,
+      name: 'Supabase project URL',
+      status: !supabaseUrl ? 'fail' : isUrl(supabaseUrl) ? 'ok' : 'fail',
+      detail: !supabaseUrl
+        ? 'NEXT_PUBLIC_SUPABASE_URL is not set.'
+        : isUrl(supabaseUrl)
+          ? `Set to ${supabaseUrl}.`
+          : `Set to “${supabaseUrl}”, which is not a valid URL.`,
+      remedy: !supabaseUrl
+        ? 'Set it to your project URL, then redeploy — values added after a build are not in the bundle until the next one.'
+        : isUrl(supabaseUrl)
+          ? undefined
+          : 'It must be the full address including https:// — for example https://your-project.supabase.co',
+    },
+    {
+      name: 'Supabase anon key',
+      status: anonKey && anonKey.length >= 20 ? 'ok' : 'fail',
+      detail:
+        anonKey && anonKey.length >= 20
+          ? 'Present, and long enough to be a real key.'
+          : anonKey
+            ? `Set, but only ${anonKey.length} characters — an anon key is several hundred.`
+            : 'NEXT_PUBLIC_SUPABASE_ANON_KEY is not set.',
+      remedy:
+        anonKey && anonKey.length >= 20
+          ? undefined
+          : 'Copy the anon public key from Supabase → Settings → API, then redeploy.',
     },
     {
       name: 'Site URL',
-      status: process.env.NEXT_PUBLIC_SITE_URL ? 'ok' : 'warn',
-      detail: process.env.NEXT_PUBLIC_SITE_URL
-        ? `Set to ${process.env.NEXT_PUBLIC_SITE_URL}. Sign-in links point here.`
-        : `Not set. Falling back to ${siteUrl()}, which is where sign-in links will point.`,
-      remedy: process.env.NEXT_PUBLIC_SITE_URL
-        ? undefined
-        : 'Set NEXT_PUBLIC_SITE_URL to the deployment’s address so email links resolve predictably.',
+      status: !configuredSiteUrl ? 'warn' : isUrl(configuredSiteUrl) ? 'ok' : 'fail',
+      detail: !configuredSiteUrl
+        ? `Not set. Sign-in links will point at ${siteUrl()}.`
+        : isUrl(configuredSiteUrl)
+          ? `Set to ${configuredSiteUrl}. Sign-in links point here.`
+          : `Set to “${configuredSiteUrl}”, which is not a valid URL.`,
+      remedy: !configuredSiteUrl
+        ? 'Optional, but setting it to the deployment’s address makes email links resolve predictably.'
+        : isUrl(configuredSiteUrl)
+          ? undefined
+          : 'Either clear it entirely or give it a full https:// address. An empty or partial value is worse than none.',
     },
   ];
 
