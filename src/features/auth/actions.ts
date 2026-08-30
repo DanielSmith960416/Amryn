@@ -105,18 +105,41 @@ export async function signInWithMagicLink(
   return { status: 'sent', message: 'If that address has an account, a sign-in link is on its way.' };
 }
 
+/**
+ * Starts an OAuth sign-in.
+ *
+ * A provider that has not been enabled in Supabase is the normal state of a
+ * fresh project, not an exceptional one — enabling Google or Microsoft means
+ * registering an application with each and pasting credentials in. Throwing
+ * here meant a button on the sign-in page returned a server error until that
+ * work was done, which is a poor way to learn it was outstanding.
+ *
+ * So a failure sends the reader back to the sign-in page, where it is
+ * explained. Both redirects sit outside the try/catch: redirect() signals by
+ * throwing, and catching it would swallow the navigation.
+ */
 export async function signInWithProvider(formData: FormData): Promise<void> {
-  const provider = formData.get('provider');
-  if (provider !== 'google' && provider !== 'azure') {
-    throw new Error('Unsupported sign-in provider');
+  const raw = formData.get('provider');
+  const provider = raw === 'google' || raw === 'azure' ? raw : null;
+  if (!provider) redirect('/sign-in?error=unsupported_provider');
+
+  let url: string | null = null;
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${siteUrl()}/auth/callback` },
+    });
+    if (error) {
+      console.error(`[amryn:auth] ${provider} sign-in unavailable: ${error.message}`);
+    } else {
+      url = data.url ?? null;
+    }
+  } catch (error) {
+    console.error(`[amryn:auth] ${provider} sign-in failed to start`, error);
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: { redirectTo: `${siteUrl()}/auth/callback` },
-  });
-
-  if (error || !data.url) throw new Error(error?.message ?? 'Could not start that sign-in');
-  redirect(data.url);
+  if (url) redirect(url);
+  redirect(`/sign-in?error=provider_unavailable&provider=${provider}`);
 }
