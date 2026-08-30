@@ -6,7 +6,10 @@
 -- on a fresh install. Safe to re-run: it is keyed on a fixed organisation id
 -- and clears that organisation first.
 --
--- Per §2 of the specification, every opportunity here is private sector.
+-- The radar surfaces commercial opportunities and tenders alike: Highveld is
+-- a wholesaler, and a schools supply tender is ordinary revenue to them. What
+-- Amryn itself will and will not take on is a matter for Amryn's positioning,
+-- not for a customer's opportunity list.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 \set org_id '\'e5f6a7b8-0000-4000-8000-000000000001\''
@@ -245,7 +248,7 @@ values
    'Basket sizes are falling while order frequency rises — a working-capital response, not a demand fall.',
    0.66, 0.69, '{retail,ordering,working-capital}', now() - interval '12 days');
 
--- ── opportunities (private sector only, per §2) ───────────────────────────
+-- ── opportunities ─────────────────────────────────────────────────────────
 
 insert into public.opportunities
   (id, organisation_id, title, kind, sector, counterparty, summary, why_it_matters,
@@ -277,7 +280,14 @@ values
    'Independent retail is shifting to smaller and more frequent orders as a working-capital response.',
    'Your next-day capability is the reason to consolidate onto you — but only if delivery reliability recovers first.',
    'Hold until average delivery returns under 3.5 days, then package a high-frequency tier.',
-   9500000, 'discovered', 52.4, 'potential', current_date + 150, false);
+   9500000, 'discovered', 52.4, 'potential', current_date + 150, false),
+
+  ('e5f6a7b8-0000-4000-8000-00000000aa05'::uuid, :org_id,
+   'Schools nutrition supply tender reissued', 'tender', 'public', 'Ekurhuleni Metro',
+   'A 24-month dry goods supply tender was reissued after the first round failed on compliance. Two of the six original bidders have re-registered.',
+   'You already hold the SABS certification the last round tripped on, and the volume fits Germiston''s spare warehouse capacity.',
+   'Confirm the certification is current, then register before the compliance window closes.',
+   48000000, 'discovered', 68.9, 'strong', current_date + 21, false);
 
 insert into public.opportunity_scores
   (organisation_id, opportunity_id, relevance, potential_value, strategic_alignment,
@@ -290,7 +300,9 @@ values
   (:org_id, 'e5f6a7b8-0000-4000-8000-00000000aa03'::uuid, 78, 91, 74, 44, 63, 55, 71.8,
    'The largest value on the radar, but the slowest, and the field will be contested.'),
   (:org_id, 'e5f6a7b8-0000-4000-8000-00000000aa04'::uuid, 61, 47, 58, 33, 69, 48, 52.4,
-   'Real but not yet actionable — it depends on an operational fix that is still outstanding.');
+   'Real but not yet actionable — it depends on an operational fix that is still outstanding.'),
+  (:org_id, 'e5f6a7b8-0000-4000-8000-00000000aa05'::uuid, 71, 88, 52, 96, 74, 68, 68.9,
+   'Large and closing fast, which carries it. Strategic alignment is the weak factor: public-sector supply is not a declared growth intent, so this ranks below the weekend delivery pilot despite being worth more.');
 
 insert into public.opportunity_activities (organisation_id, opportunity_id, kind, body) values
   (:org_id, 'e5f6a7b8-0000-4000-8000-00000000aa01'::uuid, 'stage_change', 'Moved to Qualified after the fleet utilisation check.'),

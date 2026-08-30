@@ -25,6 +25,12 @@ export interface OrganisationContext {
     growthIntents: string[];
   };
   branchCount: number;
+  /**
+   * Sectors this organisation has chosen to see on its radar. Set by the
+   * customer, not by Amryn — a wholesaler that bids for public supply work
+   * gets those tenders like any other opportunity.
+   */
+  sectorScope: Enums['market_sector'][];
   /** How much of the business the reader is entitled to see. */
   viewerScope: {
     kind: Enums['scope_kind'];
@@ -63,6 +69,7 @@ export interface OpportunityContext {
   title: string;
   kind: Enums['opportunity_kind'];
   stage: Enums['opportunity_stage'];
+  sector: Enums['market_sector'];
   summary: string;
   whyItMatters: string | null;
   estimatedValueCents: number | null;

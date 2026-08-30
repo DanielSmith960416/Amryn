@@ -13,6 +13,7 @@ function context(over: Partial<BusinessContext> = {}): BusinessContext {
       countryCode: 'ZA',
       strategyProfile: { markets: [], segments: [], capabilities: [], growthIntents: [] },
       branchCount: 3,
+      sectorScope: ['private', 'public', 'mixed', 'unknown'],
       viewerScope: { kind: 'organisation', label: 'Whole organisation', branchNames: [] },
     },
     period: { start: '2025-09-01', end: '2026-08-31', label: 'Last 12 months' },
@@ -150,12 +151,12 @@ describe('buildBriefing', () => {
       context({
         opportunities: [
           {
-            id: 'o1', title: 'Saturday delivery', kind: 'market_expansion', stage: 'qualified',
+            id: 'o1', title: 'Saturday delivery', kind: 'market_expansion', sector: 'private', stage: 'qualified',
             summary: 'Uncontested weekend demand.', whyItMatters: 'The fleet is already paid for.',
             estimatedValueCents: 21_000_000, score: 84, classification: 'high_priority', closesOn: null,
           },
           {
-            id: 'o2', title: 'Low-scoring idea', kind: 'product', stage: 'discovered',
+            id: 'o2', title: 'Low-scoring idea', kind: 'product', sector: 'private', stage: 'discovered',
             summary: 'Weak.', whyItMatters: null, estimatedValueCents: 1000, score: 22,
             classification: 'monitor', closesOn: null,
           },
@@ -166,11 +167,29 @@ describe('buildBriefing', () => {
     expect(briefing.findings.some((f) => f.direction === 'opportunity')).toBe(true);
   });
 
+  it('surfaces a tender like any other opportunity when it scores well', () => {
+    // Sector is not a filter in the briefing engine. What an organisation
+    // wants to see is decided by its sector scope, which has already been
+    // applied before the context reaches here.
+    const briefing = buildBriefing(
+      context({
+        opportunities: [{
+          id: 'o1', title: 'Schools nutrition supply tender', kind: 'tender', sector: 'public',
+          stage: 'discovered', summary: 'A 24-month supply tender, reissued.',
+          whyItMatters: 'You hold the certification the last round tripped on.',
+          estimatedValueCents: 48_000_000, score: 69, classification: 'strong', closesOn: null,
+        }],
+      }),
+    );
+    expect(briefing.findings.some((f) => f.direction === 'opportunity')).toBe(true);
+    expect(briefing.priorities.some((p) => p.title.includes('tender'))).toBe(true);
+  });
+
   it('ignores opportunities that are already won or lost', () => {
     const briefing = buildBriefing(
       context({
         opportunities: [{
-          id: 'o1', title: 'Closed deal', kind: 'partnership', stage: 'won',
+          id: 'o1', title: 'Closed deal', kind: 'partnership', sector: 'private', stage: 'won',
           summary: 'Done.', whyItMatters: null, estimatedValueCents: 90_000_000,
           score: 95, classification: 'high_priority', closesOn: null,
         }],

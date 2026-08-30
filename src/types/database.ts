@@ -18,7 +18,7 @@ export interface Enums {
   market_sector: 'private' | 'public' | 'mixed' | 'unknown';
   member_status: 'invited' | 'active' | 'suspended';
   metric_kind: 'financial' | 'sales' | 'operational' | 'customer' | 'employee' | 'growth' | 'custom';
-  opportunity_kind: 'market_expansion' | 'partnership' | 'supplier' | 'distribution' | 'customer_acquisition' | 'product' | 'competitive_gap' | 'investment';
+  opportunity_kind: 'market_expansion' | 'partnership' | 'supplier' | 'distribution' | 'customer_acquisition' | 'product' | 'competitive_gap' | 'investment' | 'tender';
   opportunity_stage: 'discovered' | 'analysing' | 'qualified' | 'assigned' | 'in_progress' | 'won' | 'lost' | 'archived';
   org_role: 'super_admin' | 'org_admin' | 'executive' | 'regional_manager' | 'branch_manager' | 'department_manager' | 'analyst' | 'viewer';
   priority_level: 'critical' | 'high' | 'medium' | 'low';
@@ -2148,6 +2148,7 @@ export interface Database {
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
+          sector_scope: Enums['market_sector'][];
         };
         Insert: {
           id?: string;
@@ -2163,6 +2164,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          sector_scope?: Enums['market_sector'][];
         };
         Update: {
           id?: string;
@@ -2178,6 +2180,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          sector_scope?: Enums['market_sector'][];
         };
         Relationships: [
         ];

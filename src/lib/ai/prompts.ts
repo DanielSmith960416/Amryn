@@ -42,6 +42,8 @@ export function renderContext(context: BusinessContext): string {
   lines.push(`Currency: ${currency}. Branches: ${org.branchCount}.`);
   lines.push(`Reader's scope: ${org.viewerScope.label} (${org.viewerScope.kind}).`);
 
+  lines.push(`Sector scope: ${org.sectorScope.join(', ')}.`);
+
   if (org.strategyProfile.growthIntents.length > 0) {
     lines.push(`Declared growth intents: ${org.strategyProfile.growthIntents.join(', ')}.`);
   }
@@ -101,11 +103,12 @@ export function renderContext(context: BusinessContext): string {
   }
 
   if (context.opportunities.length > 0) {
-    lines.push('', 'OPPORTUNITIES (external, private sector):');
+    lines.push('', 'OPPORTUNITIES (external):');
     for (const opportunity of context.opportunities) {
       lines.push(
-        `  [${opportunity.id}] ${opportunity.title} — ${humanise(opportunity.kind)}, ` +
-          `stage ${opportunity.stage}, score ${opportunity.score ?? 'unscored'}, ` +
+        `  [${opportunity.id}] ${opportunity.title} — ${humanise(opportunity.kind)} ` +
+          `(${opportunity.sector} sector), stage ${opportunity.stage}, ` +
+          `score ${opportunity.score ?? 'unscored'}, ` +
           `value ${formatMoney(opportunity.estimatedValueCents, currency)}` +
           (opportunity.closesOn ? `, closes ${opportunity.closesOn}` : ''),
       );
@@ -208,8 +211,8 @@ Rules:
 · At most four. Fewer is better than padded.
 · Every recommendation must cite specific evidence from the context.
 · Order by the size of the decision, not by how confident you feel.
-· Amryn is a private-sector platform. Do not recommend pursuing government
-  tenders, programmes or public-sector procurement.
+· Respect the organisation's sector scope. Anything outside it has already
+  been withheld from the context, so recommend only from what you were given.
 · If the context does not support a genuine cross-cutting recommendation,
   return fewer, or an empty list. An empty list is a valid answer.
 

@@ -96,7 +96,7 @@ export const buildBusinessContext = cache(
         .limit(2),
       supabase
         .from('opportunities')
-        .select('id, title, kind, stage, summary, why_it_matters, estimated_value_cents, score, classification, closes_on')
+        .select('id, title, kind, sector, stage, summary, why_it_matters, estimated_value_cents, score, classification, closes_on')
         .eq('organisation_id', organisationId)
         .is('deleted_at', null)
         .not('stage', 'in', '("archived")')
@@ -237,6 +237,7 @@ export const buildBusinessContext = cache(
       id: o.id,
       title: o.title,
       kind: o.kind,
+      sector: o.sector,
       stage: o.stage,
       summary: o.summary,
       whyItMatters: o.why_it_matters,
@@ -295,6 +296,7 @@ export const buildBusinessContext = cache(
         countryCode: workspace.organisation.country_code,
         strategyProfile: readStrategyProfile(workspace.organisation.strategy_profile),
         branchCount: branches.length,
+        sectorScope: workspace.organisation.sector_scope,
         viewerScope: {
           kind: workspace.scope.kind,
           label: workspace.scope.label,
