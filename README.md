@@ -84,6 +84,41 @@ Vercel, root directory. Set `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_SITE_URL`; add `AI_API_KEY`
 when you want conversational answers and cross-cutting recommendations.
 
+### Supabase configuration
+
+`supabase/config.toml` holds the settings that would otherwise live only in a
+dashboard — most usefully the auth redirect allow-list, which is exactly the
+kind of thing that gets forgotten and then costs an afternoon.
+
+It does two jobs:
+
+```bash
+supabase start                                  # local stack, seeded with the demo org
+supabase link --project-ref <your-project-ref>
+supabase config push                            # applies [auth] to the remote project
+```
+
+**Before pushing, know what it does.** `config push` applies *everything* in the
+file, not just what you changed. If you have set something in the dashboard that
+the file does not represent, pushing resets it. The CLI prints a diff and asks
+first — read it. If you would rather configure the remote project by hand, do
+that; the file still earns its place for local development.
+
+Two values must change before any push, and are marked in the file:
+
+```toml
+site_url = "https://your-project.vercel.app"
+additional_redirect_urls = ["https://your-project.vercel.app/auth/callback"]
+```
+
+Vercel gives preview deployments a new hostname per commit, so allow the pattern
+`https://your-project-*.vercel.app/auth/callback` rather than adding them
+individually.
+
+Google and Microsoft sign-in are already wired into the sign-in page. Enable a
+provider in the file, supply its credentials through the environment variables
+in `.env.example`, and it works — no code change.
+
 ---
 
 ## Linking the two
@@ -128,9 +163,11 @@ request. No secrets are stored in GitHub and there is no workflow to maintain.
    your Supabase project in filename order. Optionally `supabase/seed/seed.sql`
    for a worked demo organisation.
 
-4. **Allow the auth redirect.** In Supabase, under **Authentication → URL
-   Configuration**, set the Site URL to the deployment and add
-   `https://<deployment>/auth/callback` to the redirect allow-list.
+4. **Allow the auth redirect.** Set the Site URL to the deployment and add
+   `https://<deployment>/auth/callback` to the redirect allow-list — either in
+   the dashboard under **Authentication → URL Configuration**, or from
+   `supabase/config.toml` (see [Supabase configuration](#supabase-configuration)
+   below).
 
    Skipping this is the easiest mistake to make and the slowest to diagnose:
    password sign-in keeps working, while magic links and Google or Microsoft
