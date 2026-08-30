@@ -21,8 +21,11 @@
 #   supabase config push          # prints a diff and asks before applying
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Replace with your project ref (Supabase → Settings → General → Reference ID).
-project_id = "amryn"
+# The linked project. This is what `supabase link` writes here, and it is not
+# a secret — the same ref is in the public Supabase URL and in the browser
+# bundle of any deployed Supabase app.
+#   Dashboard: https://supabase.com/dashboard/project/tnkmrrfxzsrbfndpkonh
+project_id = "tnkmrrfxzsrbfndpkonh"
 
 [api]
 enabled = true
