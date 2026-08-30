@@ -85,10 +85,22 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
 
   if (!memberships || memberships.length === 0) return null;
 
-  const available = memberships.map((m) => {
-    const org = m.organisations as unknown as { id: string; name: string; slug: string };
-    return { id: org.id, name: org.name, slug: org.slug, role: m.role };
-  });
+  const available = memberships
+    .map((m) => {
+      // The embed can be null or, for some relationship shapes, an array.
+      // A membership whose organisation did not come back is not something to
+      // crash over — it is one the user cannot act in, so drop it.
+      const raw = m.organisations as unknown;
+      const org = (Array.isArray(raw) ? raw[0] : raw) as
+        | { id: string; name: string; slug: string }
+        | null
+        | undefined;
+      if (!org?.id) return null;
+      return { id: org.id, name: org.name, slug: org.slug, role: m.role };
+    })
+    .filter((o): o is NonNullable<typeof o> => o !== null);
+
+  if (available.length === 0) return null;
 
   // Honour the switcher's choice if it is still a live membership.
   const cookieStore = await cookies();

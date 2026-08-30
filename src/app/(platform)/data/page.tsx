@@ -56,7 +56,7 @@ export default async function DataSourcesPage() {
               </strong>{' '}
               Anything Amryn concludes from{' '}
               {failing
-                .map((row) => (row.data_sources as unknown as { name: string }).name)
+                .map((row) => (row.data_sources as unknown as { name: string } | null)?.name ?? 'Unnamed source')
                 .join(', ')}{' '}
               is working from stale figures until this is fixed.
             </p>
@@ -79,11 +79,16 @@ export default async function DataSourcesPage() {
         ) : (
           <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
             {rows.map((row) => {
-              const source = row.data_sources as unknown as {
+              const source = (row.data_sources as unknown as {
                 name: string;
                 category: Enums['data_source_category'];
                 provider: string | null;
                 description: string | null;
+              } | null) ?? {
+                name: 'Unnamed source',
+                category: 'manual' as Enums['data_source_category'],
+                provider: null,
+                description: null,
               };
               return (
                 <li key={row.id} className="flex flex-wrap items-start gap-4 px-5 py-4">
