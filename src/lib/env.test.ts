@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  aiConfig,
+  looksLikeSecret,
+  redact,
   isSupabaseConfigured,
   publicEnv,
   resolveSupabaseUrl,
@@ -185,5 +188,80 @@ describe('resolveSupabaseUrl', () => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKeyFor(KEY_REF);
     expect(isSupabaseConfigured()).toBe(true);
     expect(publicEnv().NEXT_PUBLIC_SUPABASE_URL).toBe(`https://${KEY_REF}.supabase.co`);
+  });
+});
+
+/* ── never printing a credential ───────────────────────────────────────── */
+
+describe('looksLikeSecret and redact', () => {
+  // Written after a live OpenAI key was pasted into AI_MODEL and printed in
+  // full on a page reachable without signing in.
+  const KEY = 'sk-proj-3eHls37xaLdMi0Clh0cRxb0EP5eIWxLtNxITB5XXG8SnVbF6RZh5R4';
+
+  it('recognises the provider key prefixes', () => {
+    for (const value of [KEY, 'sk-abc123', 'sk-ant-api03-xyz', 'sb_secret_abc', 'ghp_abc', 'eyJhbGciOi']) {
+      expect(looksLikeSecret(value)).toBe(true);
+    }
+  });
+
+  it('treats any long opaque string as a secret, prefix or not', () => {
+    expect(looksLikeSecret('a'.repeat(32))).toBe(true);
+  });
+
+  it('does not withhold a real model name', () => {
+    for (const model of ['gpt-4.1-mini', 'claude-opus-5', 'o3-mini', 'gpt-4.1-mini-2025-04-14']) {
+      expect(looksLikeSecret(model)).toBe(false);
+      expect(redact(model)).toBe(model);
+    }
+  });
+
+  it('does not withhold a URL, which is long but never a credential', () => {
+    // Forty characters, and the single most useful value on the report.
+    const url = 'https://tnkmrrfxzsrbfndpkonh.supabase.co';
+    expect(looksLikeSecret(url)).toBe(false);
+    expect(redact(url)).toBe(url);
+  });
+
+  it('redacts to a length, never to any part of the value', () => {
+    const hidden = redact(KEY);
+    expect(hidden).toBe(`hidden — ${KEY.length} characters`);
+    expect(hidden).not.toContain('sk-');
+    expect(hidden).not.toContain(KEY.slice(8, 20));
+  });
+
+  it('says empty rather than printing nothing', () => {
+    expect(redact('')).toBe('empty');
+    expect(redact(undefined)).toBe('empty');
+  });
+});
+
+describe('aiConfig refuses to use a key as a model name', () => {
+  const KEY = 'sk-proj-3eHls37xaLdMi0Clh0cRxb0EP5eIWxLtNxITB5XXG8SnVbF6RZh5R4';
+
+  beforeEach(() => {
+    process.env.AI_API_KEY = 'sk-test-key';
+    delete process.env.AI_PROVIDER;
+  });
+
+  afterEach(() => {
+    delete process.env.AI_API_KEY;
+    delete process.env.AI_MODEL;
+  });
+
+  it('ignores it and falls back to the default model', () => {
+    process.env.AI_MODEL = KEY;
+    const config = aiConfig();
+    expect(config.modelIsSecret).toBe(true);
+    expect(config.model).toBe('gpt-4.1-mini');
+    // Sending it as a model name would put the credential in a request body
+    // and the provider's logs.
+    expect(config.model).not.toContain('sk-');
+  });
+
+  it('leaves a genuine model name alone', () => {
+    process.env.AI_MODEL = 'gpt-4.1';
+    const config = aiConfig();
+    expect(config.modelIsSecret).toBe(false);
+    expect(config.model).toBe('gpt-4.1');
   });
 });
