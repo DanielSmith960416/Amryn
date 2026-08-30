@@ -82,6 +82,7 @@ button{ font:inherit; color:inherit; }
   color:var(--mute); padding-bottom:2px; border-bottom:1px solid transparent;
 }
 .nav__links > a:not(.btn):hover{ color:var(--ink); border-bottom-color:var(--signal); }
+.nav__signin{ cursor:pointer; }
 @media (max-width:760px){ .nav__links > a:not(.btn){ display:none; } }
 
 /* ── buttons ────────────────────────────────── */

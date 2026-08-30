@@ -4,6 +4,23 @@
 (function () {
   'use strict';
 
+  /* ══ Platform link ══════════════════════════════════════════
+     Where the Amryn software is deployed. Set this once, and every
+     [data-app-link] on the page is revealed and pointed at it.
+     Left empty, those links stay hidden — a marketing site with a
+     "Sign in" button that 404s is worse than one without.       */
+  var APP_URL = '';
+
+  (function wireAppLinks() {
+    var links = document.querySelectorAll('[data-app-link]');
+    if (!APP_URL) return;
+    var base = APP_URL.replace(/\/+$/, '');
+    for (var i = 0; i < links.length; i++) {
+      links[i].href = base + links[i].getAttribute('data-app-link');
+      links[i].hidden = false;
+    }
+  })();
+
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var MONTHS = ['Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];
 
