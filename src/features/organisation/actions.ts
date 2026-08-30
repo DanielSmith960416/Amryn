@@ -149,11 +149,7 @@ export async function createOrganisation(
   });
 
   if (error || !data) {
-    // A slug collision is the one failure worth explaining specifically.
-    const message = error?.message.includes('organisations_slug_key')
-      ? 'An organisation with a similar name already exists. Try a more specific name.'
-      : (error?.message ?? 'Could not create that organisation.');
-    return { status: 'error', message };
+    return { status: 'error', message: explainCreateFailure(error) };
   }
 
   const cookieStore = await cookies();
@@ -181,4 +177,56 @@ function slugify(name: string): string {
 
   const stem = base.length >= 2 ? base : 'org';
   return `${stem}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/**
+ * A failed organisation creation, in words.
+ *
+ * The onboarding form used to print the database's own error, which is how
+ * someone who had just signed up was shown:
+ *
+ *   Could not find the function public.create_organisation(p_country_code,
+ *   p_currency_code, p_industry, p_name, p_slug) in the schema cache
+ *
+ * There is nothing in that sentence a reader can act on, and it is not their
+ * fault in any case. Each failure now says whose problem it is, and the one
+ * they can fix themselves — a name already taken — is still named precisely.
+ */
+function explainCreateFailure(error: { code?: string; message: string } | null): string {
+  const message = error?.message ?? '';
+
+  // PGRST202: PostgREST resolves calls against a cached copy of the schema, so
+  // this means missing *or* merely invisible. Either way it is the operator's
+  // to fix, not the person filling in the form.
+  if (error?.code === 'PGRST202' || /could not find the function/i.test(message)) {
+    return (
+      'This deployment cannot finish setting up an organisation — a required database ' +
+      'function is not reachable. Nothing is wrong with what you entered. Open /diagnostics, ' +
+      'which says exactly which migration to run.'
+    );
+  }
+
+  if (message.includes('organisations_slug_key')) {
+    return 'An organisation with a similar name already exists. Try a more specific name.';
+  }
+
+  if (/authentication required/i.test(message)) {
+    return 'Your session expired while the form was open. Sign in again and retry.';
+  }
+
+  if (/permission denied|42501/i.test(message)) {
+    return (
+      'The database refused to create the organisation. Nothing is wrong with what you ' +
+      'entered — open /diagnostics to check the migrations are fully applied.'
+    );
+  }
+
+  if (/country code must be|currency code must be/i.test(message)) {
+    // Raised by create_organisation itself, and already in plain language.
+    return message;
+  }
+
+  return message.length > 0
+    ? `Could not create that organisation: ${message}. If this persists, open /diagnostics.`
+    : 'Could not create that organisation, and no reason was given. Open /diagnostics.';
 }

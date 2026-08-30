@@ -177,6 +177,7 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
       'Supabase reachable',
       'Database schema',
       'Role grants',
+      'Organisation setup',
       'Row Level Security',
       'Current session',
       'Your organisation',
@@ -192,6 +193,7 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
     checkReachable(),
     checkSchema(),
     checkRoleGrants(),
+    checkBootstrapFunction(),
     checkRowLevelSecurity(),
     checkSession(),
     checkMembership(),
@@ -297,6 +299,60 @@ function checkRoleGrants(): Promise<Check> {
       status: found > 100 ? 'ok' : 'warn',
       detail: `${found} role grants. Without these, a signed-in user would see nothing.`,
       remedy: found > 100 ? undefined : 'Apply migration 06, which seeds the role matrix.',
+    };
+  });
+}
+
+/**
+ * Can the app still create an organisation?
+ *
+ * Tables were checked and functions were not, so a missing or unreachable
+ * create_organisation() surfaced at the worst possible moment — on the
+ * onboarding form, to someone who had just signed up, as a paragraph of
+ * PostgREST internals.
+ *
+ * The probe is a real call, because only a real call goes through the same
+ * cache that was stale. It creates nothing, in any of the three states a
+ * caller can be in:
+ *
+ *   · Signed out, the grant excludes anon, so the database refuses on
+ *     permission before the body runs.
+ *   · Signed in, an empty name fails the organisations check constraint on the
+ *     first insert, and an error inside a function rolls the whole call back.
+ *   · Absent, PostgREST answers PGRST202 without reaching the database.
+ *
+ * Only the third is a finding. The other two prove the function is there,
+ * which is the whole question.
+ */
+function checkBootstrapFunction(): Promise<Check> {
+  return attempt('Organisation setup', async () => {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc('create_organisation', {
+      p_name: '',
+      p_slug: '',
+      p_industry: null,
+      p_country_code: 'ZA',
+      p_currency_code: 'ZAR',
+    });
+
+    const missing =
+      error?.code === 'PGRST202' || /could not find the function/i.test(error?.message ?? '');
+
+    if (missing) {
+      return {
+        name: 'Organisation setup',
+        status: 'fail',
+        detail:
+          'The create_organisation function cannot be reached, so nobody can finish signing up.',
+        remedy:
+          'Run supabase/migrations/20260830190000_08_organisation_bootstrap_rpc.sql in the SQL editor. It creates the function and reloads the API cache, which is the half that applying migrations by hand leaves out.',
+      };
+    }
+
+    return {
+      name: 'Organisation setup',
+      status: 'ok',
+      detail: 'The create_organisation function is present and reachable.',
     };
   });
 }

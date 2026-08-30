@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/field';
 import { createOrganisation, type OnboardingState } from './actions';
+import { AuthError } from '@/features/auth/auth-error';
 
 export function OnboardingForm() {
   const [state, action] = useActionState(createOrganisation, {
@@ -50,9 +51,7 @@ export function OnboardingForm() {
       </div>
 
       {state.status === 'error' ? (
-        <p className="text-[0.8125rem] text-[var(--negative)]" role="alert">
-          {state.message}
-        </p>
+        <AuthError message={state.message} />
       ) : null}
 
       <Submit />
