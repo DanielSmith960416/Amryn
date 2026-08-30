@@ -9,10 +9,29 @@
  */
 import { z } from 'zod';
 
+/**
+ * An unset variable and one set to an empty string are the same intent, and
+ * hosting dashboards produce the second constantly — a row added, saved, and
+ * never filled in. Treating them differently is how an empty optional value
+ * came to fail validation and condemn the whole configuration, taking down
+ * every route with it.
+ */
+function present(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
 const publicSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url('NEXT_PUBLIC_SUPABASE_URL must be a URL'),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is missing'),
-  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_URL: z
+    .string()
+    .url('NEXT_PUBLIC_SUPABASE_URL is not a valid URL. It must start with https://'),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z
+    .string()
+    .min(20, 'NEXT_PUBLIC_SUPABASE_ANON_KEY looks too short to be a key'),
+  NEXT_PUBLIC_SITE_URL: z
+    .string()
+    .url('NEXT_PUBLIC_SITE_URL is set but is not a valid URL. Clear it or set a full https:// address')
+    .optional(),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;
@@ -23,9 +42,9 @@ export type PublicEnv = z.infer<typeof publicSchema>;
  */
 export function publicEnv(): PublicEnv {
   const parsed = publicSchema.safeParse({
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_SUPABASE_URL: present(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    NEXT_PUBLIC_SITE_URL: present(process.env.NEXT_PUBLIC_SITE_URL),
   });
 
   if (!parsed.success) {
@@ -48,8 +67,8 @@ export function publicEnv(): PublicEnv {
  * `publicEnv()`, turning a typo into a server-side exception.
  */
 export function supabaseConfigError(): string | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = present(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const key = present(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   const missing: string[] = [];
   if (!url) missing.push('NEXT_PUBLIC_SUPABASE_URL');
@@ -61,7 +80,7 @@ export function supabaseConfigError(): string | null {
   const parsed = publicSchema.safeParse({
     NEXT_PUBLIC_SUPABASE_URL: url,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: key,
-    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_SITE_URL: present(process.env.NEXT_PUBLIC_SITE_URL),
   });
   if (!parsed.success) {
     return parsed.error.issues.map((i) => i.message).join(' ');
@@ -75,9 +94,14 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function siteUrl(): string {
+  // Truthiness, not `??`: an empty string is a value, and `?? ` would return
+  // it — which is how "Falling back to " came to be printed with nothing
+  // after it.
   return (
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    present(process.env.NEXT_PUBLIC_SITE_URL) ??
+    (present(process.env.VERCEL_URL)
+      ? `https://${present(process.env.VERCEL_URL)}`
+      : 'http://localhost:3000')
   );
 }
 
