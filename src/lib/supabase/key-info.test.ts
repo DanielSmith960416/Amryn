@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inspectKey, judgeAnonKey, projectRefFromUrl } from './key-info';
+import { cleanKey, describeShape, inspectKey, judgeAnonKey, projectRefFromUrl } from './key-info';
 
 /** Builds an unsigned JWT with the given claims — enough to read, never to use. */
 function jwt(claims: Record<string, unknown>): string {
@@ -91,11 +91,15 @@ describe('judgeAnonKey', () => {
     expect(verdict.remedy).toContain('compromised');
   });
 
-  it('reports a truncated key as truncated rather than as the wrong project', () => {
+  it('describes a cut-off key by its shape rather than guessing why', () => {
+    // This used to assert the word "truncated". That was the guess the message
+    // made, and a guess is what a reader cannot check. A length and a segment
+    // count they can compare against their dashboard in seconds.
     const full = jwt({ ref: PROJECT, role: 'anon', exp: IN_TEN_YEARS });
     const verdict = judgeAnonKey(full.slice(0, 40), URL_FOR_PROJECT);
     expect(verdict.status).toBe('fail');
-    expect(verdict.detail).toMatch(/truncated|shorter/);
+    expect(verdict.detail).toContain('40 characters');
+    expect(verdict.detail).toContain('segments');
   });
 
   it('reports an unset key', () => {
@@ -111,5 +115,79 @@ describe('judgeAnonKey', () => {
 
   it('accepts a publishable key against a Supabase URL', () => {
     expect(judgeAnonKey('sb_publishable_abcdefghijklmnop', URL_FOR_PROJECT).status).toBe('ok');
+  });
+});
+
+describe('cleanKey', () => {
+  const REAL = jwt({ ref: PROJECT, role: 'anon', exp: IN_TEN_YEARS });
+
+  it('strips quotation marks a dashboard stored with the value', () => {
+    // The false negative that prompted this: a quoted key still splits into
+    // three parts and decodes, so the old check pronounced it healthy while
+    // Supabase answered every request "Invalid API key".
+    for (const wrapped of [`"${REAL}"`, `'${REAL}'`, `\`${REAL}\``]) {
+      const cleaned = cleanKey(wrapped);
+      expect(cleaned.key).toBe(REAL);
+      expect(cleaned.repairs.join(' ')).toContain('quotation marks');
+    }
+  });
+
+  it('strips a line break folded into the middle by a copy on a phone', () => {
+    const broken = `${REAL.slice(0, 40)}\n${REAL.slice(40)}`;
+    expect(cleanKey(broken).key).toBe(REAL);
+    expect(cleanKey(broken).repairs.join(' ')).toContain('line breaks');
+  });
+
+  it('strips a whole NAME=value line pasted into the value box', () => {
+    expect(cleanKey(`NEXT_PUBLIC_SUPABASE_ANON_KEY=${REAL}`).key).toBe(REAL);
+  });
+
+  it('handles quotes and whitespace together', () => {
+    const cleaned = cleanKey(`  "${REAL.slice(0, 30)} ${REAL.slice(30)}"  `);
+    expect(cleaned.key).toBe(REAL);
+    expect(cleaned.repairs).toHaveLength(2);
+  });
+
+  it('reports no repairs for a clean key, and leaves it untouched', () => {
+    expect(cleanKey(REAL)).toEqual({ key: REAL, repairs: [] });
+  });
+
+  it('does not mangle a current-format key', () => {
+    expect(cleanKey('sb_publishable_abc123').key).toBe('sb_publishable_abc123');
+  });
+
+  it('survives undefined and empty input', () => {
+    expect(cleanKey(undefined).key).toBe('');
+    expect(cleanKey('   ').key).toBe('');
+  });
+});
+
+describe('a repaired key still reaches a verdict', () => {
+  it('accepts a quoted key but says it was repaired', () => {
+    const verdict = judgeAnonKey(`"${jwt({ ref: PROJECT, role: 'anon', exp: IN_TEN_YEARS })}"`, URL_FOR_PROJECT);
+    expect(verdict.status).toBe('warn');
+    expect(verdict.detail).toContain('repairing');
+  });
+
+  it('still catches a published service-role key through its quotes', () => {
+    const verdict = judgeAnonKey(`"${jwt({ ref: PROJECT, role: 'service_role', exp: IN_TEN_YEARS })}"`, URL_FOR_PROJECT);
+    expect(verdict.status).toBe('fail');
+    expect(verdict.remedy).toContain('compromised');
+  });
+});
+
+describe('describeShape', () => {
+  it('reports facts about the value, never the value', () => {
+    const key = jwt({ ref: PROJECT, role: 'anon', exp: IN_TEN_YEARS });
+    const shape = describeShape(key);
+    expect(shape).toContain(`${key.length} characters`);
+    expect(shape).toContain('3 dot-separated segments');
+    expect(shape).not.toContain(key.slice(0, 20));
+  });
+
+  it('names a truncated key by its segment count rather than guessing', () => {
+    const verdict = judgeAnonKey('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9', URL_FOR_PROJECT);
+    expect(verdict.detail).toContain('1 segment');
+    expect(verdict.detail).toContain('starts like a legacy key');
   });
 });

@@ -62,7 +62,23 @@ const CHECK_TIMEOUT_MS = 4_000;
  */
 function describe(message: string | undefined | null): string {
   const text = message?.trim();
-  return text && text.length > 0 ? text : 'no reason given, which usually means the request never arrived';
+  // "which usually means the request never arrived" used to be appended here.
+  // It was a guess presented as a finding, and it was wrong in the case that
+  // matters most: a rejected key returns an empty message on a count query,
+  // so three checks blamed the network for an authentication failure and sent
+  // the reader to re-run migrations that were already applied.
+  return text && text.length > 0 ? text : 'no reason given';
+}
+
+/**
+ * True when an error is the database refusing the key rather than answering.
+ *
+ * Worth singling out because it invalidates every other reading: nothing
+ * downstream can be attempted, so nothing downstream should be reported as a
+ * finding of its own.
+ */
+function isKeyRejection(message: string | undefined | null): boolean {
+  return /invalid api key|no api key|jwt|not authorized|unauthorized/i.test(message ?? '');
 }
 
 /** Runs a check, bounded in time, turning any throw into a reportable failure. */
@@ -172,7 +188,7 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
     return summarise([...configuration, ...skipped, optional]);
   }
 
-  const connected = await Promise.all([
+  const [reachable, ...rest] = await Promise.all([
     checkReachable(),
     checkSchema(),
     checkRoleGrants(),
@@ -180,6 +196,22 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
     checkSession(),
     checkMembership(),
   ]);
+
+  // They run together to stay inside a serverless function's budget, but they
+  // are not independent. If the key was refused, every one of the others failed
+  // for that reason and for no other — reporting each as its own red finding
+  // manufactures four problems out of one and points at the wrong repairs.
+  const connected =
+    reachable.status === 'fail' && isKeyRejection(reachable.detail)
+      ? [
+          reachable,
+          ...rest.map((check) => ({
+            name: check.name,
+            status: 'skipped' as const,
+            detail: 'Not checked — the database refused the key, so nothing could be read.',
+          })),
+        ]
+      : [reachable, ...rest];
 
   return summarise([...configuration, ...connected, optional]);
 }
@@ -200,7 +232,9 @@ function checkReachable(): Promise<Check> {
           detail: `The database rejected a read — ${describe(error.message)}.`,
           remedy: missing
             ? 'The migrations have not been applied. Run everything in supabase/migrations in filename order.'
-            : 'Check the anon key belongs to this project, and that the project is not paused.',
+            : isKeyRejection(error.message)
+              ? 'The key was refused. See the “Supabase anon key” check above — it says which fault this is. Nothing below could be checked.'
+              : 'Check the project is not paused, and that the URL points at the right project.',
         };
       }
       return {
