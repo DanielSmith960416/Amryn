@@ -172,7 +172,11 @@ export default async function CommandCentrePage() {
             <div className="space-y-5">
               <Card>
                 <CardHeader
-                  title="OpportunityRadar®"
+                  title={
+                    <>
+                      AI OpportunityRadar<span className="tm">®</span>
+                    </>
+                  }
                   subtitle={`${liveOpportunities.length} live, ${formatMoney(pipelineValue, currency)} at stake`}
                   actions={
                     <Link
