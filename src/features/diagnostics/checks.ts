@@ -22,7 +22,7 @@ import 'server-only';
  * never by value.
  */
 import { createClient } from '@/lib/supabase/server';
-import { aiConfig, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
+import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped';
@@ -134,10 +134,10 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
       detail: !supabaseUrl
         ? 'NEXT_PUBLIC_SUPABASE_URL is not set, and there is no anon key to work it out from.'
         : !isUrl(supabaseUrl)
-          ? `Set to “${supabaseUrl}”, which is not a valid URL.`
+          ? `Set to “${redact(supabaseUrl)}”, which is not a valid URL.`
           : resolved.source === 'configured'
-            ? `Set to ${supabaseUrl}.`
-            : `Using ${supabaseUrl}. ${resolved.note}`,
+            ? `Set to ${redact(supabaseUrl)}.`
+            : `Using ${redact(supabaseUrl)}. ${resolved.note}`,
       remedy: !supabaseUrl
         ? 'Set the anon key — the URL is worked out from it. Then redeploy: values added after a build are not in the bundle until the next one.'
         : !isUrl(supabaseUrl)
@@ -160,8 +160,8 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
       detail: !configuredSiteUrl
         ? `Not set. Sign-in links will point at ${siteUrl()}.`
         : isUrl(configuredSiteUrl)
-          ? `Set to ${configuredSiteUrl}. Sign-in links point here.`
-          : `Set to “${configuredSiteUrl}”, which is not a valid URL.`,
+          ? `Set to ${redact(configuredSiteUrl)}. Sign-in links point here.`
+          : `Set to “${redact(configuredSiteUrl)}”, which is not a valid URL.`,
       remedy: !configuredSiteUrl
         ? 'Optional, but setting it to the deployment’s address makes email links resolve predictably.'
         : isUrl(configuredSiteUrl)
@@ -480,6 +480,21 @@ function checkMembership(): Promise<Check> {
 function aiCheck(): Check {
   const ai = aiConfig();
 
+  // Reported before anything else about the AI layer, because it is the only
+  // finding here that is a live credential rather than a misconfiguration.
+  // This page is reachable without signing in, so printing the value — as it
+  // once did — publishes the key to anyone holding the URL.
+  if (ai.modelIsSecret) {
+    return {
+      name: 'AI provider',
+      status: 'fail',
+      detail:
+        'AI_MODEL contains something that looks like an API key, not a model name. It has been ignored, so the platform is using its default model.',
+      remedy:
+        'Treat that key as compromised and issue a new one with your provider. Put it in AI_API_KEY, clear AI_MODEL, then redeploy. AI_MODEL is only ever a name like gpt-4.1-mini.',
+    };
+  }
+
   // A model name belonging to the other provider is a 404 at request time,
   // long after anyone would connect it to the setting that caused it.
   const looksMismatched =
@@ -490,7 +505,7 @@ function aiCheck(): Check {
     return {
       name: 'AI provider',
       status: 'fail',
-      detail: `AI_PROVIDER is ${ai.provider} but AI_MODEL is ${ai.model}, which belongs to the other provider.`,
+      detail: `AI_PROVIDER is ${ai.provider} but AI_MODEL is ${redact(ai.model)}, which belongs to the other provider.`,
       remedy: 'Clear AI_MODEL to take the provider’s default, or set one that provider recognises.',
     };
   }
@@ -501,7 +516,7 @@ function aiCheck(): Check {
     detail:
       ai.provider === 'none'
         ? 'None configured. The platform runs on its own analytical engines; only the assistant and cross-cutting recommendations are unavailable.'
-        : `${ai.provider}, model ${ai.model}, effort ${ai.effort}. The assistant and cross-cutting recommendations are available.`,
+        : `${ai.provider}, model ${redact(ai.model)}, effort ${ai.effort}. The assistant and cross-cutting recommendations are available.`,
     remedy:
       ai.provider === 'none'
         ? 'Optional. Set AI_API_KEY to enable conversational answers.'

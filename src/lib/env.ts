@@ -196,10 +196,61 @@ export function serviceRoleKey(): string {
   return key;
 }
 
+/**
+ * Does this value look like a credential?
+ *
+ * Written after a live OpenAI key was pasted into AI_MODEL and printed, in
+ * full, on a diagnostics page that anyone could load without signing in. The
+ * page had been built on the rule that it reports whether a setting is present
+ * and never what it contains — and the model name was the one value treated as
+ * safe to show, because a model name is not a secret.
+ *
+ * The flaw in that reasoning is that a variable's name does not decide what is
+ * in it. Any setting can receive a pasted key, so nothing derived from the
+ * environment is displayable on the strength of what it was meant to hold.
+ *
+ * Deliberately broad. A model name wrongly withheld costs a line of a report;
+ * a key wrongly shown costs the key.
+ */
+export function looksLikeSecret(value: string | undefined | null): boolean {
+  const v = value?.trim() ?? '';
+  if (v.length === 0) return false;
+
+  // Prefixes issued by the providers this platform can talk to, plus the ones
+  // most likely to be pasted in by mistake.
+  if (/^(sk-|sk-proj-|sk-ant-|rk-|eyJ|sb_secret_|sb_publishable_|ghp_|gho_|github_pat_|xox[abprs]-|AIza)/i.test(v)) {
+    return true;
+  }
+
+  // An http(s) address is self-evidently not a credential, and several are
+  // long enough to trip the length rule below — a Supabase project URL is
+  // forty characters. Withholding those would blind the report to the values
+  // it exists to show.
+  try {
+    const { protocol } = new URL(v);
+    if (protocol === 'http:' || protocol === 'https:') return false;
+  } catch {
+    // Not a URL. Fall through.
+  }
+
+  // No model any provider offers is this long. A 32-character opaque string in
+  // a field expecting "gpt-4.1-mini" is a key.
+  return v.length >= 32;
+}
+
+/** A value safe to print in a report: the shape of a secret, or the value itself. */
+export function redact(value: string | undefined | null): string {
+  const v = value?.trim() ?? '';
+  if (v.length === 0) return 'empty';
+  return looksLikeSecret(v) ? `hidden — ${v.length} characters` : v;
+}
+
 export interface AiConfig {
   provider: 'openai' | 'anthropic' | 'none';
   apiKey: string | null;
   model: string;
+  /** AI_MODEL held something that looks like a credential, and was ignored. */
+  modelIsSecret: boolean;
   maxOutputTokens: number;
   /** How hard the model should work. Claude only; ignored elsewhere. */
   effort: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -233,12 +284,21 @@ export function aiConfig(): AiConfig {
 
   const effort = process.env.AI_EFFORT?.trim().toLowerCase();
 
+  // A key pasted into AI_MODEL is ignored rather than used. Sending it as a
+  // model name would put the credential in a request body and a provider's
+  // logs, and the request would 404 regardless — so the default model is used
+  // and the mistake is reported instead.
+  const requestedModel = process.env.AI_MODEL?.trim();
+  const modelIsSecret = looksLikeSecret(requestedModel);
+  const model =
+    (modelIsSecret ? undefined : requestedModel) ||
+    (provider === 'none' ? DEFAULT_MODEL.openai : DEFAULT_MODEL[provider]);
+
   return {
     provider,
     apiKey: provider === 'none' ? null : apiKey,
-    model:
-      process.env.AI_MODEL?.trim() ||
-      (provider === 'none' ? DEFAULT_MODEL.openai : DEFAULT_MODEL[provider]),
+    modelIsSecret,
+    model,
     // Adaptive thinking spends tokens from this same budget, so a small ceiling
     // truncates the answer rather than the reasoning.
     maxOutputTokens: Number.parseInt(process.env.AI_MAX_OUTPUT_TOKENS ?? '16000', 10) || 16000,
