@@ -75,16 +75,15 @@ enabled = true
 # and every magic link will break.
 #
 # The callback path must match src/app/auth/callback/route.ts.
-site_url = "http://127.0.0.1:3000"
+site_url = "https://amryn.vercel.app"
 additional_redirect_urls = [
+  "https://amryn.vercel.app/auth/callback",
+  # Vercel gives preview deployments a new hostname per commit, so allow the
+  # pattern rather than adding them one at a time.
+  "https://amryn-*.vercel.app/auth/callback",
+  # Local development.
   "http://127.0.0.1:3000/auth/callback",
   "http://localhost:3000/auth/callback",
-  # Add your deployment, e.g.:
-  # "https://your-project.vercel.app/auth/callback",
-  #
-  # Vercel preview deployments get a new hostname per commit, so allow the
-  # pattern rather than adding them one at a time:
-  # "https://your-project-*.vercel.app/auth/callback",
 ]
 
 jwt_expiry = 3600
