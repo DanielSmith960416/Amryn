@@ -81,6 +81,27 @@ function isKeyRejection(message: string | undefined | null): boolean {
   return /invalid api key|no api key|jwt|not authorized|unauthorized/i.test(message ?? '');
 }
 
+/**
+ * True when PostgREST says a table is not in its schema cache.
+ *
+ * Worth separating from every other failure because it has two causes that
+ * need opposite responses, and the message names neither: the table does not
+ * exist in this project, or it does and the API has not been told. Guessing
+ * between them is what produced four different remedies for one fault.
+ */
+function isSchemaCacheMiss(message: string | undefined | null): boolean {
+  return /schema cache/i.test(message ?? '');
+}
+
+/** The one query that tells those two causes apart, run where PostgREST is not involved. */
+const SCHEMA_TRIAGE =
+  'In Supabase → SQL Editor, run:  select count(*) from public.permissions;  ' +
+  'A number means the tables are here and only the API needs telling — run  ' +
+  "notify pgrst, 'reload schema';  and reload this page. " +
+  'An error saying the relation does not exist means the migrations did not land in ' +
+  'this project: check the project reference in the SQL editor’s address matches the ' +
+  'one shown above, then apply supabase/migrations in filename order.';
+
 /** Runs a check, bounded in time, turning any throw into a reportable failure. */
 async function attempt(name: string, run: () => Promise<Check>, onThrow?: string): Promise<Check> {
   const timeout = new Promise<Check>((resolve) => {
@@ -203,17 +224,31 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
   // are not independent. If the key was refused, every one of the others failed
   // for that reason and for no other — reporting each as its own red finding
   // manufactures four problems out of one and points at the wrong repairs.
-  const connected =
-    reachable.status === 'fail' && isKeyRejection(reachable.detail)
-      ? [
-          reachable,
-          ...rest.map((check) => ({
-            name: check.name,
-            status: 'skipped' as const,
-            detail: 'Not checked — the database refused the key, so nothing could be read.',
-          })),
-        ]
-      : [reachable, ...rest];
+  //
+  // This deferral was written for a refused key and should never have been
+  // limited to one. If the first read fails at all, nothing after it can be
+  // interpreted: counts come back zero because nothing could be counted, and
+  // each check then blames a different migration for the same single cause.
+  // That produced four contradictory remedies on a live deployment, twice.
+  const blocked =
+    reachable.status === 'fail'
+      ? isKeyRejection(reachable.detail)
+        ? 'the database refused the key'
+        : isSchemaCacheMiss(reachable.detail)
+          ? 'the API cannot see the tables'
+          : 'the first read failed'
+      : null;
+
+  const connected = blocked
+    ? [
+        reachable,
+        ...rest.map((check) => ({
+          name: check.name,
+          status: 'skipped' as const,
+          detail: `Not checked — ${blocked}, so nothing could be read. This is the same fault as above, not a separate one.`,
+        })),
+      ]
+    : [reachable, ...rest];
 
   return summarise([...configuration, ...connected, optional]);
 }
@@ -232,11 +267,13 @@ function checkReachable(): Promise<Check> {
           name: 'Supabase reachable',
           status: 'fail',
           detail: `The database rejected a read — ${describe(error.message)}.`,
-          remedy: missing
-            ? 'The migrations have not been applied. Run everything in supabase/migrations in filename order.'
-            : isKeyRejection(error.message)
-              ? 'The key was refused. See the “Supabase anon key” check above — it says which fault this is. Nothing below could be checked.'
-              : 'Check the project is not paused, and that the URL points at the right project.',
+          remedy: isSchemaCacheMiss(error.message)
+            ? SCHEMA_TRIAGE
+            : missing
+              ? 'The migrations have not been applied. Run everything in supabase/migrations in filename order.'
+              : isKeyRejection(error.message)
+                ? 'The key was refused. See the “Supabase anon key” check above — it says which fault this is. Nothing below could be checked.'
+                : 'Check the project is not paused, and that the URL points at the right project.',
         };
       }
       return {
