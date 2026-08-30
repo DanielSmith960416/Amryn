@@ -105,21 +105,45 @@ resolves to, so you can confirm the links before pushing.
 
 #### Deploying the platform to Vercel
 
-1. Import this repository at [vercel.com/new](https://vercel.com/new). Leave the
-   root directory as the repository root — the platform lives there.
-2. Add the environment variables from `.env.example`:
-   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
-   `NEXT_PUBLIC_SITE_URL` (set that last one to the deployment's own URL).
-   Add `AI_API_KEY` when you want conversational answers.
-3. Apply `supabase/migrations/` to your Supabase project in filename order.
-4. In Supabase, under **Authentication → URL Configuration**, set the Site URL to
-   the deployment and add `https://<deployment>/auth/callback` to the redirect
-   allow-list. Supabase rejects auth redirects to domains it does not know
-   about, so without this, magic links and Google or Microsoft sign-in fail
-   after the user has already left the page — password sign-in keeps working,
-   which makes it an easy fault to miss.
-5. Take the deployment URL Vercel assigns and set `APP_URL` above.
-6. `npm run check:site` to confirm, then push.
+Vercel's Git integration handles this: connect the repository once, and every
+push to `main` deploys automatically, with a preview deployment per pull
+request. No secrets are stored in GitHub and there is no workflow to maintain.
+
+1. **Import the repository** at [vercel.com/new](https://vercel.com/new). Leave
+   the root directory as the repository root — the platform lives there, and
+   Next.js is detected automatically. `docs/` is ignored by Vercel and keeps
+   deploying to GitHub Pages independently.
+
+   The first build **succeeds with no environment variables set**, so you get a
+   deployment URL before configuring anything. The app runs, and the sign-in
+   page explains what is still missing rather than erroring.
+
+2. **Add the environment variables** under Project → Settings → Environment
+   Variables, from `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_SITE_URL` set to the
+   deployment's own URL. Add `AI_API_KEY` when you want conversational answers
+   and cross-cutting recommendations. Redeploy to pick them up.
+
+3. **Apply the migrations.** Run everything in `supabase/migrations/` against
+   your Supabase project in filename order. Optionally `supabase/seed/seed.sql`
+   for a worked demo organisation.
+
+4. **Allow the auth redirect.** In Supabase, under **Authentication → URL
+   Configuration**, set the Site URL to the deployment and add
+   `https://<deployment>/auth/callback` to the redirect allow-list.
+
+   Skipping this is the easiest mistake to make and the slowest to diagnose:
+   password sign-in keeps working, while magic links and Google or Microsoft
+   sign-in fail *after* the user has already left your page, so it looks like
+   the provider's fault.
+
+5. **Point the marketing site at it.** Set `APP_URL` in `docs/app.js` to the
+   deployment URL, run `npm run check:site` to confirm, and push. That reveals
+   the Sign in and Open the platform links.
+
+If you plan to put a custom domain on the deployment, do that before step 5 and
+use the custom domain — it survives a project rename or a move off Vercel, and
+saves changing this twice.
 
 ---
 
