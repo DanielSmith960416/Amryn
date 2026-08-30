@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Image from 'next/image';
 import { OnboardingForm } from '@/features/organisation/onboarding-form';
 import { getWorkspace, requireUser } from '@/lib/auth/session';
+import { isSupabaseConfigured } from '@/lib/env';
 
 export const metadata: Metadata = { title: 'Set up your organisation' };
 
@@ -16,6 +17,8 @@ export const metadata: Metadata = { title: 'Set up your organisation' };
 export const dynamic = 'force-dynamic';
 
 export default async function OnboardingPage() {
+  if (!isSupabaseConfigured()) redirect('/sign-in');
+
   await requireUser();
   const workspace = await getWorkspace();
   if (workspace) redirect('/command-centre');
