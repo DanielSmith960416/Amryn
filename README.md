@@ -93,9 +93,9 @@ kind of thing that gets forgotten and then costs an afternoon.
 It does two jobs:
 
 ```bash
-supabase start                                  # local stack, seeded with the demo org
-supabase link --project-ref <your-project-ref>
-supabase config push                            # applies [auth] to the remote project
+supabase start          # local stack, seeded with the demo org
+supabase link           # the project ref is already in config.toml
+supabase config push    # applies [auth] to the remote project
 ```
 
 **Before pushing, know what it does.** `config push` applies *everything* in the
@@ -163,9 +163,21 @@ request. No secrets are stored in GitHub and there is no workflow to maintain.
    your Supabase project in filename order. Optionally `supabase/seed/seed.sql`
    for a worked demo organisation.
 
+   With the CLI, from a machine that can reach Supabase:
+
+   ```bash
+   npx supabase login                 # opens a browser
+   npx supabase link                  # project ref is already in config.toml
+   npx supabase db push               # applies migrations/ in order
+   ```
+
+   Or paste each file into the SQL editor in filename order — six files, and
+   they are ordinary SQL with no CLI-specific syntax.
+
 4. **Allow the auth redirect.** Set the Site URL to the deployment and add
    `https://<deployment>/auth/callback` to the redirect allow-list — either in
-   the dashboard under **Authentication → URL Configuration**, or from
+   the [dashboard](https://supabase.com/dashboard/project/tnkmrrfxzsrbfndpkonh/auth/url-configuration)
+   under **Authentication → URL Configuration**, or from
    `supabase/config.toml` (see [Supabase configuration](#supabase-configuration)
    below).
 
