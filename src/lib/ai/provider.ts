@@ -138,10 +138,24 @@ function parseJson<T>(
 
 /* ── providers ─────────────────────────────────────────────────────────── */
 
+/**
+ * OpenAI's reasoning models take a different request shape from the chat
+ * models: they require `max_completion_tokens` rather than `max_tokens`, and
+ * reject `temperature` outright. Sending the chat shape to one is a 400 at
+ * request time — the same class of fault that made the Anthropic path
+ * unusable — so the shape is chosen from the model name rather than assumed.
+ */
+function isReasoningModel(model: string): boolean {
+  return /^(o[0-9]|gpt-5)/i.test(model.trim());
+}
+
 async function completeOpenAi(
   request: CompletionRequest,
   config: AiConfig,
 ): Promise<CompletionResult> {
+  const maxTokens = request.maxOutputTokens ?? config.maxOutputTokens;
+  const reasoning = isReasoningModel(config.model);
+
   const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -151,8 +165,9 @@ async function completeOpenAi(
     body: JSON.stringify({
       model: config.model,
       messages: request.messages,
-      temperature: request.temperature ?? 0.2,
-      max_tokens: request.maxOutputTokens ?? config.maxOutputTokens,
+      ...(reasoning
+        ? { max_completion_tokens: maxTokens }
+        : { temperature: request.temperature ?? 0.2, max_tokens: maxTokens }),
     }),
   });
 

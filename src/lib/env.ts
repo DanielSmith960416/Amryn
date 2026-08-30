@@ -105,15 +105,13 @@ export interface AiConfig {
 /**
  * The default model per provider.
  *
- * These are not interchangeable strings: an OpenAI model name sent to
- * Anthropic is a 404, and a single shared default silently breaks whichever
- * provider it does not belong to. Claude Opus 5 is the current most capable
- * model, which is the right default for work whose whole value is the quality
- * of the reasoning.
+ * These are not interchangeable strings: a model name sent to the wrong
+ * provider is a 404, and a single shared default silently breaks whichever
+ * provider it does not belong to.
  */
 const DEFAULT_MODEL: Record<'openai' | 'anthropic', string> = {
-  anthropic: 'claude-opus-5',
   openai: 'gpt-4.1-mini',
+  anthropic: 'claude-opus-5',
 };
 
 /**
@@ -126,9 +124,9 @@ export function aiConfig(): AiConfig {
   const provider: AiConfig['provider'] =
     !apiKey || requested === 'none'
       ? 'none'
-      : requested === 'openai'
-        ? 'openai'
-        : 'anthropic';
+      : requested === 'anthropic'
+        ? 'anthropic'
+        : 'openai';
 
   const effort = process.env.AI_EFFORT?.trim().toLowerCase();
 
@@ -137,7 +135,7 @@ export function aiConfig(): AiConfig {
     apiKey: provider === 'none' ? null : apiKey,
     model:
       process.env.AI_MODEL?.trim() ||
-      (provider === 'none' ? DEFAULT_MODEL.anthropic : DEFAULT_MODEL[provider]),
+      (provider === 'none' ? DEFAULT_MODEL.openai : DEFAULT_MODEL[provider]),
     // Adaptive thinking spends tokens from this same budget, so a small ceiling
     // truncates the answer rather than the reasoning.
     maxOutputTokens: Number.parseInt(process.env.AI_MAX_OUTPUT_TOKENS ?? '16000', 10) || 16000,

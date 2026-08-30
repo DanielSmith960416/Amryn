@@ -56,11 +56,11 @@ would provide, so the migrations can be exercised against plain PostgreSQL.
 - **Analytical engines** — business health scoring, opportunity scoring, trend,
   anomaly, step-change and divergence detection, and the executive briefing.
   Pure, deterministic, 120 unit tests.
-- **AI layer** — one interface over Anthropic and OpenAI, with schema-validated
-  structured output and one corrective retry. Claude is the default, on
-  `claude-opus-5` with adaptive thinking, because the whole value of this layer
-  is the quality of the reasoning. Optional: without an API key the platform
-  runs on its engines and says so plainly in the interface.
+- **AI layer** — one interface over OpenAI and Anthropic, with schema-validated
+  structured output and one corrective retry. OpenAI is the default, on
+  `gpt-4.1-mini`; set `AI_PROVIDER=anthropic` to use Claude instead, which runs
+  `claude-opus-5` with adaptive thinking. Optional either way: without an API
+  key the platform runs on its engines and says so plainly in the interface.
 - **Thirty-three routes** — Command Centre, DigitalTwin®, OpportunityRadar®,
   performance, opportunities, strategy, risk, data, reports and administration.
 
@@ -165,8 +165,8 @@ request. No secrets are stored in GitHub and there is no workflow to maintain.
    decides every row it can read. `SUPABASE_SERVICE_ROLE_KEY` is the one that
    must never be public, and it is deliberately unprefixed.
 
-   For the intelligence layer, add `AI_API_KEY` with an Anthropic key. No
-   prefix — it is a server-side secret and must not reach the browser.
+   For the intelligence layer, add `AI_API_KEY` with an OpenAI key. No prefix —
+   it is a server-side secret and must not reach the browser.
 
 3. **Apply the migrations.** Run everything in `supabase/migrations/` against
    your Supabase project in filename order. Optionally `supabase/seed/seed.sql`
