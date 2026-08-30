@@ -344,8 +344,13 @@ function checkBootstrapFunction(): Promise<Check> {
         status: 'fail',
         detail:
           'The create_organisation function cannot be reached, so nobody can finish signing up.',
+        // The SQL itself, not a file path. A remedy that sends someone to find
+        // a file in a repository on their phone is a remedy they will not
+        // apply. Supabase answers from a cached copy of the schema, and
+        // applying migrations by hand never refreshes it, so the one-line
+        // reload is both the likeliest fix and the cheapest thing to try.
         remedy:
-          'Run supabase/migrations/20260830190000_08_organisation_bootstrap_rpc.sql in the SQL editor. It creates the function and reloads the API cache, which is the half that applying migrations by hand leaves out.',
+          'In Supabase → SQL Editor, run:  notify pgrst, \'reload schema\';  — Supabase answers from a cached copy of your schema, and applying migrations by hand does not refresh it, so a function that exists can stay invisible. If this check is still red afterwards, the function really is missing: run supabase/migrations/20260830190000_08_organisation_bootstrap_rpc.sql, which creates it and reloads the cache.',
       };
     }
 
