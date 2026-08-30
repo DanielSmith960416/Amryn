@@ -92,15 +92,28 @@ The marketing site's "Sign in" and "Open the platform" links are driven by one
 constant near the top of `docs/app.js`:
 
 ```js
-var APP_URL = 'https://amryn.vercel.app';
+var APP_URL = 'https://your-project.vercel.app';
 ```
 
-Left empty they stay hidden, because a marketing site with a Sign in button
-that 404s is worse than one without. `npm run check:site` exercises both states
-and reports what the committed value resolves to.
+**It is currently empty, so those links are hidden.** The platform has not been
+deployed yet; `https://amryn.vercel.app` was tried and returns 404. Deploy
+first, then set this to whatever Vercel gives you — a marketing site with a
+Sign in button that 404s is worse than one without.
 
-Change it if the deployment moves — a custom domain, a different project name —
-and nothing else needs touching.
+`npm run check:site` exercises both states and reports what the committed value
+resolves to, so you can confirm the links before pushing.
+
+#### Deploying the platform to Vercel
+
+1. Import this repository at [vercel.com/new](https://vercel.com/new). Leave the
+   root directory as the repository root — the platform lives there.
+2. Add the environment variables from `.env.example`:
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+   `NEXT_PUBLIC_SITE_URL` (set that last one to the deployment's own URL).
+   Add `AI_API_KEY` when you want conversational answers.
+3. Apply `supabase/migrations/` to your Supabase project in filename order.
+4. Take the deployment URL Vercel assigns and set `APP_URL` above.
+5. `npm run check:site` to confirm, then push.
 
 ---
 
