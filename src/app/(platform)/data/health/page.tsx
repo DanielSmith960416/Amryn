@@ -92,7 +92,7 @@ export default async function DataHealthPage() {
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {rows.map((row) => {
-                  const source = row.data_sources as unknown as { name: string };
+                  const source = (row.data_sources as unknown as { name: string } | null) ?? { name: 'Unnamed source' };
                   const completeness = Number(row.completeness_score);
                   const hours = row.freshness_hours === null ? null : Number(row.freshness_hours);
                   return (

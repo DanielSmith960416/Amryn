@@ -54,10 +54,10 @@ export default async function UsersPage() {
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {rows.map((member) => {
-                  const profile = member.user_profiles as unknown as {
+                  const profile = (member.user_profiles as unknown as {
                     full_name: string | null;
                     email: string;
-                  };
+                  } | null) ?? { full_name: null, email: 'Unknown' };
                   return (
                     <tr key={member.id} className="hover:bg-[var(--card-inset)]">
                       <td className="px-5 py-3">
