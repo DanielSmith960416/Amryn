@@ -38,6 +38,8 @@ export interface DiagnosticsReport {
   checks: Check[];
   summary: { ok: number; warn: number; fail: number };
   generatedAt: string;
+  /** Which build answered. Without this, "is my fix live yet?" is a guess. */
+  build: { commit: string | null; ref: string | null; deployedAt: string | null };
 }
 
 function isUrl(value: string): boolean {
@@ -386,5 +388,28 @@ function summarise(checks: Check[]): DiagnosticsReport {
       fail: checks.filter((c) => c.status === 'fail').length,
     },
     generatedAt: new Date().toISOString(),
+    build: buildInfo(),
+  };
+}
+
+/**
+ * Which commit this build came from.
+ *
+ * A fix that is merged but not deployed looks exactly like a fix that did not
+ * work, and telling them apart otherwise means comparing wording between
+ * screenshots. Vercel sets these; other hosts may not, in which case the page
+ * says so rather than implying it knows.
+ */
+function buildInfo(): DiagnosticsReport['build'] {
+  const commit =
+    process.env.VERCEL_GIT_COMMIT_SHA ??
+    process.env.GITHUB_SHA ??
+    process.env.SOURCE_COMMIT ??
+    null;
+
+  return {
+    commit: commit ? commit.slice(0, 7) : null,
+    ref: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+    deployedAt: process.env.VERCEL_DEPLOYMENT_ID ? null : null,
   };
 }

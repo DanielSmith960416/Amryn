@@ -92,7 +92,14 @@ export default async function DiagnosticsPage() {
           <Link href="/diagnostics" className="text-[0.875rem] text-[var(--brand)] hover:underline">
             Run again
           </Link>
-          <span className="numeric ml-auto text-[0.6875rem] text-[var(--text-tertiary)]">
+          <span className="numeric ml-auto text-right text-[0.6875rem] text-[var(--text-tertiary)]">
+            {report.build.commit ? (
+              <>
+                build {report.build.commit}
+                {report.build.ref ? ` · ${report.build.ref}` : ''}
+                <br />
+              </>
+            ) : null}
             {report.generatedAt}
           </span>
         </div>
@@ -100,6 +107,13 @@ export default async function DiagnosticsPage() {
         <p className="mt-5 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
           This page reports whether settings are present, never what they are. No key or password
           appears on it, so it is safe to screenshot and share when asking for help.
+          {report.build.commit ? (
+            <>
+              {' '}
+              The build reference above says which commit answered — if it has not changed after a
+              deploy, the deploy did not pick up the change.
+            </>
+          ) : null}
         </p>
       </main>
     </div>
