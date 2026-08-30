@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SignInForm } from '@/features/auth/sign-in-form';
-import { isSupabaseConfigured } from '@/lib/env';
+import { isSupabaseConfigured, supabaseConfigError } from '@/lib/env';
 import { Card } from '@/components/ui/card';
 
 export const metadata: Metadata = { title: 'Sign in' };
@@ -36,13 +36,32 @@ export default function SignInPage() {
  * fails on submit.
  */
 function NotConfigured() {
+  // Naming the specific fault turns a support conversation into a one-line fix.
+  const problem = supabaseConfigError();
+
   return (
     <Card className="p-6">
       <h2 className="text-[1.125rem] font-semibold text-[var(--text-primary)]">
         Not configured yet
       </h2>
+
       <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
-        This deployment has no Supabase credentials, so there is nothing to sign in to. Copy{' '}
+        This deployment cannot reach Supabase, so there is nothing to sign in to.
+      </p>
+
+      {problem ? (
+        <p
+          className="mt-3 rounded-lg bg-[var(--card-inset)] px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-[var(--text-primary)]"
+          role="status"
+        >
+          {problem}
+        </p>
+      ) : null}
+
+      <p className="mt-3 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
+        On a hosted deployment, set the variables in your host&rsquo;s environment settings and
+        redeploy — values added after a build are not in the bundle until the next one. Locally,
+        copy{' '}
         <code className="rounded bg-[var(--card-inset)] px-1 py-0.5 font-mono text-[0.75rem]">
           .env.example
         </code>{' '}
@@ -50,14 +69,15 @@ function NotConfigured() {
         <code className="rounded bg-[var(--card-inset)] px-1 py-0.5 font-mono text-[0.75rem]">
           .env.local
         </code>
-        , fill in the project URL and anon key, and apply the migrations in{' '}
-        <code className="rounded bg-[var(--card-inset)] px-1 py-0.5 font-mono text-[0.75rem]">
-          supabase/migrations
-        </code>
         .
       </p>
+
       <p className="mt-3 text-[0.8125rem] text-[var(--text-tertiary)]">
-        The setup steps are in the repository README.
+        Then apply{' '}
+        <code className="rounded bg-[var(--card-inset)] px-1 py-0.5 font-mono text-[0.75rem]">
+          supabase/migrations
+        </code>{' '}
+        in filename order. Full steps are in the README.
       </p>
     </Card>
   );

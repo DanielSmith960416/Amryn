@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, publicEnv } from '@/lib/env';
 import type { Database } from '@/types/database';
 
@@ -14,8 +15,10 @@ const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-passwo
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
 
-  // Without configuration there is no session to refresh; let the page render
-  // and explain itself rather than failing with a stack trace.
+  // Without valid configuration there is no session to refresh. Let the request
+  // through: the pages handle a signed-out visitor already, and the sign-in
+  // page explains what is missing. Throwing here would 500 every route in the
+  // application, including the one page able to describe the problem.
   if (!isSupabaseConfigured()) return response;
 
   const env = publicEnv();
@@ -42,7 +45,20 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 
   // getUser() revalidates against the auth server. getSession() only decodes the
   // cookie, which is not enough to gate a route on.
-  const { data } = await supabase.auth.getUser();
+  //
+  // If that call fails — Supabase unreachable, a network blip — treat the
+  // caller as signed out rather than erroring. The worst case is a redirect to
+  // sign-in; the alternative is the entire application returning 500 because
+  // one upstream request timed out.
+  let user: User | null = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (error) {
+    console.error('[amryn:auth] session refresh failed, treating as signed out', error);
+  }
+
+  const data = { user };
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 

@@ -38,14 +38,40 @@ export function publicEnv(): PublicEnv {
   return parsed.data;
 }
 
-/** True when the app has enough configuration to talk to Supabase at all. */
+/**
+ * Why Supabase cannot be reached, in words a reader can act on — or null when
+ * it can.
+ *
+ * This runs the same validation as `publicEnv()` rather than merely checking
+ * the variables are non-empty. Two checks that disagree are worse than one:
+ * a URL missing its scheme used to pass the weaker check and then throw inside
+ * `publicEnv()`, turning a typo into a server-side exception.
+ */
+export function supabaseConfigError(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const missing: string[] = [];
+  if (!url) missing.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!key) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  if (missing.length > 0) {
+    return `${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} not set.`;
+  }
+
+  const parsed = publicSchema.safeParse({
+    NEXT_PUBLIC_SUPABASE_URL: url,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: key,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  });
+  if (!parsed.success) {
+    return parsed.error.issues.map((i) => i.message).join(' ');
+  }
+  return null;
+}
+
+/** True when the app has enough valid configuration to talk to Supabase. */
 export function isSupabaseConfigured(): boolean {
-  return (
-    typeof process.env.NEXT_PUBLIC_SUPABASE_URL === 'string' &&
-    process.env.NEXT_PUBLIC_SUPABASE_URL.length > 0 &&
-    typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === 'string' &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0
-  );
+  return supabaseConfigError() === null;
 }
 
 export function siteUrl(): string {

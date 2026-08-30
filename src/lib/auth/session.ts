@@ -13,6 +13,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { isSupabaseConfigured } from '@/lib/env';
 import { isPermission, PermissionError, type Permission } from './permissions';
 import type { Enums, Row } from '@/types/database';
 
@@ -35,6 +36,12 @@ export interface Workspace {
  * token is verified against the auth server rather than merely decoded.
  */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
+  // Without configuration there is no session to have. Returning null lets
+  // every caller take its existing signed-out path — which ends at the
+  // sign-in page, where the missing configuration is explained — instead of
+  // throwing a server-side exception on every route.
+  if (!isSupabaseConfigured()) return null;
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
@@ -54,6 +61,8 @@ export async function requireUser(): Promise<User> {
  * a dozen times while rendering its panels.
  */
 export const getWorkspace = cache(async (): Promise<Workspace | null> => {
+  if (!isSupabaseConfigured()) return null;
+
   const user = await getCurrentUser();
   if (!user) return null;
 
@@ -105,6 +114,8 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
 });
 
 export async function requireWorkspace(): Promise<Workspace> {
+  if (!isSupabaseConfigured()) redirect('/sign-in');
+
   const workspace = await getWorkspace();
   if (!workspace) {
     const user = await getCurrentUser();
