@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/field';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
-import { createInvitation, type InviteState } from './actions';
+import { createInvitation, type Delivery, type InviteState } from './actions';
 import { INVITABLE_ROLES } from './roles';
 
 export function InviteForm() {
@@ -49,7 +49,14 @@ export function InviteForm() {
         </p>
       ) : null}
 
-      {state.status === 'created' ? <InviteLink link={state.link} email={state.email} /> : null}
+      {state.status === 'created' ? (
+        <InviteLink
+          link={state.link}
+          email={state.email}
+          delivery={state.delivery}
+          deliveryProblem={state.deliveryProblem}
+        />
+      ) : null}
 
       <Submit />
     </form>
@@ -71,23 +78,54 @@ function Submit() {
  * Only a hash of the token is stored, so this is the only moment it exists in
  * readable form — reloading the page will not bring it back, and that is worth
  * saying rather than letting someone discover it.
+ *
+ * Shown whether or not the email went. When it did, it is the fallback for a
+ * message that lands in a spam folder; when it did not, it is the only way the
+ * invitation reaches anyone. Hiding it on a successful send would mean an
+ * invitation could be quietly lost to a filter with nothing left to resend.
  */
-function InviteLink({ link, email }: { link: string; email: string }) {
+function InviteLink({
+  link,
+  email,
+  delivery,
+  deliveryProblem,
+}: {
+  link: string;
+  email: string;
+  delivery: Delivery;
+  deliveryProblem?: string;
+}) {
   const [copied, setCopied] = useState(false);
+  const failed = delivery === 'failed';
 
   return (
     <div
       className="rounded-[var(--radius-card)] border p-4"
-      style={{ borderColor: 'var(--positive)', background: 'var(--card-inset)' }}
+      style={{
+        borderColor: failed ? 'var(--warning)' : 'var(--positive)',
+        background: 'var(--card-inset)',
+      }}
       role="status"
     >
       <p className="text-[0.875rem] font-medium text-[var(--text-primary)]">
-        Invitation ready for {email}
+        {delivery === 'sent' ? `Invitation emailed to ${email}` : `Invitation ready for ${email}`}
       </p>
       <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-        Send them this link. It works only for that address, expires in fourteen days, and is
-        shown here once — reloading will not bring it back.
+        {delivery === 'sent'
+          ? 'Keep this link in case it lands in their spam folder. It works only for that address, expires in fourteen days, and is shown here once — reloading will not bring it back.'
+          : 'Send them this link. It works only for that address, expires in fourteen days, and is shown here once — reloading will not bring it back.'}
       </p>
+
+      {failed ? (
+        <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--warning)]">
+          The invitation was created, but the email could not be sent
+          {deliveryProblem ? `: ${deliveryProblem}` : '.'} Send the link yourself, and check the
+          mail settings on <a href="/diagnostics" className="underline underline-offset-2">
+            /diagnostics
+          </a>
+          .
+        </p>
+      ) : null}
 
       <div className="mt-3 flex items-start gap-2 rounded-[var(--radius-field)] border border-[var(--border)] bg-[var(--card)] p-2.5">
         <code className="min-w-0 flex-1 break-all font-mono text-[0.75rem] text-[var(--text-primary)]">

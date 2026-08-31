@@ -25,3 +25,11 @@ export const INVITABLE_ROLES = [
 ] as const satisfies readonly OrgRole[];
 
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
+
+/**
+ * How long an invitation stays valid.
+ *
+ * Must match the `expires_at` default in migration 11. Kept here so the email
+ * and the interface can say it without either guessing.
+ */
+export const INVITATION_DAYS = 14;
