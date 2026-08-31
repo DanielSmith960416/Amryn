@@ -1,29 +1,19 @@
 /**
  * The error line under an auth form.
  *
- * A configuration fault tells the reader to open /diagnostics, which is only
- * useful if they can get there. Written as plain text it is a path they would
- * have to retype into the address bar — so the mention is turned into the link
- * it is pretending to be.
+ * It used to turn a mention of /diagnostics into a link, because the message
+ * it was rendering named that page. It no longer does: the messages a customer
+ * sees say whose fault something is and what to do about it, and the setting
+ * at fault goes to the server log instead. An operator tool advertised under
+ * the password field is a customer's first impression of half-built software.
+ *
+ * What remains is the part that always mattered — role="alert", so a failure
+ * announced only in colour is announced to a screen reader too.
  */
-const DIAGNOSTICS = '/diagnostics';
-
 export function AuthError({ message }: { message: string }) {
-  const at = message.indexOf(DIAGNOSTICS);
-
   return (
     <p className="text-[0.8125rem] leading-relaxed text-[var(--negative)]" role="alert">
-      {at === -1 ? (
-        message
-      ) : (
-        <>
-          {message.slice(0, at)}
-          <a href={DIAGNOSTICS} className="underline underline-offset-2">
-            {DIAGNOSTICS}
-          </a>
-          {message.slice(at + DIAGNOSTICS.length)}
-        </>
-      )}
+      {message}
     </p>
   );
 }

@@ -220,12 +220,17 @@ export async function askAssistant(
 }
 
 /**
- * What the assistant says when no model is configured: an honest account of
- * what the platform does know, rather than an error.
+ * What the assistant says when no model is configured.
+ *
+ * An honest account of what the platform does know, rather than an error — and
+ * deliberately not a sentence about a missing provider key. The reader is a
+ * customer who asked a question, not the person who would set one; telling
+ * them about configuration answers a question nobody asked and leaves theirs
+ * unanswered.
  */
 function unavailableAnswer(context: BusinessContext): string {
   const lines = [
-    'The conversational assistant needs an AI provider, and none is configured on this deployment.',
+    'Conversational answers are not switched on for your workspace, so I cannot discuss this in my own words.',
     '',
     'Everything else still works — the health score, change detection, opportunity scoring and the ' +
       'executive briefing are computed by Amryn\'s own engines, not by a model. Here is where things stand:',
@@ -244,7 +249,11 @@ function unavailableAnswer(context: BusinessContext): string {
   const live = context.opportunities.filter((o) => !['won', 'lost', 'archived'].includes(o.stage));
   if (live.length > 0) lines.push(`· ${live.length} live opportunit${live.length === 1 ? 'y' : 'ies'} on the radar.`);
 
-  lines.push('', 'Set AI_API_KEY in the environment to enable conversational answers.');
+  lines.push(
+    '',
+    'Ask an administrator of your workspace to switch conversational answers on if you would like ' +
+      'them.',
+  );
   return lines.join('\n');
 }
 

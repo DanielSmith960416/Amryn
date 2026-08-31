@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ACTIVE_ORG_COOKIE, requireUser } from '@/lib/auth/session';
 import { checkLimit } from '@/lib/auth/rate-limit';
+import { ourFault } from '@/lib/errors';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
 
 /**
@@ -90,7 +91,16 @@ export async function updateSectorScope(
     .update({ sector_scope: parsed.data as Enums['market_sector'][] })
     .eq('id', workspace.organisation.id);
 
-  if (error) return { status: 'error', message: error.message };
+  if (error) {
+    return {
+      status: 'error',
+      message: ourFault(
+        'organisation',
+        error,
+        'We could not save that change. Please try again in a few minutes.',
+      ),
+    };
+  }
 
   await supabase.from('audit_logs').insert({
     organisation_id: workspace.organisation.id,
@@ -185,7 +195,7 @@ export async function createOrganisation(
     .eq('id', data);
 
   if (consentError) {
-    console.error('organisation created but the addendum acceptance did not record', consentError);
+    ourFault('onboarding', consentError);
   }
 
   const cookieStore = await cookies();
@@ -225,21 +235,34 @@ function slugify(name: string): string {
  *   p_currency_code, p_industry, p_name, p_slug) in the schema cache
  *
  * There is nothing in that sentence a reader can act on, and it is not their
- * fault in any case. Each failure now says whose problem it is, and the one
- * they can fix themselves — a name already taken — is still named precisely.
+ * fault in any case.
+ *
+ * The first fix named the faulty component and sent them to /diagnostics —
+ * accurate, and still the wrong reader. Someone setting up their company's
+ * workspace does not want to be told which internal function is unreachable;
+ * they want to know whether to try again or to call somebody. So each failure
+ * now says whose problem it is in ordinary words, the one they can fix
+ * themselves — a name already taken — is still named precisely, and the
+ * diagnosis goes to the server log where it can be acted on.
  */
 function explainCreateFailure(error: { code?: string; message: string } | null): string {
   const message = error?.message ?? '';
+
+  // Ours, whatever the shape. Logged in full so the setup fault is visible to
+  // whoever can fix it, rather than dying with the request.
+  const OURS =
+    'We could not finish setting up your organisation. This is a fault on our side, not ' +
+    'anything you entered — please try again in a few minutes.';
 
   // PGRST202: PostgREST resolves calls against a cached copy of the schema, so
   // this means missing *or* merely invisible. Either way it is the operator's
   // to fix, not the person filling in the form.
   if (error?.code === 'PGRST202' || /could not find the function/i.test(message)) {
-    return (
-      'This deployment cannot finish setting up an organisation — a required database ' +
-      'function is not reachable. Nothing is wrong with what you entered. Open /diagnostics, ' +
-      'which says exactly which migration to run.'
+    console.error(
+      '[amryn:onboarding] create_organisation is not reachable — the migrations may not be ' +
+        `applied, or the schema cache is stale. Open /diagnostics. (${message})`,
     );
+    return OURS;
   }
 
   if (message.includes('organisations_slug_key')) {
@@ -247,14 +270,14 @@ function explainCreateFailure(error: { code?: string; message: string } | null):
   }
 
   if (/authentication required/i.test(message)) {
-    return 'Your session expired while the form was open. Sign in again and retry.';
+    return 'Your session expired while this form was open. Sign in again and retry.';
   }
 
   if (/permission denied|42501/i.test(message)) {
-    return (
-      'The database refused to create the organisation. Nothing is wrong with what you ' +
-      'entered — open /diagnostics to check the migrations are fully applied.'
+    console.error(
+      `[amryn:onboarding] the database refused to create the organisation. Check the migrations are fully applied: /diagnostics. (${message})`,
     );
+    return OURS;
   }
 
   if (/country code must be|currency code must be/i.test(message)) {
@@ -262,7 +285,8 @@ function explainCreateFailure(error: { code?: string; message: string } | null):
     return message;
   }
 
-  return message.length > 0
-    ? `Could not create that organisation: ${message}. If this persists, open /diagnostics.`
-    : 'Could not create that organisation, and no reason was given. Open /diagnostics.';
+  console.error(
+    `[amryn:onboarding] organisation creation failed: ${message.length > 0 ? message : 'no reason given'}`,
+  );
+  return OURS;
 }

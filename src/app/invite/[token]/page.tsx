@@ -32,8 +32,11 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   if (!isSupabaseConfigured()) {
     return (
-      <Shell title="Not available yet">
-        <p>This deployment is not connected to its database, so invitations cannot be read.</p>
+      <Shell title="Not available right now">
+        <p>
+          We cannot open your invitation at the moment. This is a fault on our side, not anything
+          you have done — the link stays valid, so please try again shortly.
+        </p>
       </Shell>
     );
   }

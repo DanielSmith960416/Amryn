@@ -80,6 +80,28 @@ Two different things, kept apart deliberately:
   and is enforced inside RLS, so the pipeline, reports and the assistant all
   honour the same choice.
 
+### Two audiences, and the guard that keeps them apart
+
+The platform used to tell a customer trying to sign in that its anon key had
+been rejected, and send them to `/diagnostics`. Every word of that was true. It
+also read as somebody else's console left switched on, and there was nothing
+the reader could do with it.
+
+So each fault now produces two sentences. What a person reads says whose fault
+it is and what to do about it, in ordinary words. What names the setting goes
+to the server log — `AuthFault.detail`, or `ourFault()` in `src/lib/errors.ts`,
+which logs and returns the customer's sentence in one call. Reach for that
+rather than `error.message`, which is where all of this started.
+
+Operator detail on screen is gated by `internalAccess()`, not merely worded
+carefully: the unconfigured sign-in page shows `SetupNotice` to an
+administrator or a token holder, and one sentence to everyone else.
+
+`src/lib/copy/vocabulary.ts` lists the words that must not reach a customer and
+the paths exempt from the rule; a test walks the source for them, ignoring
+comments, `console.*` calls and `detail:` fields. It fails on a sentence that
+names a migration, a schema, an environment variable or `/diagnostics`.
+
 ### Legal documents and POPIA
 
 The platform carries its own policies at `/legal/privacy`, `/legal/terms`,

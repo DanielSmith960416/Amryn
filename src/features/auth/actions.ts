@@ -30,7 +30,12 @@ import {
   type ActionState,
 } from './schemas';
 import { siteUrl } from '@/lib/env';
-import { classifyAuthError, signInErrorMessage } from './errors';
+import {
+  authErrorMessage,
+  classifyAuthError,
+  reportAuthFault,
+  signInErrorMessage,
+} from './errors';
 import { safeNextPath } from './next-path';
 import { checkAuthLimit } from '@/lib/auth/rate-limit';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
@@ -109,7 +114,7 @@ export async function signUpWithPassword(
 
   // error.message verbatim is how "Invalid API key" came to be printed under
   // the password field, as though the reader had typed one.
-  if (error) return { status: 'error', message: classifyAuthError(error.message).message };
+  if (error) return { status: 'error', message: authErrorMessage(error.message) };
 
   return {
     status: 'sent',
@@ -139,6 +144,7 @@ export async function signInWithMagicLink(
 
   if (error) {
     const fault = classifyAuthError(error.message);
+    reportAuthFault(fault, error.message);
     // A configuration fault is not an enumeration risk — the request never
     // reached the point of looking an address up — so it is reported plainly.
     if (fault.kind === 'configuration' || fault.kind === 'service') {
@@ -181,9 +187,9 @@ export async function requestPasswordReset(
 
   if (error) {
     const fault = classifyAuthError(error.message);
-    // A configuration or service fault is the deployment's, and saying so is
-    // not an enumeration risk — the request never got as far as looking an
-    // address up.
+    reportAuthFault(fault, error.message);
+    // A configuration or service fault is ours, and saying so is not an
+    // enumeration risk — the request never got as far as looking an address up.
     if (fault.kind === 'configuration' || fault.kind === 'service') {
       return { status: 'error', message: fault.message };
     }
@@ -226,7 +232,7 @@ export async function setNewPassword(
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
-    return { status: 'error', message: classifyAuthError(error.message).message };
+    return { status: 'error', message: authErrorMessage(error.message) };
   }
 
   revalidatePath('/', 'layout');

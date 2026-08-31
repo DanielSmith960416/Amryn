@@ -25,6 +25,7 @@ import { ROLE_LABELS } from '@/lib/auth/permissions';
 import { isEmailConfigured, sendMail } from '@/lib/email/smtp';
 import { invitationEmail } from '@/lib/email/invitation';
 import { INVITABLE_ROLES, INVITATION_DAYS } from './roles';
+import { ourFault } from '@/lib/errors';
 
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().email('That does not look like an email address'),
@@ -95,7 +96,14 @@ export async function createInvitation(
         message: `${parsed.data.email} already has an open invitation. Withdraw it first if you want to change the role.`,
       };
     }
-    return { status: 'error', message: `Could not create the invitation: ${error.message}` };
+    return {
+      status: 'error',
+      message: ourFault(
+        'invitations',
+        error,
+        'We could not create that invitation. Nothing you entered was at fault — please try again in a few minutes.',
+      ),
+    };
   }
 
   const link = `${siteUrl()}/invite/${token}`;

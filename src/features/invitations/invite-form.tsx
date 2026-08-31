@@ -118,12 +118,9 @@ function InviteLink({
 
       {failed ? (
         <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--warning)]">
-          The invitation was created, but the email could not be sent
-          {deliveryProblem ? `: ${deliveryProblem}` : '.'} Send the link yourself, and check the
-          mail settings on <a href="/diagnostics" className="underline underline-offset-2">
-            /diagnostics
-          </a>
-          .
+          The invitation was created, but we could not email it
+          {deliveryProblem ? `: ${deliveryProblem}` : '.'} Send them the link below yourself — it
+          works exactly the same way.
         </p>
       ) : null}
 

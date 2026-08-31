@@ -52,11 +52,11 @@ export default async function RecommendationsPage() {
           <Card>
             <EmptyState
               icon={<Sparkles className="size-4" />}
-              title={available ? 'Nothing to recommend yet' : 'Recommendations need an AI provider'}
+              title={available ? 'Nothing to recommend yet' : 'Recommendations are not switched on'}
               description={
                 available
                   ? 'Amryn has not found a cross-cutting recommendation it can support with evidence. It will say nothing rather than manufacture advice — connect more internal and market sources to give it more to work with.'
-                  : 'Combining an internal decline with an external demand shift is a judgement, and a rule that fabricated one would be worse than no recommendation at all. Set AI_API_KEY to enable this. Everything else on the platform runs on the analytical engines and is unaffected.'
+                  : 'Joining an internal decline to an external shift in demand is a judgement, and a rule that manufactured one would be worse than no recommendation at all. Ask an administrator of your workspace to switch these on. Everything else — scoring, health, change detection and the briefing — is unaffected.'
               }
             />
           </Card>

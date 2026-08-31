@@ -1,5 +1,5 @@
 /**
- * Turning Supabase's auth errors into something a reader can act on.
+ * Turning the auth service's errors into something a reader can act on.
  *
  * Two failures of the previous behaviour, both visible on the deployment:
  *
@@ -11,8 +11,19 @@
  *     with correct details would retype them indefinitely.
  *
  * The distinction that matters is whose problem it is. A wrong password is the
- * reader's to fix; an unaccepted API key is the operator's, and saying so is
- * the difference between a five-minute fix and an afternoon.
+ * reader's to fix; a rejected key is ours, and conflating them is the
+ * difference between a five-minute fix and an afternoon.
+ *
+ * ── two audiences ─────────────────────────────────────────────────────────
+ * Getting that distinction right once meant naming the faulty setting on the
+ * screen, which fixed the deployment and broke the product: a customer signing
+ * in has no use for the words "anon key", cannot act on them, and reasonably
+ * concludes the software is half-built.
+ *
+ * So each fault now carries two sentences. `message` is what the person
+ * reading sees — whose fault it is and what to do, in ordinary words.
+ * `detail` names the setting, and goes to the server log where whoever runs
+ * the deployment will look. Neither audience reads the other's.
  */
 
 export type AuthFaultKind =
@@ -27,7 +38,13 @@ export type AuthFaultKind =
 
 export interface AuthFault {
   kind: AuthFaultKind;
+  /** Shown to whoever is signing in. Never names a setting or a service. */
   message: string;
+  /**
+   * For the server log, when the fault is ours. Absent where the reader's own
+   * details are at fault, because there is nothing for an operator to do.
+   */
+  detail?: string;
 }
 
 /**
@@ -37,9 +54,17 @@ export interface AuthFault {
  */
 export const INVALID_CREDENTIALS = 'That email and password combination was not recognised.';
 
-const CONFIG_FAULT =
-  'This deployment cannot reach its database — its Supabase key is not being accepted. ' +
-  'Nothing is wrong with what you typed. Open /diagnostics for the specific setting at fault.';
+/**
+ * The one sentence every fault of ours ends up saying.
+ *
+ * It has to do three things: absolve the reader, so they stop retyping correct
+ * details; say it is temporary, so they come back; and promise nothing we
+ * cannot keep. It deliberately does not apologise twice or invite them to
+ * contact anybody — a support address that goes nowhere is worse than none.
+ */
+const OUR_FAULT =
+  'Amryn cannot sign you in at the moment. This is a fault on our side, not something you ' +
+  'typed — please try again in a few minutes.';
 
 /**
  * Matched on the message text because Supabase does not give these a stable
@@ -47,18 +72,26 @@ const CONFIG_FAULT =
  * password. Matching is case-insensitive and on distinctive fragments rather
  * than whole sentences, so a reworded message still lands.
  */
-const PATTERNS: ReadonlyArray<{ test: RegExp; kind: AuthFaultKind; message: string }> = [
+const PATTERNS: ReadonlyArray<{
+  test: RegExp;
+  kind: AuthFaultKind;
+  message: string;
+  detail?: string;
+}> = [
   {
     test: /invalid api key|no api key|jwt expired|invalid jwt|invalid claim/i,
     kind: 'configuration',
-    message: CONFIG_FAULT,
+    message: OUR_FAULT,
+    detail:
+      'The database rejected the API key. Check NEXT_PUBLIC_SUPABASE_ANON_KEY, then open /diagnostics.',
   },
   {
     test: /failed to fetch|network|econnrefused|enotfound|fetch failed/i,
     kind: 'configuration',
-    message:
-      'This deployment could not reach its database at all. Nothing is wrong with what you typed. ' +
-      'Open /diagnostics — the project may be paused, or its address may be wrong.',
+    message: OUR_FAULT,
+    detail:
+      'The database could not be reached at all. The project may be paused, or its address wrong. ' +
+      'Open /diagnostics.',
   },
   {
     // Supabase always answers in JSON. A parse failure means something else
@@ -68,21 +101,25 @@ const PATTERNS: ReadonlyArray<{ test: RegExp; kind: AuthFaultKind; message: stri
     // "Unexpected token 'H' ... is not valid JSON", which explains nothing.
     test: /not valid json|unexpected token|unexpected end of json|json\.parse/i,
     kind: 'configuration',
-    message:
-      'The address configured for this deployment answered with something that was not Supabase. ' +
-      'Nothing is wrong with what you typed. Open /diagnostics — the project URL is most likely wrong.',
+    message: OUR_FAULT,
+    detail:
+      'The configured address answered with something that was not the database — a proxy, an ' +
+      'error page, a parked domain. NEXT_PUBLIC_SUPABASE_URL is most likely wrong.',
   },
   {
     test: /database error/i,
     kind: 'configuration',
     message:
-      'The database refused to create the account. Nothing is wrong with what you typed. ' +
-      'Open /diagnostics to check the migrations have been applied.',
+      'We could not finish creating your account. This is a fault on our side, not something ' +
+      'you typed — please try again in a few minutes.',
+    detail: 'The database refused the insert. Check the migrations have been applied: /diagnostics.',
   },
   {
     test: /signups? (not allowed|disabled)/i,
     kind: 'service',
-    message: 'New accounts are turned off for this workspace. Ask whoever administers it for an invitation.',
+    message:
+      'New accounts are not being accepted here at the moment. Ask a colleague who already has ' +
+      'access to invite you.',
   },
   {
     // Deliberately not "no email service is configured yet". That was true
@@ -92,9 +129,9 @@ const PATTERNS: ReadonlyArray<{ test: RegExp; kind: AuthFaultKind; message: stri
     test: /error sending|smtp|confirmation email/i,
     kind: 'service',
     message:
-      'The account may have been created, but the confirmation email could not be sent. ' +
-      'That is a fault in this deployment, not in what you typed. Whoever administers it ' +
-      'should check the mail settings under Supabase → Authentication → Emails.',
+      'Your account may have been created, but we could not send the confirmation email. ' +
+      'That is a fault on our side. Try signing in shortly, or ask for a new link.',
+    detail: 'Confirmation email could not be sent. Check the auth mail settings and SMTP_*.',
   },
   {
     test: /rate limit|only request this after|too many requests/i,
@@ -136,8 +173,8 @@ const PATTERNS: ReadonlyArray<{ test: RegExp; kind: AuthFaultKind; message: stri
 export function classifyAuthError(message: string | undefined | null): AuthFault {
   const text = message?.trim() ?? '';
 
-  for (const { test, kind, message: friendly } of PATTERNS) {
-    if (test.test(text)) return { kind, message: friendly };
+  for (const { test, kind, message: friendly, detail } of PATTERNS) {
+    if (test.test(text)) return { kind, message: friendly, detail };
   }
 
   // Unmatched, and no basis to blame either side. Say what happened without
@@ -148,14 +185,33 @@ export function classifyAuthError(message: string | undefined | null): AuthFault
   return {
     kind: 'service',
     message:
-      text.length > 0
-        ? `That could not be completed: ${text}. If this persists, open /diagnostics.`
-        : 'That could not be completed, and no reason was given. Open /diagnostics.',
+      'That could not be completed. This is a fault on our side, not something you typed — ' +
+      'please try again in a few minutes.',
+    // The raw text is the only description of the fault that exists, so it
+    // goes where somebody can use it rather than under the password field.
+    detail: text.length > 0 ? `Unrecognised auth error: ${text}` : 'Auth failed with no message.',
   };
 }
 
 /**
- * The message to show on a failed *sign-in*.
+ * Puts a fault of ours where whoever runs the deployment will find it.
+ *
+ * This is the other half of not printing it on the screen. A message that
+ * names no setting is only an improvement if the setting is named somewhere —
+ * otherwise the deployment is quietly broken and nothing says so.
+ *
+ * The raw text is included because it is the service's own description of what
+ * happened, and it never carries a key: the values are rejected, not echoed.
+ */
+export function reportAuthFault(fault: AuthFault, raw?: string | null): void {
+  if (!fault.detail) return;
+  const said = raw?.trim();
+  console.error(`[amryn:auth] ${fault.detail}${said ? ` (the service said: ${said})` : ''}`);
+}
+
+/**
+ * The message to show on a failed *sign-in*, having logged anything that is
+ * ours to fix.
  *
  * A genuine credential failure stays vague, for the enumeration reason above.
  * A configuration or service fault does not: there is no account to enumerate
@@ -164,6 +220,14 @@ export function classifyAuthError(message: string | undefined | null): AuthFault
  */
 export function signInErrorMessage(message: string | undefined | null): string {
   const fault = classifyAuthError(message);
+  reportAuthFault(fault, message);
   return fault.kind === 'credentials' ? INVALID_CREDENTIALS : fault.message;
+}
+
+/** The same, for the forms where every fault is reported as classified. */
+export function authErrorMessage(message: string | undefined | null): string {
+  const fault = classifyAuthError(message);
+  reportAuthFault(fault, message);
+  return fault.message;
 }
 

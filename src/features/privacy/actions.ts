@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireUser } from '@/lib/auth/session';
 import { checkLimit } from '@/lib/auth/rate-limit';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
+import { ourFault } from '@/lib/errors';
 
 export type RequestState =
   | { status: 'idle' }
@@ -66,11 +67,13 @@ export async function submitDataRequest(
   });
 
   if (error) {
-    console.error('[amryn:privacy] could not record a data request', error);
     return {
       status: 'error',
-      message:
-        'We could not record that request just now. Please email us instead — the address is on the Privacy Policy — so that it is not lost.',
+      message: ourFault(
+        'privacy',
+        error,
+        'We could not record that request just now. Please write to us instead — the address is on the Privacy Policy — so that it is not lost.',
+      ),
     };
   }
 
