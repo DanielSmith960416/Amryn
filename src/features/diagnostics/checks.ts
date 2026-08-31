@@ -95,12 +95,10 @@ function isSchemaCacheMiss(message: string | undefined | null): boolean {
 
 /** The one query that tells those two causes apart, run where PostgREST is not involved. */
 const SCHEMA_TRIAGE =
-  'In Supabase → SQL Editor, run:  select count(*) from public.permissions;  ' +
-  'A number means the tables are here and only the API needs telling — run  ' +
-  "notify pgrst, 'reload schema';  and reload this page. " +
-  'An error saying the relation does not exist means the migrations did not land in ' +
-  'this project: check the project reference in the SQL editor’s address matches the ' +
-  'one shown above, then apply supabase/migrations in filename order.';
+  'Open /setup — the platform can build its own database, and that page reports whether ' +
+  'the tables are simply absent or present but invisible to the API. ' +
+  'If they are present, the API only needs telling: in Supabase → SQL Editor, run  ' +
+  "notify pgrst, 'reload schema';  and reload this page.";
 
 /** Runs a check, bounded in time, turning any throw into a reportable failure. */
 async function attempt(name: string, run: () => Promise<Check>, onThrow?: string): Promise<Check> {
