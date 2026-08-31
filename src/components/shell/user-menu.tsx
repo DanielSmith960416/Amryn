@@ -1,74 +1,99 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { LogOut, Settings, User } from 'lucide-react';
-import { signOut } from '@/features/auth/actions';
+import { useRouter } from 'next/navigation';
+import { LogOut, Settings } from 'lucide-react';
+import { clearProfile, initials } from '@/lib/profile';
 
-export function UserMenu({ name, email }: { name: string; email: string }) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('') || email.charAt(0).toUpperCase();
+/**
+ * Who is signed in, and the way out.
+ *
+ * Hand-built rather than pulled from a menu library: it is one dropdown with
+ * three items, and a dependency for that would cost more than it saves. What it
+ * still has to do properly is close on Escape and on a click outside, because a
+ * menu that traps focus is worse than no menu.
+ */
+export function UserMenu({
+  name,
+  email,
+  company,
+}: {
+  name: string;
+  email: string;
+  company: string;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onPointerDown(event: MouseEvent) {
+      if (!container.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger
-        className="flex size-8 items-center justify-center rounded-full bg-[var(--brand-soft)] font-mono text-[0.6875rem] font-semibold text-[var(--brand)] transition-opacity hover:opacity-80"
-        aria-label={`Account: ${name}`}
+    <div className="relative" ref={container}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="flex size-9 items-center justify-center rounded-full bg-[var(--brand-soft)] text-[0.75rem] font-semibold text-[var(--brand)] transition-colors hover:bg-[var(--brand)] hover:text-[var(--on-brand)]"
       >
-        {initials}
-      </DropdownMenu.Trigger>
+        {initials(name)}
+        <span className="sr-only">Account menu</span>
+      </button>
 
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 min-w-56 rounded-xl border border-[var(--border)] bg-[var(--card-elevated)] p-1 shadow-[var(--shadow-pop)]"
+      {open ? (
+        <div
+          role="menu"
+          className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--card-elevated)] shadow-[var(--shadow-pop)]"
         >
-          <div className="px-2.5 py-2">
-            <p className="truncate text-[0.8125rem] font-medium text-[var(--text-primary)]">{name}</p>
-            <p className="truncate text-[0.6875rem] text-[var(--text-tertiary)]">{email}</p>
+          <div className="border-b border-[var(--border)] px-4 py-3">
+            <p className="truncate text-[0.875rem] font-medium text-[var(--text-primary)]">
+              {name}
+            </p>
+            <p className="truncate text-[0.8125rem] text-[var(--text-secondary)]">{email}</p>
+            <p className="mt-1 truncate text-[0.75rem] text-[var(--text-tertiary)]">{company}</p>
           </div>
-          <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />
 
-          <DropdownMenu.Item asChild>
-            <Link
-              href="/settings/profile"
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[0.8125rem] text-[var(--text-primary)] outline-none data-[highlighted]:bg-[var(--card-inset)]"
-            >
-              <User className="size-3.5 text-[var(--text-tertiary)]" aria-hidden />
-              Profile
-            </Link>
-          </DropdownMenu.Item>
+          <Link
+            href="/settings"
+            role="menuitem"
+            className="flex items-center gap-2.5 px-4 py-2.5 text-[0.8125rem] text-[var(--text-secondary)] hover:bg-[var(--card-inset)] hover:text-[var(--text-primary)]"
+          >
+            <Settings className="size-4" />
+            Settings
+          </Link>
 
-          <DropdownMenu.Item asChild>
-            <Link
-              href="/settings"
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-[0.8125rem] text-[var(--text-primary)] outline-none data-[highlighted]:bg-[var(--card-inset)]"
-            >
-              <Settings className="size-3.5 text-[var(--text-tertiary)]" aria-hidden />
-              Settings
-            </Link>
-          </DropdownMenu.Item>
-
-          <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />
-
-          <DropdownMenu.Item asChild>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[0.8125rem] text-[var(--text-primary)] outline-none data-[highlighted]:bg-[var(--card-inset)]"
-              >
-                <LogOut className="size-3.5 text-[var(--text-tertiary)]" aria-hidden />
-                Sign out
-              </button>
-            </form>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              clearProfile();
+              router.push('/');
+            }}
+            className="flex w-full items-center gap-2.5 border-t border-[var(--border)] px-4 py-2.5 text-left text-[0.8125rem] text-[var(--text-secondary)] hover:bg-[var(--card-inset)] hover:text-[var(--text-primary)]"
+          >
+            <LogOut className="size-4" />
+            Forget this device
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }

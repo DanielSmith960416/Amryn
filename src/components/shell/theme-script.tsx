@@ -1,23 +1,26 @@
+import { THEME_STORAGE_KEY } from './theme-toggle';
+
 /**
- * Applies the stored theme before first paint.
+ * Applies the stored theme before the first paint.
  *
- * Without this the page renders in the default light theme and then swaps,
- * which on a dark-navy product is a white flash in the reader's face. The
- * script is tiny, synchronous and deliberately runs before the body exists.
+ * This has to be a blocking inline script in `<head>`: React cannot help,
+ * because by the time a component runs the browser has already painted the
+ * default. Without it, a reader who chose dark gets a white flash on every
+ * navigation, which is the single most noticeable way a "website that acts like
+ * an app" stops feeling like one.
+ *
+ * The storage read is wrapped because `localStorage` throws outright in some
+ * privacy configurations — an exception here would leave the page unstyled.
  */
-const SCRIPT = `
-(function () {
-  try {
-    var stored = localStorage.getItem('amryn.theme');
-    if (stored === 'light' || stored === 'medium' || stored === 'dark') {
-      document.documentElement.setAttribute('data-theme', stored);
-    }
-  } catch (e) {
-    /* Private mode or blocked storage: fall through to the system preference. */
+export function ThemeScript() {
+  const script = `
+try {
+  var t = localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
+  if (t === 'light' || t === 'medium' || t === 'dark') {
+    document.documentElement.dataset.theme = t;
   }
-})();
+} catch (e) {}
 `.trim();
 
-export function ThemeScript() {
-  return <script dangerouslySetInnerHTML={{ __html: SCRIPT }} />;
+  return <script dangerouslySetInnerHTML={{ __html: script }} />;
 }

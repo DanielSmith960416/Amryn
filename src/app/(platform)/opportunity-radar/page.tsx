@@ -1,146 +1,229 @@
 import type { Metadata } from 'next';
-import { PageHeader } from '@/components/shell/page-header';
-import { OpportunityCard } from '@/components/opportunities/opportunity-card';
-import { Card, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/states';
-import { requirePermission } from '@/lib/auth/session';
-import { listOpportunities } from '@/features/opportunities/queries';
-import { createClient } from '@/lib/supabase/server';
-import { formatMoney, formatRelative, humanise } from '@/lib/utils/format';
+import { Badge, OPPORTUNITY_TONE } from '@/components/ui/badge';
+import { Card, CardBody, CardHeader } from '@/components/ui/card';
+import { DemoNotice, PageHeader } from '@/components/ui/page-header';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
+import { OpportunityDial } from '@/components/intelligence/opportunity-dial';
+import { VALUE_ONLY_CEILING, opportunityFactors } from '@/lib/intelligence/opportunity';
+import { count, date, money, percent, score } from '@/lib/format';
+import { loadWorkspace } from '@/lib/workspace';
 
-export const metadata: Metadata = { title: 'AI OpportunityRadar®' };
+export const metadata: Metadata = { title: 'OpportunityRadar®' };
 
 /**
- * The AI OpportunityRadar® (specification §9).
+ * OPPORTUNITY_RADAR, OPPORTUNITY_DATABASE and OPPORTUNITY_SCORING as one page.
  *
- * What the market outside looks like. The sector scope shown at the top is the
- * organisation's own setting — stated plainly, because a radar that is
- * filtering should say what it is filtering.
+ * The prototype has a scoring sheet that is a placeholder. It is filled in
+ * here — every opportunity can be expanded to show what each of the six factors
+ * contributed to its score. A ranked list nobody can interrogate is a ranked
+ * list nobody trusts.
  */
-export default async function OpportunityRadarPage() {
-  const workspace = await requirePermission('view_opportunities');
-  const supabase = await createClient();
-
-  const [opportunities, signalsResult] = await Promise.all([
-    listOpportunities({
-      organisationId: workspace.organisation.id,
-      stages: ['discovered', 'analysing', 'qualified'],
-    }),
-    supabase
-      .from('market_signals')
-      .select('*')
-      .eq('organisation_id', workspace.organisation.id)
-      .order('observed_at', { ascending: false })
-      .limit(10),
-  ]);
-
-  const currency = workspace.organisation.currency_code;
-  const totalValue = opportunities.reduce((sum, o) => sum + (o.estimatedValueCents ?? 0), 0);
-  const scope = workspace.organisation.sector_scope;
-  const narrowed = scope.length < 4;
+export default function OpportunityRadarPage() {
+  const w = loadWorkspace();
+  const currency = w.profile.currency;
 
   return (
     <>
       <PageHeader
-        eyebrow={workspace.organisation.name}
+        eyebrow="Outside view"
         title={
           <>
-            AI OpportunityRadar<span className="tm">®</span>
+            Amryn<sup className="tm">™</sup>OpportunityRadar<sup className="tm">®</sup>
           </>
         }
-        description="What the market is doing that your business should know about — before the business knows it needs to."
-        actions={
-          <div className="text-right">
-            <p className="numeric text-[1.25rem] font-semibold text-[var(--text-primary)]">
-              {formatMoney(totalValue, currency)}
-            </p>
-            <p className="eyebrow !mb-0">On the radar</p>
-          </div>
-        }
+        description="Everything happening around the business — demand shifts, competitor moves, and openings worth a week of attention."
       />
 
-      {/* The scope is the customer's choice, so it is shown rather than hidden. */}
-      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-[var(--radius-tile)] border border-[var(--border)] bg-[var(--card-inset)] px-4 py-2.5">
-        <span className="eyebrow !mb-0">Sector scope</span>
-        {scope.map((sector) => (
-          <Badge key={sector} tone="brand">
-            {sector}
-          </Badge>
-        ))}
-        <span className="ml-auto text-[0.75rem] text-[var(--text-tertiary)]">
-          {narrowed
-            ? 'Narrowed by your organisation. Widen it in Settings to see more.'
-            : 'Every sector, including tenders. Narrow it in Settings if you prefer.'}
-        </span>
-      </div>
+      {w.isDemo ? <DemoNotice /> : null}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <div className="xl:col-span-8">
-          {opportunities.length === 0 ? (
-            <Card>
-              <EmptyState
-                title="The radar is clear"
-                description="No external opportunity has been detected and scored yet. Connect market sources so Amryn has something to scan, or widen your sector scope."
-              />
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {opportunities.map((opportunity) => (
-                <OpportunityCard
-                  key={opportunity.id}
-                  opportunity={opportunity}
-                  currency={currency}
-                />
+      {w.opportunities.some((o) => o.atCeiling) ? (
+        <p className="mb-6 rounded-[var(--radius-tile)] border border-[var(--border)] bg-[var(--warning-soft)] px-4 py-2.5 text-[0.8125rem] leading-relaxed text-[var(--warning)]">
+          <strong className="font-semibold">
+            {w.opportunities.filter((o) => o.atCeiling).length} of {w.opportunities.length}{' '}
+            opportunities score above the scale.
+          </strong>{' '}
+          The scoring model&rsquo;s value factor was calibrated for smaller deals, so these read
+          100/100 whatever else they score on. They are still ranked correctly — ordering uses the
+          unclamped score — but the number on the card has stopped separating them.
+        </p>
+      ) : null}
+
+      <StatGrid className="mb-6">
+        <Stat label="Opportunities" value={count(w.pipeline.total)} />
+        <Stat label="Active" value={count(w.pipeline.active)} tone="positive" />
+        <Stat label="Evaluating" value={count(w.pipeline.evaluating)} />
+        <Stat label="Planning" value={count(w.pipeline.planning)} />
+        <Stat
+          label="Total est. value"
+          value={money(w.pipeline.totalEstValue, currency)}
+          tone="brand"
+          className="col-span-2"
+        />
+      </StatGrid>
+
+      <div className="grid gap-5 lg:grid-cols-[20rem_1fr] [&>*]:min-w-0">
+        <Card className="self-start">
+          <CardHeader title="The radar" subtitle="Urgency by distance, value by size" />
+          <CardBody>
+            <OpportunityDial opportunities={w.opportunities} />
+            <ul className="mt-4 space-y-1.5 border-t border-[var(--border)] pt-3">
+              {(['HIGH', 'MEDIUM', 'MONITOR'] as const).map((c) => (
+                <li key={c} className="flex items-center gap-2 text-[0.75rem]">
+                  <span
+                    aria-hidden
+                    className="size-2.5 rounded-full"
+                    style={{
+                      background:
+                        c === 'HIGH'
+                          ? 'var(--positive)'
+                          : c === 'MEDIUM'
+                            ? 'var(--info)'
+                            : 'var(--text-tertiary)',
+                    }}
+                  />
+                  <span className="text-[var(--text-secondary)]">
+                    {c} — {c === 'HIGH' ? 'scores above 60' : c === 'MEDIUM' ? 'scores 41–60' : 'scores 40 and below'}
+                  </span>
+                </li>
               ))}
-            </div>
-          )}
-        </div>
+            </ul>
+          </CardBody>
+        </Card>
 
-        <div className="xl:col-span-4">
-          <Card>
-            <CardHeader
-              title="Market signals"
-              subtitle="The raw observations opportunities are drawn from"
-            />
-            {(signalsResult.data ?? []).length === 0 ? (
-              <EmptyState
-                title="No signals yet"
-                description="Market sources have not returned anything relevant. This is where the radar's raw input appears."
-              />
-            ) : (
-              <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
-                {(signalsResult.data ?? []).map((signal) => (
-                  <li key={signal.id} className="px-5 py-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-[0.875rem] leading-snug font-medium text-[var(--text-primary)]">
-                        {signal.title}
-                      </p>
-                      <span className="numeric shrink-0 text-[0.75rem] text-[var(--brand)]">
-                        {Math.round(Number(signal.relevance) * 100)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-                      {signal.summary}
+        <div className="min-w-0 space-y-4">
+          {w.opportunities.map((o) => (
+            <Card key={o.id} className="px-5 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="eyebrow">
+                    {o.id} · {o.category} · via {o.source}
+                  </p>
+                  <h3 className="font-display mt-1 text-[1rem] font-semibold text-[var(--text-primary)]">
+                    {o.title}
+                  </h3>
+                  <p className="numeric mt-1 text-[0.8125rem] text-[var(--text-secondary)]">
+                    {money(o.estValue, currency)} · {percent(o.probability, 0)} probability ·{' '}
+                    {o.owner} · identified {date(o.date)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="numeric text-[1.5rem] leading-none font-semibold text-[var(--text-primary)]">
+                    {score(o.score, 0)}
+                    <span className="text-[0.875rem] text-[var(--text-tertiary)]">/100</span>
+                  </p>
+                  <Badge tone={OPPORTUNITY_TONE[o.classification]} className="mt-1.5">
+                    {o.classification}
+                  </Badge>
+                  {/*
+                    Two cards both reading 100 are not equally attractive — they
+                    are both off the top of a scale built for smaller deals. The
+                    unclamped figure is what ranks them, so it is shown.
+                  */}
+                  {o.atCeiling ? (
+                    <p
+                      className="numeric mt-1 text-[0.6875rem] whitespace-nowrap text-[var(--warning)]"
+                      title="The unclamped score exceeded 100. Ranking uses the unclamped figure."
+                    >
+                      at ceiling · raw {score(o.rawScore, 1)}
                     </p>
-                    <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <Badge tone="outline" className="!text-[0.5625rem]">
-                        {humanise(signal.kind)}
-                      </Badge>
-                      <Badge tone="neutral" className="!text-[0.5625rem]">
-                        {signal.sector}
-                      </Badge>
-                      <span className="text-[0.6875rem] text-[var(--text-tertiary)]">
-                        {formatRelative(signal.observed_at)}
-                      </span>
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+                  ) : null}
+                </div>
+              </div>
+
+              <details className="mt-3 border-t border-[var(--border)] pt-3">
+                <summary className="cursor-pointer text-[0.8125rem] font-medium text-[var(--brand)]">
+                  How this score was reached
+                </summary>
+                <TableWrap className="mt-3">
+                  <Table>
+                    <thead>
+                      <tr>
+                        <Th>Factor</Th>
+                        <Th numeric>Weight</Th>
+                        <Th numeric>Points</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {opportunityFactors(o).map((f) => (
+                        <tr key={f.factor}>
+                          <Td>
+                            {f.factor}
+                            {f.note ? (
+                              <span className="mt-0.5 block text-[0.75rem] text-[var(--text-tertiary)]">
+                                {f.note}
+                              </span>
+                            ) : null}
+                          </Td>
+                          <Td numeric>{percent(f.weight, 0)}</Td>
+                          <Td numeric>{f.contribution.toFixed(1)}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </TableWrap>
+                <p className="mt-2 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
+                  Reported scores are capped at 100. The value factor is unbounded in the source
+                  model — {money(VALUE_ONLY_CEILING, currency)} of estimated value reaches the
+                  ceiling on value alone — so ranking uses the unclamped score rather than the
+                  capped one, and opportunities at the ceiling still have an order.
+                </p>
+              </details>
+            </Card>
+          ))}
+
+          {w.opportunities.length === 0 ? (
+            <Card>
+              <CardBody className="py-10 text-center text-[0.875rem] text-[var(--text-secondary)]">
+                No opportunities are on the radar yet.
+              </CardBody>
+            </Card>
+          ) : null}
         </div>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader title="Opportunity database" subtitle="Every field the scoring engine reads" />
+        <TableWrap className="rounded-t-none border-0 border-t">
+          <Table>
+            <thead>
+              <tr>
+                <Th>ID</Th>
+                <Th>Opportunity</Th>
+                <Th>Category</Th>
+                <Th numeric>Est. value</Th>
+                <Th numeric>Prob.</Th>
+                <Th numeric>Fit</Th>
+                <Th numeric>Urgency</Th>
+                <Th numeric>Effort</Th>
+                <Th>Owner</Th>
+                <Th>Status</Th>
+                <Th numeric>Score</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {w.opportunities.map((o) => (
+                <tr key={o.id}>
+                  <Td className="numeric whitespace-nowrap">{o.id}</Td>
+                  <Td className="min-w-[16rem]">{o.title}</Td>
+                  <Td className="whitespace-nowrap">{o.category}</Td>
+                  <Td numeric>{money(o.estValue, currency)}</Td>
+                  <Td numeric>{percent(o.probability, 0)}</Td>
+                  <Td numeric>{percent(o.strategicFit, 0)}</Td>
+                  <Td numeric>{percent(o.urgency, 0)}</Td>
+                  <Td numeric>{percent(o.effort, 0)}</Td>
+                  <Td className="whitespace-nowrap">{o.owner}</Td>
+                  <Td className="whitespace-nowrap">{o.status}</Td>
+                  <Td numeric>{score(o.score, 0)}</Td>
+                </tr>
+              ))}
+              {w.opportunities.length === 0 ? (
+                <EmptyRow colSpan={11}>Nothing in the database yet.</EmptyRow>
+              ) : null}
+            </tbody>
+          </Table>
+        </TableWrap>
+      </Card>
     </>
   );
 }

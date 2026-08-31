@@ -1,67 +1,51 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { AIGrowthIntelligence, TM } from '@/components/shell/tm';
+import { withBasePath } from '@/lib/base-path';
 
 /**
- * Sign-in chrome: the dark navy intelligence environment on the left, the form
- * on a clean surface on the right. The claim is made before the credentials
- * are asked for.
+ * The sign-up and sign-in surround.
+ *
+ * Deliberately quiet: one column, the mark, the form, and the way back to the
+ * public site. Onboarding leads into the platform, so nothing here competes
+ * with the form for attention.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-2">
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#081B33] p-10 lg:flex">
-        <Link href="/" className="flex items-center gap-2.5">
+    <div className="flex min-h-dvh flex-col bg-[var(--bg)]">
+      <header className="px-5 py-5 sm:px-8">
+        <Link href="/" className="inline-flex items-center gap-2">
           <Image
-            src="/brand/amryn-icon-mark-white.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}
-            className="h-7 w-auto"
+            className="size-6 w-auto dark:hidden"
             priority
           />
-          <span className="font-display text-[1.125rem] font-extrabold tracking-tight text-white">
-            Amryn<span className="tm">™</span>
+          <Image
+            src={withBasePath("/brand/amryn-icon-mark-white.png")}
+            alt=""
+            width={553}
+            height={563}
+            className="hidden size-6 w-auto dark:block"
+            priority
+          />
+          <span className="font-display text-[0.9375rem] font-semibold tracking-tight">
+            <TM>Amryn</TM> <AIGrowthIntelligence />
           </span>
         </Link>
+      </header>
 
-        <div className="relative max-w-md">
-          {/* Not uppercased: the brand pack sets the solid capitalisation as
-              part of the mark, so AIGrowthIntelligence® must never be
-              transformed. The tracking carries the eyebrow treatment instead. */}
-          <p className="font-mono text-[0.6875rem] tracking-[0.16em] text-[#3E7BD6]">
-            AIGrowthIntelligence<span className="tm">®</span> Software
-          </p>
-          <h1 className="font-display mt-4 text-[2.25rem] leading-[1.1] font-bold tracking-tight text-white">
-            See your business.
-            <br />
-            See your market.
-            <br />
-            <span className="text-[#3E7BD6]">Know what to do next.</span>
-          </h1>
-          <p className="mt-5 text-[0.9375rem] leading-relaxed text-[#8BA3C7]">
-            A continuously updated AI DigitalTwin<span className="tm">®</span> of what is happening
-            inside your business, and an AI OpportunityRadar<span className="tm">®</span> watching
-            the market outside it — converging in one Executive Command Centre.
-          </p>
-        </div>
+      <main className="flex flex-1 items-start justify-center px-5 pt-4 pb-16 sm:px-8">
+        <div className="w-full max-w-[27rem]">{children}</div>
+      </main>
 
-        <p className="font-mono text-[0.6875rem] tracking-[0.08em] text-[#64799A]">
-          Business Inside &nbsp;+&nbsp; Market Outside &nbsp;=&nbsp; Intelligent Growth
+      <footer className="px-5 pb-8 text-center text-[0.75rem] text-[var(--text-tertiary)] sm:px-8">
+        <p>
+          <TM>Amryn</TM> <AIGrowthIntelligence /> is a trademark of Amryn. © 2026 Amryn.
         </p>
-
-        {/* A quiet radar sweep, not a decoration that competes with the words. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-40 -bottom-40 size-[28rem] rounded-full border border-[#1E3A5F]"
-        >
-          <div className="absolute inset-12 rounded-full border border-[#1E3A5F]" />
-          <div className="absolute inset-24 rounded-full border border-[#1E3A5F]" />
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center px-5 py-12 sm:px-10">
-        <div className="w-full max-w-sm">{children}</div>
-      </div>
+      </footer>
     </div>
   );
 }

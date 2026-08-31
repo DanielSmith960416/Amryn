@@ -1,297 +1,261 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { PageHeader } from '@/components/shell/page-header';
-import { BriefingCard } from '@/components/intelligence/briefing-card';
-import { PriorityList } from '@/components/intelligence/priority-list';
-import { HealthCard } from '@/components/dashboard/health-card';
-import { MetricCard } from '@/components/dashboard/metric-card';
-import { IntelligenceFeed } from '@/components/intelligence/feed';
+import { Badge, BRANCH_TONE, HEALTH_TONE, OPPORTUNITY_TONE, RISK_TONE } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { CardSkeleton, EmptyState } from '@/components/ui/states';
-import { PerformanceChart } from '@/components/charts/performance-chart';
-import { requireWorkspace } from '@/lib/auth/session';
-import { buildBusinessContext } from '@/features/intelligence/context';
-import { generateBriefing } from '@/lib/ai/intelligence';
-import { buildFeed } from '@/features/intelligence/feed';
-import { formatMetric, formatMoney, formatMonth, humanise } from '@/lib/utils/format';
+import { DemoNotice, PageHeader } from '@/components/ui/page-header';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { HealthDial } from '@/components/intelligence/health-dial';
+import { branchStatus } from '@/lib/intelligence/finance';
+import { compactMoney, count, date, money, percent, score } from '@/lib/format';
+import { loadWorkspace } from '@/lib/workspace';
 
-export const metadata: Metadata = { title: 'Command Centre' };
+export const metadata: Metadata = { title: 'Executive Command Centre' };
 
 /**
- * The Executive Command Centre (specification §7).
+ * EXECUTIVE_COMMAND, as a page.
  *
- * Answers five questions in reading order: what is happening, what has
- * changed, what needs attention, what opportunities exist, what to do next.
- * The briefing streams in its own Suspense boundary because it may be waiting
- * on a model, and the rest of the page has no reason to wait with it.
+ * The prototype's structure is kept exactly: a row of year-to-date indicators,
+ * then the six intelligence cards — insight, opportunity, risk, decision,
+ * action, recommendation — each stamped with its confidence and its basis.
+ *
+ * The prototype writes those six as fixed sentences. Here they are produced by
+ * the briefing engine from the figures on this page, which is the only way the
+ * "AI-SIMULATED" label stays honest as the data changes.
  */
-export default async function CommandCentrePage() {
-  const workspace = await requireWorkspace();
-  const context = await buildBusinessContext(workspace);
-  const currency = context.organisation.currencyCode;
-
-  const liveOpportunities = context.opportunities.filter(
-    (o) => !['won', 'lost', 'archived'].includes(o.stage),
-  );
-  const pipelineValue = liveOpportunities.reduce(
-    (sum, o) => sum + (o.estimatedValueCents ?? 0),
-    0,
-  );
-  const openRisks = context.risks.filter((r) => r.status === 'open' || r.status === 'mitigating');
-
-  const headline = context.metrics.slice(0, 4);
-  const revenue = context.metrics.find((m) => m.key === 'revenue') ?? context.metrics[0];
-
-  const chartData = (revenue?.series ?? []).map((point) => ({
-    period: formatMonth(point.period),
-    value: point.value,
-  }));
+export default function CommandCentrePage() {
+  const w = loadWorkspace();
+  const currency = w.profile.currency;
 
   return (
     <>
       <PageHeader
-        eyebrow={`${context.organisation.name} · ${context.period.label}`}
-        title="Command Centre"
-        description="Your business on the inside, your market on the outside, and what the two together say you should do next."
+        eyebrow="Detect → Simulate → Act"
+        title="Executive Command Centre"
+        description={`${w.profile.companyName} · ${w.profile.reportingPeriod} · ${w.profile.location}`}
         actions={
-          <Button asChild variant="soft" size="sm">
-            <Link href="/assistant">Ask Amryn</Link>
-          </Button>
+          <Badge tone={HEALTH_TONE[w.health.status]}>
+            Health {score(w.health.overall)} — {w.health.status}
+          </Badge>
         }
       />
 
-      {context.metrics.length === 0 ? (
-        <Card>
-          <EmptyState
-            title="No data connected yet"
-            description="Connect your first data source to let your AI DigitalTwin® begin learning about your business. Until then there is nothing honest for this page to show."
-            action={
-              <Button asChild variant="primary">
-                <Link href="/data">Connect data</Link>
-              </Button>
-            }
-          />
-        </Card>
-      ) : (
-        <div className="space-y-5">
-          {/* ── executive KPI row ─────────────────────────────────────── */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
-            {headline.map((metric) => (
-              <MetricCard
-                key={metric.key}
-                label={metric.label}
-                value={formatMetric(metric.current, metric.unit, currency)}
-                changePercent={metric.changePercent}
-                direction={metric.direction}
-                favourable={metric.favourable}
-                comparison="on last period"
-                series={metric.series.map((p) => p.value)}
-              />
-            ))}
+      {w.isDemo ? (
+        <DemoNotice>
+          This workspace is seeded with the demonstration business from the Amryn
+          <sup className="tm">™</sup> prototypes. Replace it with your own data to see the same
+          intelligence run on your numbers.
+        </DemoNotice>
+      ) : null}
 
-            <MetricCard
-              label="Opportunity value"
-              value={formatMoney(pipelineValue, currency)}
-              comparison={`${liveOpportunities.length} live on the radar`}
-              favourable={null}
-            />
+      {/* ── Year-to-date indicators (prototype: rows 4–7) ─────────────── */}
+      <StatGrid className="mb-6">
+        <Stat
+          label="Total revenue"
+          value={compactMoney(w.ytd.revenue, currency)}
+          sub={`YTD · ${w.ytd.monthsReported} months reported`}
+        />
+        <Stat label="Gross profit" value={compactMoney(w.ytd.grossProfit, currency)} sub="YTD" />
+        <Stat
+          label="Net profit"
+          value={compactMoney(w.ytd.netProfit, currency)}
+          sub="YTD"
+          tone={w.ytd.netProfit >= 0 ? 'default' : 'negative'}
+        />
+        <Stat
+          label="Gross margin"
+          value={percent(w.ytd.grossMargin)}
+          sub={`Target ${percent(w.profile.grossMarginTarget, 0)}`}
+          tone={w.ytd.grossMargin >= w.profile.grossMarginTarget ? 'positive' : 'warning'}
+        />
+        <Stat label="Total customers" value={count(w.ytd.totalCustomers)} sub={`${count(w.ytd.newCustomers)} new YTD`} />
+        <Stat
+          label="Net cash flow"
+          value={compactMoney(w.ytd.netCash, currency)}
+          sub="YTD position"
+          tone={w.ytd.netCash >= 0 ? 'positive' : 'negative'}
+        />
+      </StatGrid>
 
-            <MetricCard
-              label="Active risks"
-              value={String(openRisks.length)}
-              comparison={
-                openRisks.filter((r) => r.severity === 'critical').length > 0
-                  ? `${openRisks.filter((r) => r.severity === 'critical').length} critical`
-                  : 'none critical'
-              }
-              favourable={openRisks.length === 0 ? true : null}
-            />
+      <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+        {/* ── Today's intelligence ────────────────────────────────────── */}
+        <div className="min-w-0 space-y-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-[1.0625rem] font-semibold text-[var(--text-primary)]">
+              Today&rsquo;s intelligence
+            </h2>
+            <p className="text-[0.75rem] text-[var(--text-tertiary)]">
+              Computed from the figures above
+            </p>
           </div>
 
-          {/* ── briefing ──────────────────────────────────────────────── */}
-          <Suspense fallback={<CardSkeleton rows={4} />}>
-            <BriefingPanel workspaceId={workspace.organisation.id} />
-          </Suspense>
-
-          {/* ── the three-column grid ─────────────────────────────────── */}
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-            <div className="xl:col-span-3">
-              <HealthCard health={context.health} changePoints={context.healthTrend.changePoints} />
-            </div>
-
-            <div className="xl:col-span-6">
-              <Card className="h-full">
-                <CardHeader
-                  title={revenue ? revenue.label : 'Business performance'}
-                  subtitle="Trailing periods, from your connected sources"
-                  actions={
-                    <Link
-                      href="/performance"
-                      className="font-mono text-[0.6875rem] tracking-wide text-[var(--brand)] uppercase hover:underline"
-                    >
-                      Detail
-                    </Link>
-                  }
-                />
-                <CardBody>
-                  {chartData.length > 1 && revenue ? (
-                    <PerformanceChart
-                      data={chartData}
-                      series={[{ key: 'value', label: revenue.label, unit: revenue.unit }]}
-                      currency={currency}
-                      periods={[
-                        { label: '3M', count: 3 },
-                        { label: '6M', count: 6 },
-                        { label: '12M', count: 12 },
-                      ]}
-                    />
-                  ) : (
-                    <EmptyState
-                      title="Not enough history to chart"
-                      description="Two or more periods are needed before a trend means anything."
-                    />
-                  )}
-                </CardBody>
-              </Card>
-            </div>
-
-            <div className="xl:col-span-3">
-              <Suspense fallback={<CardSkeleton rows={4} />}>
-                <PriorityPanel workspaceId={workspace.organisation.id} />
-              </Suspense>
-            </div>
-          </div>
-
-          {/* ── bottom grid ───────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <IntelligenceFeed entries={buildFeed(context)} limit={7} />
-
-            <div className="space-y-5">
-              <Card>
-                <CardHeader
-                  title={
-                    <>
-                      AI OpportunityRadar<span className="tm">®</span>
-                    </>
-                  }
-                  subtitle={`${liveOpportunities.length} live, ${formatMoney(pipelineValue, currency)} at stake`}
-                  actions={
-                    <Link
-                      href="/opportunity-radar"
-                      className="font-mono text-[0.6875rem] tracking-wide text-[var(--brand)] uppercase hover:underline"
-                    >
-                      Radar
-                    </Link>
-                  }
-                />
-                {liveOpportunities.length === 0 ? (
-                  <EmptyState
-                    title="The radar is clear"
-                    description="No external opportunity has cleared the scoring threshold. Widen your market sources to give it more to work with."
-                  />
-                ) : (
-                  <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
-                    {liveOpportunities.slice(0, 4).map((opportunity) => (
-                      <li key={opportunity.id} className="flex items-start gap-3 px-5 py-3">
-                        <span className="numeric mt-0.5 w-8 shrink-0 text-[0.9375rem] font-semibold text-[var(--brand)]">
-                          {opportunity.score === null ? '—' : Math.round(opportunity.score)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[0.875rem] leading-snug font-medium text-[var(--text-primary)]">
-                            {opportunity.title}
-                          </p>
-                          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.75rem] text-[var(--text-tertiary)]">
-                            <Badge tone="outline" className="!text-[0.5625rem]">
-                              {humanise(opportunity.kind)}
-                            </Badge>
-                            <span className="numeric">
-                              {formatMoney(opportunity.estimatedValueCents, currency)}
-                            </span>
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-
-              <Card>
-                <CardHeader
-                  title="Risk"
-                  subtitle={openRisks.length === 0 ? 'Nothing open' : `${openRisks.length} open`}
-                  actions={
-                    <Link
-                      href="/risk"
-                      className="font-mono text-[0.6875rem] tracking-wide text-[var(--brand)] uppercase hover:underline"
-                    >
-                      Register
-                    </Link>
-                  }
-                />
-                {openRisks.length === 0 ? (
-                  <EmptyState
-                    title="No open risks"
-                    description="Nothing on the register needs attention. Amryn will raise one the moment a metric or a market signal warrants it."
-                  />
-                ) : (
-                  <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
-                    {openRisks.slice(0, 4).map((risk) => (
-                      <li key={risk.id} className="flex items-start justify-between gap-3 px-5 py-3">
-                        <div className="min-w-0">
-                          <p className="text-[0.875rem] leading-snug font-medium text-[var(--text-primary)]">
-                            {risk.title}
-                          </p>
-                          <p className="mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
-                            {humanise(risk.category)} · likelihood {risk.likelihood}/5 · impact{' '}
-                            {risk.impact}/5
-                          </p>
-                        </div>
-                        <Badge
-                          tone={
-                            risk.severity === 'critical'
-                              ? 'negative'
-                              : risk.severity === 'high'
-                                ? 'warning'
-                                : 'info'
-                          }
-                        >
-                          {risk.severity}
-                        </Badge>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-            </div>
-          </div>
+          {w.insights.map((insight) => (
+            <Card key={insight.kind} tone="brand" className="px-5 py-4">
+              <p className="eyebrow">◆ {insight.kind}</p>
+              <p className="mt-2 text-[0.9375rem] leading-relaxed text-[var(--text-primary)]">
+                {insight.body}
+              </p>
+              <p className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[0.6875rem] tracking-wide text-[var(--text-tertiary)] uppercase">
+                <span className="text-[var(--brand)]">AI-simulated</span>
+                <span aria-hidden>·</span>
+                <span>Confidence: {insight.confidence}</span>
+                {insight.meta ? (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{insight.meta}</span>
+                  </>
+                ) : null}
+                <span aria-hidden>·</span>
+                <span>Source: {insight.basis}</span>
+              </p>
+            </Card>
+          ))}
         </div>
-      )}
+
+        {/* ── Side rail ───────────────────────────────────────────────── */}
+        <div className="min-w-0 space-y-5">
+          <Card>
+            <CardHeader title="Business health" subtitle="Eight weighted components" />
+            <CardBody>
+              <HealthDial health={w.health} />
+              <Link
+                href="/digital-twin"
+                className="mt-4 block text-center text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
+              >
+                Open DigitalTwin<sup className="tm">®</sup> →
+              </Link>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Priority actions"
+              subtitle={`${w.actionSummary.completed} of ${w.actionSummary.total} logged complete`}
+            />
+            <CardBody>
+              <ol className="space-y-3">
+                {w.actions
+                  .filter((a) => a.status !== 'Completed')
+                  .slice(0, 4)
+                  .map((a) => (
+                    <li key={a.id} className="flex gap-2.5">
+                      <Badge tone={a.priority === 'HIGH' ? 'negative' : 'warning'}>
+                        {a.priority}
+                      </Badge>
+                      <div className="min-w-0">
+                        <p className="text-[0.8125rem] leading-snug text-[var(--text-primary)]">
+                          {a.action}
+                        </p>
+                        <p className="mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
+                          {a.owner} · due {date(a.dueDate)}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+              </ol>
+              <Link
+                href="/action-centre"
+                className="mt-4 block text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
+              >
+                Open the Action Centre →
+              </Link>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Branch performance"
+              subtitle={`${w.branches.length} locations`}
+            />
+            <CardBody>
+              <ul className="space-y-2.5">
+                {w.branches.map((b) => {
+                  const status = branchStatus(b.healthScore);
+                  return (
+                    <li key={b.name} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-[0.8125rem] text-[var(--text-primary)]">
+                          {b.name}
+                        </p>
+                        <p className="numeric text-[0.75rem] text-[var(--text-tertiary)]">
+                          {compactMoney(b.revenueYtd, currency)} YTD
+                        </p>
+                      </div>
+                      <Badge tone={BRANCH_TONE[status]}>{b.healthScore}</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardBody>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── Pipeline and register summaries ─────────────────────────── */}
+      <div className="mt-6 grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
+        <Card>
+          <CardHeader
+            title={
+              <>
+                OpportunityRadar<sup className="tm">®</sup>
+              </>
+            }
+            subtitle={`${w.pipeline.total} tracked · ${money(w.pipeline.totalEstValue, currency)} pipeline`}
+          />
+          <CardBody>
+            <ul className="space-y-3">
+              {w.opportunities.slice(0, 3).map((o) => (
+                <li key={o.id} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[0.8125rem] leading-snug text-[var(--text-primary)]">
+                      {o.title}
+                    </p>
+                    <p className="numeric mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
+                      {o.id} · {money(o.estValue, currency)} · {o.status}
+                    </p>
+                  </div>
+                  <Badge tone={OPPORTUNITY_TONE[o.classification]}>{score(o.score, 0)}</Badge>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/opportunity-radar"
+              className="mt-4 block text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
+            >
+              Open the radar →
+            </Link>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Risk Radar"
+            subtitle={`${w.riskSummary.open} open · ${w.riskSummary.worsening} worsening`}
+          />
+          <CardBody>
+            <ul className="space-y-3">
+              {w.risks.slice(0, 3).map((r) => (
+                <li key={r.id} className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[0.8125rem] leading-snug text-[var(--text-primary)]">
+                      {r.risk}
+                    </p>
+                    <p className="numeric mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
+                      {r.id} · {r.owner} · {r.trend}
+                    </p>
+                  </div>
+                  <Badge tone={RISK_TONE[r.classification]}>{r.score.toFixed(2)}</Badge>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/risk-radar"
+              className="mt-4 block text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
+            >
+              Open the register →
+            </Link>
+          </CardBody>
+        </Card>
+      </div>
     </>
-  );
-}
-
-/* The briefing and priorities share one generation, but sit in separate
-   Suspense boundaries so neither blocks the other's slot from painting. */
-
-async function BriefingPanel({ workspaceId: _workspaceId }: { workspaceId: string }) {
-  const workspace = await requireWorkspace();
-  const context = await buildBusinessContext(workspace);
-  const briefing = await generateBriefing(context);
-  return <BriefingCard briefing={briefing} />;
-}
-
-async function PriorityPanel({ workspaceId: _workspaceId }: { workspaceId: string }) {
-  const workspace = await requireWorkspace();
-  const context = await buildBusinessContext(workspace);
-  const briefing = await generateBriefing(context);
-  return (
-    <PriorityList
-      priorities={briefing.priorities}
-      currency={context.organisation.currencyCode}
-      className="h-full"
-    />
   );
 }

@@ -1,251 +1,202 @@
 import type { Metadata } from 'next';
-import { PageHeader } from '@/components/shell/page-header';
-import { HealthCard } from '@/components/dashboard/health-card';
+import { Badge, BRANCH_TONE, HEALTH_TONE } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/states';
-import { PerformanceChart } from '@/components/charts/performance-chart';
-import { requirePermission } from '@/lib/auth/session';
-import { buildBusinessContext } from '@/features/intelligence/context';
-import { formatMetric, formatMonth, humanise } from '@/lib/utils/format';
+import { DemoNotice, PageHeader } from '@/components/ui/page-header';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
+import { HealthBreakdown, HealthDial } from '@/components/intelligence/health-dial';
+import { RevenueChart } from '@/components/intelligence/revenue-chart';
+import { branchStatus } from '@/lib/intelligence/finance';
+import { compactMoney, count, money, percent, score } from '@/lib/format';
+import { loadWorkspace } from '@/lib/workspace';
 
-export const metadata: Metadata = { title: 'AI DigitalTwin®' };
+export const metadata: Metadata = { title: 'DigitalTwin®' };
+
+const TREND_TONE = {
+  INCREASING: 'positive',
+  GROWING: 'positive',
+  IMPROVING: 'positive',
+  POSITIVE: 'positive',
+  STABLE: 'info',
+  DECLINING: 'warning',
+  NEGATIVE: 'negative',
+} as const;
 
 /**
- * The AI DigitalTwin® (specification §8).
+ * DIGITAL_TWIN and BUSINESS_HEALTH, as one page.
  *
- * What the business looks like from the inside: the health score, every metric
- * with its trend, and — the part that earns the name — the changes the twin
- * detected without being asked to look.
+ * The prototype splits the business identity, the performance figures, the five
+ * trend readings and the branch table across two sheets. They belong together:
+ * the twin is a model of the business, and a model you have to page between is
+ * not one thing.
  */
-export default async function DigitalTwinPage() {
-  const workspace = await requirePermission('view_intelligence');
-  const context = await buildBusinessContext(workspace);
-  const currency = context.organisation.currencyCode;
-
-  const deteriorating = context.metrics.filter((m) => m.favourable === false);
-  const improving = context.metrics.filter((m) => m.favourable === true);
+export default function DigitalTwinPage() {
+  const w = loadWorkspace();
+  const currency = w.profile.currency;
 
   return (
     <>
       <PageHeader
-        eyebrow={context.organisation.name}
+        eyebrow="Inside view"
         title={
           <>
-            AI DigitalTwin<span className="tm">®</span>
+            Amryn<sup className="tm">™</sup>DigitalTwin<sup className="tm">®</sup>
           </>
         }
-        description="A continuously updated picture of what is happening inside the business, and what has changed since it last looked."
+        description="A continuously updated model of the business itself — what it earns, who it keeps, and what changed."
+        actions={
+          <Badge tone={HEALTH_TONE[w.health.status]}>
+            {score(w.health.overall)}/100 — {w.health.status}
+          </Badge>
+        }
       />
 
-      {context.metrics.length === 0 ? (
-        <Card>
-          <EmptyState
-            title="The twin has nothing to model yet"
-            description="Connect a data source so Amryn can begin building a picture of your business. Until it has measurements, there is no inside to see."
-          />
-        </Card>
-      ) : (
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-            <div className="lg:col-span-4">
-              <HealthCard health={context.health} changePoints={context.healthTrend.changePoints} />
-            </div>
+      {w.isDemo ? <DemoNotice /> : null}
 
-            <div className="lg:col-span-8">
-              <Card className="h-full">
-                <CardHeader
-                  title="Detected changes"
-                  subtitle="Movements the twin flagged without being asked to look for them"
-                />
-                {context.anomalies.length === 0 ? (
-                  <EmptyState
-                    title="Nothing is behaving unusually"
-                    description="Every metric is moving within its own recent range. That is the state you want, and Amryn will say so plainly rather than manufacture a finding."
-                  />
-                ) : (
-                  <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
-                    {context.anomalies.map((entry) => (
-                      <li key={entry.metricKey} className="px-5 py-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="text-[0.9375rem] font-medium text-[var(--text-primary)]">
-                            {entry.metricLabel}
-                          </p>
-                          <Badge tone={entry.stepChange ? 'negative' : 'warning'}>
-                            {entry.stepChange ? 'Step change' : 'Anomaly'}
-                          </Badge>
-                        </div>
+      <StatGrid className="mb-6">
+        <Stat label="YTD revenue" value={compactMoney(w.ytd.revenue, currency)} />
+        <Stat label="YTD gross profit" value={compactMoney(w.ytd.grossProfit, currency)} sub={percent(w.ytd.grossMargin)} />
+        <Stat label="YTD net profit" value={compactMoney(w.ytd.netProfit, currency)} sub={percent(w.ytd.netMargin)} />
+        <Stat label="Total customers" value={count(w.ytd.totalCustomers)} />
+        <Stat label="New customers YTD" value={count(w.ytd.newCustomers)} />
+        <Stat
+          label="Net cash YTD"
+          value={compactMoney(w.ytd.netCash, currency)}
+          tone={w.ytd.netCash >= 0 ? 'positive' : 'negative'}
+        />
+      </StatGrid>
 
-                        {entry.stepChange ? (
-                          <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-                            The level shifted {entry.stepChange.direction}{' '}
-                            <span className="numeric">
-                              {Math.abs(entry.stepChange.changePercent ?? 0).toFixed(1)}%
-                            </span>{' '}
-                            at {entry.stepChange.period} and has held there since — mean{' '}
-                            <span className="numeric">{entry.stepChange.meanBefore}</span> before,{' '}
-                            <span className="numeric">{entry.stepChange.meanAfter}</span> after. A
-                            step usually has a single cause and a date, which makes it worth finding.
-                          </p>
-                        ) : null}
-
-                        {entry.anomalies.slice(-2).map((anomaly) => (
-                          <p
-                            key={anomaly.period}
-                            className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]"
-                          >
-                            {anomaly.period} read{' '}
-                            <span className="numeric">{anomaly.value}</span> against an expected{' '}
-                            <span className="numeric">{anomaly.expected}</span> —{' '}
-                            <span className="numeric">{Math.abs(anomaly.deviations).toFixed(1)}</span>{' '}
-                            standard deviations {anomaly.direction} its own recent history.
-                          </p>
-                        ))}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-            </div>
-          </div>
-
-          {/* Every metric, grouped by whether it is going the right way. */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <MetricGroup
-              title="Moving the wrong way"
-              subtitle={`${deteriorating.length} of ${context.metrics.length} metrics`}
-              metrics={deteriorating}
-              currency={currency}
-              emptyTitle="Nothing is deteriorating"
-              emptyDescription="Every metric with a direction is moving the way you want it to."
+      <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+        <div className="min-w-0 space-y-5">
+          <Card>
+            <CardHeader
+              title="Revenue trend"
+              subtitle={`${w.ytd.monthsReported} reported months of ${w.months.length}`}
             />
-            <MetricGroup
-              title="Moving the right way"
-              subtitle={`${improving.length} of ${context.metrics.length} metrics`}
-              metrics={improving}
-              currency={currency}
-              emptyTitle="Nothing is improving yet"
-              emptyDescription="No metric has moved far enough in the right direction to report."
-            />
-          </div>
+            <CardBody>
+              <RevenueChart months={w.months} currency={currency} />
+            </CardBody>
+          </Card>
 
           <Card>
-            <CardHeader title="All metrics" subtitle="Current, target and trend" />
-            <div className="overflow-x-auto border-t border-[var(--border)]">
-              <table className="w-full text-left text-[0.8125rem]">
+            <CardHeader
+              title="Branch performance"
+              subtitle="Health scores band at 75 (healthy) and 60 (stable)"
+            />
+            <TableWrap className="rounded-t-none border-0 border-t">
+              <Table>
                 <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    {['Metric', 'Category', 'Current', 'Target', 'Change', 'Trend'].map((h) => (
-                      <th key={h} className="eyebrow px-5 py-2.5 !mb-0 font-normal whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
+                  <tr>
+                    <Th>Branch</Th>
+                    <Th numeric>Revenue YTD</Th>
+                    <Th numeric>Gross profit</Th>
+                    <Th numeric>Net profit</Th>
+                    <Th numeric>Customers</Th>
+                    <Th numeric>Staff</Th>
+                    <Th numeric>Avg order</Th>
+                    <Th numeric>Health</Th>
+                    <Th>Status</Th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {context.metrics.map((metric) => (
-                    <tr key={metric.key} className="hover:bg-[var(--card-inset)]">
-                      <td className="px-5 py-2.5 font-medium text-[var(--text-primary)]">
-                        {metric.label}
-                      </td>
-                      <td className="px-5 py-2.5 text-[var(--text-secondary)]">
-                        {metric.category ? humanise(metric.category) : '—'}
-                      </td>
-                      <td className="numeric px-5 py-2.5 text-[var(--text-primary)]">
-                        {formatMetric(metric.current, metric.unit, currency)}
-                      </td>
-                      <td className="numeric px-5 py-2.5 text-[var(--text-secondary)]">
-                        {formatMetric(metric.target, metric.unit, currency)}
-                      </td>
-                      <td
-                        className={
-                          'numeric px-5 py-2.5 ' +
-                          (metric.favourable === null
-                            ? 'text-[var(--text-secondary)]'
-                            : metric.favourable
-                              ? 'text-[var(--positive)]'
-                              : 'text-[var(--negative)]')
-                        }
-                      >
-                        {metric.changePercent === null
-                          ? '—'
-                          : `${metric.changePercent > 0 ? '+' : ''}${metric.changePercent}%`}
-                      </td>
-                      <td className="px-5 py-2.5">
-                        <MiniTrend metric={metric} currency={currency} />
-                      </td>
-                    </tr>
-                  ))}
+                <tbody>
+                  {w.branches.map((b) => {
+                    const status = branchStatus(b.healthScore);
+                    return (
+                      <tr key={b.name}>
+                        <Td className="font-medium whitespace-nowrap">{b.name}</Td>
+                        <Td numeric>{money(b.revenueYtd, currency)}</Td>
+                        <Td numeric>{money(b.grossProfit, currency)}</Td>
+                        <Td numeric>{money(b.netProfit, currency)}</Td>
+                        <Td numeric>{count(b.customers)}</Td>
+                        <Td numeric>{count(b.staff)}</Td>
+                        <Td numeric>{money(b.avgOrder, currency)}</Td>
+                        <Td numeric>{b.healthScore}/100</Td>
+                        <Td>
+                          <Badge tone={BRANCH_TONE[status]}>{status}</Badge>
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                  {w.branches.length === 0 ? (
+                    <EmptyRow colSpan={9}>No branches are configured for this workspace.</EmptyRow>
+                  ) : null}
                 </tbody>
-              </table>
-            </div>
+              </Table>
+            </TableWrap>
+          </Card>
+
+          <Card>
+            <CardHeader title="Business identity" subtitle="The twin's foundation" />
+            <CardBody>
+              <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                {[
+                  ['Company', w.profile.companyName],
+                  ['Industry', w.profile.industry],
+                  ['Location', w.profile.location],
+                  ['Business model', w.profile.businessModel],
+                  ['Branches', String(w.profile.branches)],
+                  ['Employees', String(w.profile.employees)],
+                  ['Founded', String(w.profile.founded)],
+                  ['Currency', w.profile.currency],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <dt className="eyebrow">{k}</dt>
+                    <dd className="mt-0.5 text-[0.875rem] text-[var(--text-primary)]">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <div className="mt-5 border-t border-[var(--border)] pt-4">
+                <p className="eyebrow mb-2">Strategic objectives</p>
+                <ol className="space-y-1.5">
+                  {w.profile.strategicObjectives.map((o, i) => (
+                    <li key={o} className="flex gap-2 text-[0.875rem] text-[var(--text-primary)]">
+                      <span className="numeric text-[var(--text-tertiary)]">{i + 1}.</span>
+                      {o}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </CardBody>
           </Card>
         </div>
-      )}
-    </>
-  );
-}
 
-function MetricGroup({
-  title,
-  subtitle,
-  metrics,
-  currency,
-  emptyTitle,
-  emptyDescription,
-}: {
-  title: string;
-  subtitle: string;
-  metrics: Awaited<ReturnType<typeof buildBusinessContext>>['metrics'];
-  currency: string;
-  emptyTitle: string;
-  emptyDescription: string;
-}) {
-  return (
-    <Card>
-      <CardHeader title={title} subtitle={subtitle} />
-      {metrics.length === 0 ? (
-        <EmptyState title={emptyTitle} description={emptyDescription} />
-      ) : (
-        <CardBody className="pt-0">
-          {metrics.slice(0, 3).map((metric) => (
-            <div key={metric.key} className="mt-4 first:mt-0">
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <span className="text-[0.8125rem] font-medium text-[var(--text-primary)]">
-                  {metric.label}
-                </span>
-                <span className="numeric text-[0.8125rem] text-[var(--text-secondary)]">
-                  {formatMetric(metric.current, metric.unit, currency)}
-                </span>
+        <div className="min-w-0 space-y-5">
+          <Card>
+            <CardHeader title="Business Health Score" subtitle="Eight weighted components" />
+            <CardBody>
+              <HealthDial health={w.health} />
+              <div className="mt-6 border-t border-[var(--border)] pt-4">
+                <HealthBreakdown health={w.health} />
               </div>
-              <PerformanceChart
-                data={metric.series.map((p) => ({ period: formatMonth(p.period), value: p.value }))}
-                series={[{ key: 'value', label: metric.label, unit: metric.unit }]}
-                currency={currency}
-                shape="line"
-                height={90}
-              />
-            </div>
-          ))}
-        </CardBody>
-      )}
-    </Card>
-  );
-}
+              <p className="mt-4 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
+                Components marked <em className="not-italic">assumed</em> are standing assessments
+                rather than measurements from connected data. Connecting their sources moves them
+                from assumed to measured without changing the weights.
+              </p>
+            </CardBody>
+          </Card>
 
-function MiniTrend({
-  metric,
-  currency: _currency,
-}: {
-  metric: Awaited<ReturnType<typeof buildBusinessContext>>['metrics'][number];
-  currency: string;
-}) {
-  if (!metric.trend) return <span className="text-[var(--text-tertiary)]">—</span>;
-  const { trend } = metric;
-  return (
-    <span className="text-[var(--text-secondary)]">
-      {trend.direction === 'flat' ? 'Flat' : trend.direction === 'up' ? 'Rising' : 'Falling'}
-      {trend.isMonotonic && trend.direction !== 'flat' ? ', every period' : ''}
-    </span>
+          <Card>
+            <CardHeader title="Trend analysis" subtitle="Latest reported month against the one before" />
+            <CardBody>
+              <ul className="space-y-3">
+                {w.trends.map((t) => (
+                  <li key={t.label}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[0.8125rem] text-[var(--text-primary)]">{t.label}</span>
+                      <Badge tone={TREND_TONE[t.direction]}>{t.direction}</Badge>
+                    </div>
+                    <p className="numeric mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
+                      {t.detail}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </CardBody>
+          </Card>
+        </div>
+      </div>
+    </>
   );
 }
