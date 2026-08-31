@@ -37,6 +37,26 @@ class MissingSecretError extends Error {
   }
 }
 
+/** The bar a configured secret has to clear, in characters. */
+const MIN_SECRET_LENGTH = 16;
+
+/**
+ * Whether this deployment can actually sign anyone in.
+ *
+ * Without a secret, `startSession` throws — which surfaces as a 500 on the
+ * sign-up form and tells the person filling it in nothing at all. The sign-up
+ * page asks this first so a misconfigured deployment says so plainly, before
+ * someone types a password into a form that cannot work.
+ *
+ * It reports whether a secret is set, never anything about its value.
+ */
+export function sessionSecretConfigured(): boolean {
+  const configured = process.env.AMRYN_SESSION_SECRET;
+  if (configured && configured.length >= MIN_SECRET_LENGTH) return true;
+  // Outside production one is generated per process, so sessions do work.
+  return process.env.NODE_ENV !== 'production';
+}
+
 /**
  * In development a missing secret is generated once per process, so the
  * platform runs out of the box. In production it is a hard error: a secret
@@ -45,7 +65,7 @@ class MissingSecretError extends Error {
  */
 function secret(): string {
   const configured = process.env.AMRYN_SESSION_SECRET;
-  if (configured && configured.length >= 16) return configured;
+  if (configured && configured.length >= MIN_SECRET_LENGTH) return configured;
 
   if (process.env.NODE_ENV === 'production') throw new MissingSecretError();
 

@@ -47,6 +47,12 @@ jobs:
       # under the current deployment shape it is the front door to sign-in.
       # Its one piece of behaviour — revealing the platform links once APP_URL
       # is set — is exactly the kind of thing that breaks silently.
+      # The site check drives a real browser, and a GitHub runner has none.
+      # Chromium only: the other engines would triple the download for a check
+      # that opens one static HTML file.
+      - name: Install Chromium for the site check
+        run: npx playwright install --with-deps chromium
+
       - name: Check the static marketing site
         run: npm run check:site
 

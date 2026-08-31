@@ -93,7 +93,7 @@ every client out on every deploy.
 
 ```bash
 npm run check          # typecheck + lint + tests
-npm test               # 81 unit tests over the Intelligence Layer and auth
+npm test               # 84 unit tests over the Intelligence Layer and auth
 npm run check:site     # smoke-checks the static marketing site in a browser
 npm run build          # production build
 ```
@@ -342,10 +342,13 @@ hidden — a marketing site with a sign-in button that 404s is worse than one
 without.
 
 `npm run check:site` exercises both states in a real browser, so neither breaks
-silently. The current deployment reuses the hostname the previous build had, so
-`APP_URL` already points where it should;
-[`docs-internal/MIGRATION.md`](docs-internal/MIGRATION.md) has the handover
-sequence, including the one window where the links are down.
+silently. `APP_URL` already points at the existing Vercel project, so it needs
+no change — [`docs-internal/MIGRATION.md`](docs-internal/MIGRATION.md) lists the
+environment variables that do.
+
+One of them is not optional: without `AMRYN_SESSION_SECRET` a production
+deployment cannot create a session. The sign-up page detects that and says so
+rather than taking a password into a form that would fail.
 
 ---
 

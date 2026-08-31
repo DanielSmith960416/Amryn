@@ -59,7 +59,7 @@ grep -ri "supabase\|nodemailer\|@anthropic-ai\|recharts" src/ package.json
 ```
 
 Returns nothing but this file's neighbours in `docs-internal/`. The build,
-typecheck, lint and 81 tests all pass with no database reachable.
+typecheck, lint and 84 tests all pass with no database reachable.
 
 ---
 
@@ -122,34 +122,39 @@ implementing that interface plus a replacement session module.
 
 These cannot be done from the codebase and are the account owner's to complete.
 
-### The Vercel handover, in order
+### The Vercel deployment
 
-The new deployment **reuses the previous one's hostname**, `amryn.vercel.app`,
-because the live marketing site's `docs/app.js` already points there and the
-links are wired to `/sign-in` and `/sign-up` — both real routes in this build.
-Reusing it means no change to the static site at all.
+There is nothing to hand over. The Vercel project `amryn` already exists, is
+already connected to this repository, and built a working preview of this branch
+— so it is the *same* project that served the previous build, and merging to
+`main` redeploys it with the new code at the same URL. The hostname never
+changes hands, and there is no window where the marketing site's links are
+broken.
 
-It also means the order below is not negotiable, because a hostname is not free
-until the project holding it releases it:
+`docs/app.js` therefore needs no change either: its `APP_URL` already names that
+hostname, and its links are wired to `/sign-in` and `/sign-up`, both real routes
+in this build.
 
-1. [ ] **Rename the old Vercel project** (Settings → General → Project Name) to
-       something like `amryn-legacy`. Renaming rather than deleting frees the
-       hostname while keeping the old deployment recoverable if anything is
-       wrong with the new one.
-2. [ ] **Create the new project** from this repository, named `amryn` so it
-       claims `amryn.vercel.app`. Set the environment variables below.
-3. [ ] **Confirm sign-up works** on the new deployment before going further.
-4. [ ] **Delete the old Vercel project** once you are satisfied.
+What does have to happen is configuration, and one of it is not optional:
 
-**There is a gap.** Between steps 1 and 2 the hostname resolves to nothing, so
-the live marketing site's "Sign in" and "Open the platform" buttons fail for
-that window. It is short, and it is the unavoidable cost of reusing the name.
-If you would rather have no gap at all, deploy the new project under a
-different name first and change the one line in `docs/app.js` instead.
+1. [ ] **Set `AMRYN_SESSION_SECRET`** on the Vercel project
+       (`openssl rand -base64 32`). Without it the application cannot create a
+       session at all. The sign-up page detects this and says so instead of
+       taking a password into a form that would fail, but nobody can sign in
+       until it is set.
+2. [ ] **Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`** if you
+       want sign-ups to survive a redeploy. Without them accounts are held in
+       memory, and the sign-up page and Settings both say so.
+3. [ ] **Set `AMRYN_MARKETING_URL`** to
+       `https://danielsmith960416.github.io/Amryn` so this deployment defers to
+       the static site rather than competing with it in search results.
+4. [ ] **Remove the retired variables** listed below from the project — the
+       Supabase pair, the service role key, `DATABASE_URL`, the `SMTP_*` set and
+       any model API keys. Nothing reads them now.
 
-Note also that Vercel does not always release a freed project name instantly.
-If `amryn` is rejected as taken at step 2, wait and retry rather than deleting
-anything else.
+Set them before merging, or immediately after: a production deployment without
+`AMRYN_SESSION_SECRET` serves the marketing site and the demo views fine, but
+turns anyone away at sign-up.
 
 ### The rest
 
@@ -203,7 +208,7 @@ separate, reversible change — or kept as a static fallback.
 
 ```bash
 npm ci
-npm run check     # typecheck + lint + 81 tests
+npm run check     # typecheck + lint + 84 tests
 npm run build
 ```
 

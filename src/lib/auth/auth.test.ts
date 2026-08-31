@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 /**
  * The auth modules import `server-only`, which throws outside a server
@@ -7,6 +7,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
  */
 beforeAll(() => {
   process.env.AMRYN_SESSION_SECRET = 'test-secret-at-least-sixteen-characters';
+});
+
+// Any test that stubs the environment puts it back, so the ones after it still
+// see a configured secret.
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('password hashing', () => {
@@ -91,6 +97,34 @@ describe('session tokens', () => {
     for (const bad of [undefined, '', 'no-dot', '.', 'a.', '.b', 'not.base64url!!']) {
       expect(decodeSession(bad)).toBeNull();
     }
+  });
+});
+
+describe('sessionSecretConfigured', () => {
+  it('is true when a long enough secret is set', async () => {
+    const { sessionSecretConfigured } = await import('./session');
+    expect(sessionSecretConfigured()).toBe(true);
+  });
+
+  it('is false in production when the secret is missing or too short', async () => {
+    const { sessionSecretConfigured } = await import('./session');
+
+    // stubEnv rather than assigning process.env directly: NODE_ENV is a
+    // non-configurable property there, and vitest restores it for us.
+    vi.stubEnv('NODE_ENV', 'production');
+
+    vi.stubEnv('AMRYN_SESSION_SECRET', '');
+    expect(sessionSecretConfigured()).toBe(false);
+
+    // A short secret is a misconfiguration, not a secret.
+    vi.stubEnv('AMRYN_SESSION_SECRET', 'too-short');
+    expect(sessionSecretConfigured()).toBe(false);
+  });
+
+  it('is true outside production even with no secret, since one is generated', async () => {
+    const { sessionSecretConfigured } = await import('./session');
+    vi.stubEnv('AMRYN_SESSION_SECRET', '');
+    expect(sessionSecretConfigured()).toBe(true);
   });
 });
 
