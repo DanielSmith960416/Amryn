@@ -7,6 +7,8 @@ import { requireUser } from '@/lib/auth/session';
 import { checkLimit } from '@/lib/auth/rate-limit';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
 import { ourFault } from '@/lib/errors';
+import { isEmailConfigured, sendMail } from '@/lib/email/smtp';
+import { dataRequestNotice } from '@/lib/email/data-request';
 import { recordAccountEvent } from '@/lib/audit';
 
 export type RequestState =
@@ -76,6 +78,30 @@ export async function submitDataRequest(
         'We could not record that request just now. Please write to us instead — the address is on the Privacy Policy — so that it is not lost.',
       ),
     };
+  }
+
+  // Told to somebody, not merely written down. The acknowledgement above
+  // promises 30 days; a promise against a table nobody opens is not one.
+  //
+  // A mail failure is not reported to the requester: their request is recorded
+  // either way, and there is nothing they could do about our mail server.
+  const notice = dataRequestNotice({
+    kind: parsed.data.kind,
+    requesterEmail: user.email ?? 'an account with no address on file',
+    note: parsed.data.note,
+    requestedAt: new Date().toISOString(),
+  });
+
+  if (notice && isEmailConfigured()) {
+    const sent = await sendMail(notice);
+    if (!sent.ok) {
+      console.error(`[amryn:privacy] the request was recorded but not emailed: ${sent.problem}`);
+    }
+  } else if (!notice) {
+    console.error(
+      '[amryn:privacy] a data request was recorded but no Information Officer address is set, ' +
+        'so nobody was told. Fill in RESPONSIBLE_PARTY in src/lib/legal/documents.ts.',
+    );
   }
 
   revalidatePath('/settings/privacy');
