@@ -93,7 +93,8 @@ every client out on every deploy.
 
 ```bash
 npm run check          # typecheck + lint + tests
-npm test               # 62 unit tests over the Intelligence Layer and auth
+npm test               # 81 unit tests over the Intelligence Layer and auth
+npm run check:site     # smoke-checks the static marketing site in a browser
 npm run build          # production build
 ```
 
@@ -323,9 +324,28 @@ Fourteen runtime dependencies. No database driver, no ORM, no charting runtime,
 no auth SDK. Charts are hand-written SVG rendered on the server; the client
 bundle is ~103 kB shared.
 
-**Deploying to Vercel:** import the repository, set `AMRYN_SESSION_SECRET`
-(and the two `UPSTASH_*` variables for durable accounts), deploy. No other
-configuration is needed.
+### Deploying
+
+The two pieces are deployed separately and point at each other.
+
+**The application** goes to Vercel. Import the repository and set
+`AMRYN_SESSION_SECRET`, the two `UPSTASH_*` variables for durable accounts, and
+`AMRYN_MARKETING_URL` if the static site is your public face. Nothing else is
+needed — there is no database to provision.
+
+**The static marketing site** is `docs/`, deployed to GitHub Pages by
+`.github/workflows/deploy.yml` on every push to `main`. Its one piece of
+configuration is `APP_URL` at the top of `docs/app.js`: set it to the
+application's URL and the "Sign in" and "Open the platform" links reveal
+themselves, pointed at `/sign-in` and `/sign-up`. Leave it empty and they stay
+hidden — a marketing site with a sign-in button that 404s is worse than one
+without.
+
+`npm run check:site` exercises both states in a real browser, so neither breaks
+silently. The current deployment reuses the hostname the previous build had, so
+`APP_URL` already points where it should;
+[`docs-internal/MIGRATION.md`](docs-internal/MIGRATION.md) has the handover
+sequence, including the one window where the links are down.
 
 ---
 

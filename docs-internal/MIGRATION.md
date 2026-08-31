@@ -59,7 +59,7 @@ grep -ri "supabase\|nodemailer\|@anthropic-ai\|recharts" src/ package.json
 ```
 
 Returns nothing but this file's neighbours in `docs-internal/`. The build,
-typecheck, lint and 62 tests all pass with no database reachable.
+typecheck, lint and 81 tests all pass with no database reachable.
 
 ---
 
@@ -120,13 +120,42 @@ implementing that interface plus a replacement session module.
 
 ## 6. Actions outside this repository
 
-These cannot be done from the codebase and are the account owner's to complete:
+These cannot be done from the codebase and are the account owner's to complete.
+
+### The Vercel handover, in order
+
+The new deployment **reuses the previous one's hostname**, `amryn.vercel.app`,
+because the live marketing site's `docs/app.js` already points there and the
+links are wired to `/sign-in` and `/sign-up` — both real routes in this build.
+Reusing it means no change to the static site at all.
+
+It also means the order below is not negotiable, because a hostname is not free
+until the project holding it releases it:
+
+1. [ ] **Rename the old Vercel project** (Settings → General → Project Name) to
+       something like `amryn-legacy`. Renaming rather than deleting frees the
+       hostname while keeping the old deployment recoverable if anything is
+       wrong with the new one.
+2. [ ] **Create the new project** from this repository, named `amryn` so it
+       claims `amryn.vercel.app`. Set the environment variables below.
+3. [ ] **Confirm sign-up works** on the new deployment before going further.
+4. [ ] **Delete the old Vercel project** once you are satisfied.
+
+**There is a gap.** Between steps 1 and 2 the hostname resolves to nothing, so
+the live marketing site's "Sign in" and "Open the platform" buttons fail for
+that window. It is short, and it is the unavoidable cost of reusing the name.
+If you would rather have no gap at all, deploy the new project under a
+different name first and change the one line in `docs/app.js` instead.
+
+Note also that Vercel does not always release a freed project name instantly.
+If `amryn` is rejected as taken at step 2, wait and retry rather than deleting
+anything else.
+
+### The rest
 
 - [ ] **Delete the old Supabase project.** Nothing reads from it. Deleting it
       stops the free-tier pause emails and removes a database holding seeded
       rows and any test accounts created during the previous build.
-- [ ] **Delete the old Vercel project**, or repoint it. The new build deploys
-      from this repository as a fresh Vercel project.
 - [ ] **Rotate anything that was ever committed or shared** — the Supabase
       anon/publishable key, the service role key, any SMTP credentials, and any
       OpenAI or Anthropic key from the previous `.env`. They are unused now, but
@@ -142,8 +171,16 @@ These cannot be done from the codebase and are the account owner's to complete:
 | `AMRYN_SESSION_SECRET` | **In production, yes** | Signs the session cookie. `openssl rand -base64 32` |
 | `UPSTASH_REDIS_REST_URL` | No | Durable account storage |
 | `UPSTASH_REDIS_REST_TOKEN` | No | Durable account storage |
+| `AMRYN_MARKETING_URL` | No | Set it when the static site is the public face |
 
 That is the complete list. There is nothing else to configure.
+
+Set `AMRYN_MARKETING_URL=https://danielsmith960416.github.io/Amryn` on the new
+project. It makes this deployment defer to the static site rather than compete
+with it: the application's own homepage stays reachable, but it is not indexed
+and it declares the static site as its canonical URL. Without it, two copies of
+the same marketing copy are indexed at two URLs and search results choose
+between them arbitrarily.
 
 ---
 
@@ -166,7 +203,7 @@ separate, reversible change — or kept as a static fallback.
 
 ```bash
 npm ci
-npm run check     # typecheck + lint + 62 tests
+npm run check     # typecheck + lint + 81 tests
 npm run build
 ```
 

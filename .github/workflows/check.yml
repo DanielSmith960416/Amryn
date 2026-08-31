@@ -43,6 +43,13 @@ jobs:
         env:
           AMRYN_SESSION_SECRET: ci-placeholder-secret-not-used-at-runtime
 
+      # The static marketing site has no build step and no other tests, and
+      # under the current deployment shape it is the front door to sign-in.
+      # Its one piece of behaviour — revealing the platform links once APP_URL
+      # is set — is exactly the kind of thing that breaks silently.
+      - name: Check the static marketing site
+        run: npm run check:site
+
       # A cheap guard against the retired stack returning by way of a
       # copy-pasted snippet or a stray dependency.
       #

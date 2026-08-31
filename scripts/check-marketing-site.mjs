@@ -149,6 +149,11 @@ console.log('\nAs committed — whatever APP_URL is currently set to');
       `APP_URL is an absolute https URL (${value})`,
     );
     assert(!value.endsWith('//'), 'APP_URL has no trailing double slash');
+    // Deliberately no assertion about *which* host this is. The deployment
+    // reuses the hostname the previous build had, so the name cannot tell you
+    // which application answers on it — only a request to the live URL can, and
+    // that is not this file's job. What can be checked is shape, which is above.
+
     console.log(`  note  platform links resolve to ${value.replace(/\/+$/, '')}/sign-in and /sign-up`);
   } else {
     console.log('  note  APP_URL is empty, so the platform links stay hidden');

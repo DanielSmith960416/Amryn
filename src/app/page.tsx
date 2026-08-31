@@ -1,6 +1,8 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { currentUser } from '@/lib/auth/current-user';
+import { marketingUrl } from '@/lib/site';
 import { Button } from '@/components/ui/button';
 import { MarketingFooter, MarketingNav } from '@/components/marketing/chrome';
 import { AIGrowthIntelligence, DigitalTwin, OpportunityRadar, TM } from '@/components/shell/tm';
@@ -16,6 +18,19 @@ import { AIGrowthIntelligence, DigitalTwin, OpportunityRadar, TM } from '@/compo
  */
 
 const CONTACT_EMAIL = 'danielsmith960416@gmail.com';
+
+/**
+ * Where a search engine should consider this page to live.
+ *
+ * When the static site is the public face, this page is a second copy of it,
+ * and saying so is the difference between one page with authority and two
+ * competing for it. When there is no separate marketing site, this page is the
+ * original and needs no canonical at all.
+ */
+export function generateMetadata(): Metadata {
+  const marketing = marketingUrl();
+  return marketing ? { alternates: { canonical: `${marketing}/` } } : {};
+}
 
 const ASSESSMENT_MAILTO =
   `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Amryn Intelligence Assessment')}` +
