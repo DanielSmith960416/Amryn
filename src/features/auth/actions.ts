@@ -21,7 +21,14 @@ export async function signOut(): Promise<void> {
 
 /* ── sign in and sign up ───────────────────────────────────────────────── */
 
-import { credentialsSchema, magicLinkSchema, signUpSchema, type ActionState } from './schemas';
+import {
+  credentialsSchema,
+  forgotPasswordSchema,
+  magicLinkSchema,
+  resetPasswordSchema,
+  signUpSchema,
+  type ActionState,
+} from './schemas';
 import { siteUrl } from '@/lib/env';
 import { classifyAuthError, signInErrorMessage } from './errors';
 import { safeNextPath } from './next-path';
@@ -115,6 +122,85 @@ export async function signInWithMagicLink(
   // Same message whether or not the address exists, so the form cannot be used
   // to discover which addresses have accounts.
   return { status: 'sent', message: 'If that address has an account, a sign-in link is on its way.' };
+}
+
+/* ── forgotten passwords ───────────────────────────────────────────────── */
+
+/**
+ * Sends a reset link.
+ *
+ * The reply is the same whether or not the address has an account. A form that
+ * says "no such user" is a way to find out who banks here, and the person who
+ * genuinely forgot their password is no better served by the distinction.
+ */
+export async function requestPasswordReset(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = forgotPasswordSchema.safeParse({ email: formData.get('email') });
+  if (!parsed.success) {
+    return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check your address.' };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    // The link lands on the callback, which exchanges the code for a session
+    // and forwards to the form that sets the new password.
+    redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent('/reset-password')}`,
+  });
+
+  if (error) {
+    const fault = classifyAuthError(error.message);
+    // A configuration or service fault is the deployment's, and saying so is
+    // not an enumeration risk — the request never got as far as looking an
+    // address up.
+    if (fault.kind === 'configuration' || fault.kind === 'service') {
+      return { status: 'error', message: fault.message };
+    }
+  }
+
+  return {
+    status: 'sent',
+    message: 'If that address has an account, a link to set a new password is on its way.',
+  };
+}
+
+/**
+ * Sets the new password.
+ *
+ * Reachable only with the session the reset link established: updateUser acts
+ * on the caller's own account and there is no parameter naming whose password
+ * to change, so a signed-out request simply fails.
+ */
+export async function setNewPassword(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = resetPasswordSchema.safeParse({
+    password: formData.get('password'),
+    confirm: formData.get('confirm'),
+  });
+  if (!parsed.success) {
+    return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check the password.' };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      status: 'error',
+      message:
+        'This reset link has expired or has already been used. Ask for a new one from the sign-in page.',
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    return { status: 'error', message: classifyAuthError(error.message).message };
+  }
+
+  revalidatePath('/', 'layout');
+  redirect('/command-centre');
 }
 
 /**

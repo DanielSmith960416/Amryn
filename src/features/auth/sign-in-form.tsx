@@ -37,7 +37,17 @@ export function SignInForm({ next }: { next?: string }) {
 
         {mode === 'password' ? (
           <div>
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="password">Password</Label>
+              {/* Beside the field, which is where someone looks at the moment
+                  they realise they cannot remember it. */}
+              <a
+                href="/forgot-password"
+                className="text-[0.75rem] text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)]"
+              >
+                Forgotten it?
+              </a>
+            </div>
             <Input
               id="password"
               name="password"
