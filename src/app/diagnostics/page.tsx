@@ -1,9 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { runDiagnostics, type CheckStatus } from '@/features/diagnostics/checks';
+import { internalAccess } from '@/lib/auth/internal-access';
 
-export const metadata: Metadata = { title: 'Diagnostics', robots: { index: false } };
+export const metadata: Metadata = {
+  title: 'Diagnostics',
+  // noindex, nofollow and nosnippet: an operator page in a search result is a
+  // map of the system for anyone who was not looking for it.
+  robots: { index: false, follow: false, nocache: true, noarchive: true, nosnippet: true },
+};
 
 // Always a live reading. A cached diagnosis is a wrong diagnosis.
 export const dynamic = 'force-dynamic';
@@ -15,7 +22,17 @@ export const dynamic = 'force-dynamic';
  * about why signing in does not work. It reports whether variables are set,
  * never their values, so it is safe to leave in place and safe to screenshot.
  */
-export default async function DiagnosticsPage() {
+export default async function DiagnosticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ key?: string }>;
+}) {
+  // Closed to customers. This page names settings, table counts and connection
+  // states — legitimate for whoever runs the deployment, and not something a
+  // customer should ever meet.
+  const { key } = await searchParams;
+  if ((await internalAccess(key)) === 'denied') notFound();
+
   const report = await runDiagnostics();
   const healthy = report.summary.fail === 0;
 

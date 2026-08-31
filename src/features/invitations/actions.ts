@@ -18,6 +18,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requirePermission } from '@/lib/auth/session';
+import { checkLimit } from '@/lib/auth/rate-limit';
 import { createClient } from '@/lib/supabase/server';
 import { siteUrl } from '@/lib/env';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
@@ -70,6 +71,9 @@ export async function createInvitation(
   if (!parsed.success) {
     return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check the details.' };
   }
+
+  const limit = await checkLimit('invite', workspace.organisation.id);
+  if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
   const token = newToken();

@@ -1,11 +1,14 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import Image from 'next/image';
-import { requireUser } from '@/lib/auth/session';
+import { notFound } from 'next/navigation';
+import { internalAccess } from '@/lib/auth/internal-access';
 import { databaseUrl, looksLikePooler, readSchemaStatus, EXPECTED } from '@/lib/db/setup';
 import { SetupForm } from '@/features/setup/setup-form';
 
-export const metadata: Metadata = { title: 'Set up the database', robots: { index: false } };
+export const metadata: Metadata = {
+  title: 'Set up the database',
+  robots: { index: false, follow: false, nocache: true, noarchive: true, nosnippet: true },
+};
 
 // Reads the live state of the database on every visit.
 export const dynamic = 'force-dynamic';
@@ -20,8 +23,15 @@ export const dynamic = 'force-dynamic';
  *
  * Behind sign-in, and inert once the schema exists.
  */
-export default async function SetupPage() {
-  await requireUser();
+export default async function SetupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ key?: string }>;
+}) {
+  // Signing in was never a strong enough gate on a page that runs schema
+  // changes: any customer who signed up could reach it.
+  const { key } = await searchParams;
+  if ((await internalAccess(key)) === 'denied') notFound();
 
   const url = databaseUrl();
   const status = url ? await readSchemaStatus() : null;
@@ -113,11 +123,9 @@ export default async function SetupPage() {
 
           <p className="text-[0.8125rem] text-[var(--text-tertiary)]">
             The statements come from this deployment, not from anything typed into this page. It
-            runs only while the database is empty, and does nothing once it is built.{' '}
-            <Link href="/diagnostics" className="underline underline-offset-2">
-              Diagnostics
-            </Link>{' '}
-            reports the whole picture.
+            runs only while the database is empty, and does nothing once it is built. The
+            diagnostics page reports the whole picture, and is reached the same way as this
+            one.
           </p>
         </div>
       </main>

@@ -2277,6 +2277,28 @@ export interface Database {
         Relationships: [
         ];
       };
+      rate_limits: {
+        Row: {
+          bucket: string;
+          attempts: number;
+          window_start: string;
+          updated_at: string;
+        };
+        Insert: {
+          bucket: string;
+          attempts?: number;
+          window_start?: string;
+          updated_at?: string;
+        };
+        Update: {
+          bucket?: string;
+          attempts?: number;
+          window_start?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+        ];
+      };
       regions: {
         Row: {
           id: string;
@@ -2780,6 +2802,14 @@ export interface Database {
           p_token: string;
         };
         Returns: string;
+      };
+      check_rate_limit: {
+        Args: {
+          p_bucket: string;
+          p_max: number;
+          p_window: string;
+        };
+        Returns: boolean;
       };
       create_organisation: {
         Args: {
