@@ -27,3 +27,13 @@ next-env.d.ts.timestamp
 # supabase local state
 /supabase/.branches
 /supabase/.temp
+
+# Scratch files written at the repository root while working — commit messages
+# passed to `git commit -F`, one-off verification scripts, throwaway harnesses.
+# `git add -A` sweeps them in silently, and .commitmsg.txt reached main exactly
+# that way. Anything meant to be kept has a real name and a directory.
+/.commitmsg*
+/.scratch*
+/.tmp*
+/.*.mjs
+/.*.sh
