@@ -295,6 +295,11 @@ create table public.audit_logs (
 create index audit_logs_org_idx on public.audit_logs (organisation_id, created_at desc);
 create index audit_logs_actor_idx on public.audit_logs (actor_id, created_at desc);
 
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
+
 -- ══════════════════════════════════════════════════════════════════════
 -- 20260829090100_02_intelligence.sql
 -- ══════════════════════════════════════════════════════════════════════
@@ -596,6 +601,11 @@ create table public.business_insights (
 
 create index business_insights_org_idx
   on public.business_insights (organisation_id, created_at desc);
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
 
 -- ══════════════════════════════════════════════════════════════════════
 -- 20260829090200_03_market_and_decisions.sql
@@ -1004,6 +1014,11 @@ create table public.ai_messages (
 create index ai_messages_thread_idx
   on public.ai_messages (conversation_id, created_at);
 
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
+
 -- ══════════════════════════════════════════════════════════════════════
 -- 20260829090300_04_security_rls.sql
 -- ══════════════════════════════════════════════════════════════════════
@@ -1390,6 +1405,11 @@ create policy audit_append on public.audit_logs
   for insert to authenticated
   with check (organisation_id is null or amryn.is_member(organisation_id));
 
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
+
 -- ══════════════════════════════════════════════════════════════════════
 -- 20260829090400_05_domain_rls.sql
 -- ══════════════════════════════════════════════════════════════════════
@@ -1562,6 +1582,11 @@ revoke update, delete on public.audit_logs from authenticated;
 
 -- Nothing in this schema is reachable without a session.
 revoke all on all tables in schema public from anon;
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
 
 -- ══════════════════════════════════════════════════════════════════════
 -- 20260829090500_06_permissions_and_triggers.sql
@@ -1864,6 +1889,11 @@ create constraint trigger health_weights_sum_to_one
   deferrable initially deferred
   for each row execute function amryn.assert_health_weights_sum();
 
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
+
 -- ══════════════════════════════════════════════════════════════════════
 -- 20260830080000_07_sector_policy.sql
 -- ══════════════════════════════════════════════════════════════════════
@@ -1958,6 +1988,11 @@ create policy market_signals_read on public.market_signals
     amryn.has_permission(organisation_id, 'view_market_intelligence')
     and amryn.sector_in_scope(organisation_id, sector)
   );
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
 
 -- ══════════════════════════════════════════════════════════════════════
 -- 20260830190000_08_organisation_bootstrap_rpc.sql

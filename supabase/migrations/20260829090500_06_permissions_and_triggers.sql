@@ -293,3 +293,8 @@ create constraint trigger health_weights_sum_to_one
   after insert or update or delete on public.health_score_weights
   deferrable initially deferred
   for each row execute function amryn.assert_health_weights_sum();
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';

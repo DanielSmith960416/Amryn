@@ -378,3 +378,8 @@ create policy audit_read on public.audit_logs
 create policy audit_append on public.audit_logs
   for insert to authenticated
   with check (organisation_id is null or amryn.is_member(organisation_id));
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';

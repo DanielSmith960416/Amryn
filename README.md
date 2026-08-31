@@ -82,7 +82,11 @@ Two different things, kept apart deliberately:
 
 ### Deploying
 
-Vercel, root directory. Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+Vercel, root directory. `/api/health` answers `200` when nothing is failing
+and `503` when something is, for an uptime monitor; `/diagnostics` answers the
+same question in prose, for a person.
+
+Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
 `NEXT_PUBLIC_SITE_URL`; add `AI_API_KEY` when you want conversational answers
 and cross-cutting recommendations.
 

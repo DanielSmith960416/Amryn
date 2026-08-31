@@ -14,6 +14,10 @@ const PUBLIC_PATHS = [
   '/reset-password',
   '/auth',
   '/diagnostics',
+  // The machine-readable half of the same thing. A monitor cannot sign in, and
+  // a health check that needs credentials reports on the credentials rather
+  // than on the service.
+  '/api/health',
   // An invitation is followed by someone who does not have an account yet, so
   // the page has to be readable signed out. It reveals only the organisation's
   // name, the role and the address the invitation was sent to — all of which

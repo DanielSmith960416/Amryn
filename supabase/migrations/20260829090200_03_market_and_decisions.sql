@@ -399,3 +399,8 @@ create table public.ai_messages (
 
 create index ai_messages_thread_idx
   on public.ai_messages (conversation_id, created_at);
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';

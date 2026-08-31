@@ -274,3 +274,8 @@ create table public.audit_logs (
 
 create index audit_logs_org_idx on public.audit_logs (organisation_id, created_at desc);
 create index audit_logs_actor_idx on public.audit_logs (actor_id, created_at desc);
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
