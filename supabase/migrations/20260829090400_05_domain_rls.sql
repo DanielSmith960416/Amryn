@@ -165,3 +165,8 @@ revoke update, delete on public.audit_logs from authenticated;
 
 -- Nothing in this schema is reachable without a session.
 revoke all on all tables in schema public from anon;
+
+-- PostgREST answers from a cached copy of the schema and is not told by
+-- applying SQL. Without this, everything above exists and stays invisible to
+-- the application — which reads exactly like a migration that never ran.
+notify pgrst, 'reload schema';
