@@ -136,5 +136,22 @@ begin
   raise notice 'pass  an empty name is refused and creates nothing, so the probe is safe';
 end $$;
 
+-- ── protection restored after the catalogue seed ─────────────────────────
+-- Migration 06 lifts `force row level security` on the two catalogue tables
+-- so they can be seeded by a role without BYPASSRLS, and puts it back. If a
+-- future edit moved the restore, or dropped it, the tables would ship
+-- writable by their owner and nothing else would say so.
+select pg_temp.check(
+  (select bool_and(relforcerowsecurity)
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r'),
+  'row level security is forced on every table, including the two that are seeded');
+
+select pg_temp.check(
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r'
+      and c.relrowsecurity and c.relforcerowsecurity) = 45,
+  'all 45 tables have RLS enabled and forced');
+
 reset role;
 rollback;

@@ -3,6 +3,27 @@
 -- Migration 06 — Permission catalogue, role matrix, triggers
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- Migration 04 applies `force row level security` to all 45 tables, and these
+-- two carry a select policy and nothing else. FORCE is the part that matters:
+-- ordinary RLS exempts a table's owner, FORCE does not, so these seed inserts
+-- are refused for anyone lacking BYPASSRLS — including whoever is applying the
+-- migration.
+--
+--   ERROR: new row violates row-level security policy for table "permissions"
+--
+-- Superusers bypass RLS unconditionally, so a local PostgreSQL never showed
+-- it. Whether a hosted project does depends on whether its role happens to
+-- carry BYPASSRLS, which is not a thing to build a schema on.
+--
+-- FORCE is lifted for the length of the seed and restored immediately. Both
+-- statements are inside the migration's transaction, so there is no window in
+-- which the tables are deployed unprotected.
+--
+-- These two are a fixed catalogue, not tenant data: every organisation reads
+-- the same rows, which is why a select policy is all they ever needed.
+alter table public.permissions      no force row level security;
+alter table public.role_permissions no force row level security;
+
 insert into public.permissions (key, category, description) values
   ('view_performance',        'Performance',    'View business performance dashboards and metrics'),
   ('view_financial_data',     'Performance',    'View revenue, cost, margin and cash figures'),
@@ -87,6 +108,10 @@ begin
 end;
 $$;
 
+-- Protection restored before anything else runs.
+alter table public.permissions      force row level security;
+alter table public.role_permissions force row level security;
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Triggers
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -143,9 +168,27 @@ begin
 end;
 $$;
 
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function amryn.handle_new_user();
+-- Guarded, because creating a trigger requires owning the table and on a
+-- hosted Supabase project auth.users belongs to supabase_auth_admin rather
+-- than the role applying this file. Unguarded, this one statement failed the
+-- entire migration — taking the permission catalogue, the role matrix and
+-- create_organisation down with it, and leaving a database that looked like
+-- the migrations had never run.
+--
+-- Where the trigger cannot be installed, public.ensure_user_profile() in
+-- migration 10 does the same work on first sign-in instead.
+do $$
+begin
+  create trigger on_auth_user_created
+    after insert on auth.users
+    for each row execute function amryn.handle_new_user();
+exception
+  when insufficient_privilege then
+    raise notice 'not permitted to add a trigger to auth.users; profiles are created on first sign-in instead';
+  when duplicate_object then
+    raise notice 'profile trigger already present';
+end;
+$$;
 
 -- Risk severity is derived from likelihood × impact, but stored, so that a
 -- later change to the scale does not silently rewrite history.
