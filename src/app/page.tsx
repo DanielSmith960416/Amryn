@@ -1,11 +1,9 @@
-import type { Metadata } from 'next';
 import Image from 'next/image';
-import Link from 'next/link';
-import { currentUser } from '@/lib/auth/current-user';
-import { marketingUrl } from '@/lib/site';
 import { Button } from '@/components/ui/button';
+import { OpenPlatformLink } from '@/components/marketing/open-platform-link';
 import { MarketingFooter, MarketingNav } from '@/components/marketing/chrome';
 import { AIGrowthIntelligence, DigitalTwin, OpportunityRadar, TM } from '@/components/shell/tm';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * The public homepage.
@@ -19,29 +17,14 @@ import { AIGrowthIntelligence, DigitalTwin, OpportunityRadar, TM } from '@/compo
 
 const CONTACT_EMAIL = 'danielsmith960416@gmail.com';
 
-/**
- * Where a search engine should consider this page to live.
- *
- * When the static site is the public face, this page is a second copy of it,
- * and saying so is the difference between one page with authority and two
- * competing for it. When there is no separate marketing site, this page is the
- * original and needs no canonical at all.
- */
-export function generateMetadata(): Metadata {
-  const marketing = marketingUrl();
-  return marketing ? { alternates: { canonical: `${marketing}/` } } : {};
-}
-
 const ASSESSMENT_MAILTO =
   `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Amryn Intelligence Assessment')}` +
   `&body=${encodeURIComponent("I'd like to book an Amryn Intelligence Assessment.")}`;
 
-export default async function HomePage() {
-  const user = await currentUser();
-
+export default function HomePage() {
   return (
     <>
-      <MarketingNav signedIn={Boolean(user)} />
+      <MarketingNav />
 
       <main id="top">
         {/* ── Positioning ─────────────────────────────────────────────── */}
@@ -67,11 +50,7 @@ export default async function HomePage() {
               </p>
 
               <div className="mt-7 flex flex-wrap gap-3">
-                <Button asChild variant="primary" size="lg">
-                  <Link href={user ? '/command-centre' : '/sign-up'}>
-                    {user ? 'Open the platform' : 'Open the platform'}
-                  </Link>
-                </Button>
+                <OpenPlatformLink size="lg" />
                 <Button asChild variant="secondary" size="lg">
                   <a href={ASSESSMENT_MAILTO}>Book an Intelligence Assessment</a>
                 </Button>
@@ -80,7 +59,7 @@ export default async function HomePage() {
 
             <div className="hidden justify-self-center lg:block" aria-hidden>
               <Image
-                src="/brand/amryn-icon-mark.png"
+                src={withBasePath("/brand/amryn-icon-mark.png")}
                 alt=""
                 width={553}
                 height={563}
@@ -88,7 +67,7 @@ export default async function HomePage() {
                 priority
               />
               <Image
-                src="/brand/amryn-icon-mark-white.png"
+                src={withBasePath("/brand/amryn-icon-mark-white.png")}
                 alt=""
                 width={553}
                 height={563}
@@ -251,14 +230,14 @@ export default async function HomePage() {
         {/* ── Call to action ──────────────────────────────────────────── */}
         <section className="mx-auto max-w-3xl px-5 py-16 text-center sm:px-8">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}
             className="mx-auto w-14 dark:hidden"
           />
           <Image
-            src="/brand/amryn-icon-mark-white.png"
+            src={withBasePath("/brand/amryn-icon-mark-white.png")}
             alt=""
             width={553}
             height={563}
@@ -273,9 +252,7 @@ export default async function HomePage() {
             install.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Button asChild variant="primary" size="lg">
-              <Link href={user ? '/command-centre' : '/sign-up'}>Open the platform</Link>
-            </Button>
+            <OpenPlatformLink size="lg" />
             <Button asChild variant="secondary" size="lg">
               <a href={ASSESSMENT_MAILTO}>Book an Intelligence Assessment</a>
             </Button>

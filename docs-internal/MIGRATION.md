@@ -59,7 +59,7 @@ grep -ri "supabase\|nodemailer\|@anthropic-ai\|recharts" src/ package.json
 ```
 
 Returns nothing but this file's neighbours in `docs-internal/`. The build,
-typecheck, lint and 84 tests all pass with no database reachable.
+typecheck, lint and 81 tests all pass with no database, no server and no environment.
 
 ---
 
@@ -102,105 +102,62 @@ Not everything from the previous build was wrong. Carried forward:
 
 ---
 
-## 5. Accounts now
+## 5. There are no accounts
 
-`AccountStore` (`src/lib/auth/store.ts`) has two implementations:
+The build that replaced Supabase Auth had its own: scrypt passwords, a signed
+session cookie, and a pluggable account store. That went too, because the
+deployment went with it.
 
-- **In-memory** — the default. Zero configuration, lost on restart. The sign-up
-  page and Settings both say so plainly.
-- **Upstash Redis over REST** — set `UPSTASH_REDIS_REST_URL` and
-  `UPSTASH_REDIS_REST_TOKEN`. REST rather than a Redis client because serverless
-  runtimes cannot hold a TCP connection open, and because it adds no dependency.
+This is a **static export on GitHub Pages**. There is no server, so there is
+nothing to check a password against and no secret to sign a session with. The
+client area is gated in the browser on a value in `localStorage` — a door, not
+a lock. Anyone who requests one of those URLs directly receives the HTML.
 
-Neither is Supabase, and neither requires a schema, a migration or a
-provisioning step. Swapping in Clerk or Auth.js later means one new file
-implementing that interface plus a replacement session module.
+That is stated in `src/lib/profile.ts` at length, and shown to the reader on
+both entry pages and in Settings, because a form that looks like a sign-in will
+be read as security unless it says otherwise. No password is asked for: asking
+would look like security while checking nothing.
+
+It is an honest trade while the workspace holds demonstration figures only. It
+stops being one the moment a real client's data is in it, and the README's
+"When you need real accounts" section sets out what returning to a server
+costs.
 
 ---
 
 ## 6. Actions outside this repository
 
-These cannot be done from the codebase and are the account owner's to complete.
+Almost nothing, which was the point of the change.
 
-### The Vercel deployment
-
-There is nothing to hand over. The Vercel project `amryn` already exists, is
-already connected to this repository, and built a working preview of this branch
-— so it is the *same* project that served the previous build, and merging to
-`main` redeploys it with the new code at the same URL. The hostname never
-changes hands, and there is no window where the marketing site's links are
-broken.
-
-`docs/app.js` therefore needs no change either: its `APP_URL` already names that
-hostname, and its links are wired to `/sign-in` and `/sign-up`, both real routes
-in this build.
-
-What does have to happen is configuration, and one of it is not optional:
-
-1. [ ] **Set `AMRYN_SESSION_SECRET`** on the Vercel project
-       (`openssl rand -base64 32`). Without it the application cannot create a
-       session at all. The sign-up page detects this and says so instead of
-       taking a password into a form that would fail, but nobody can sign in
-       until it is set.
-2. [ ] **Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`** if you
-       want sign-ups to survive a redeploy. Without them accounts are held in
-       memory, and the sign-up page and Settings both say so.
-3. [ ] **Set `AMRYN_MARKETING_URL`** to
-       `https://danielsmith960416.github.io/Amryn` so this deployment defers to
-       the static site rather than competing with it in search results.
-4. [ ] **Remove the retired variables** listed below from the project — the
-       Supabase pair, the service role key, `DATABASE_URL`, the `SMTP_*` set and
-       any model API keys. Nothing reads them now.
-
-Set them before merging, or immediately after: a production deployment without
-`AMRYN_SESSION_SECRET` serves the marketing site and the demo views fine, but
-turns anyone away at sign-up.
-
-### The rest
-
-- [ ] **Delete the old Supabase project.** Nothing reads from it. Deleting it
-      stops the free-tier pause emails and removes a database holding seeded
-      rows and any test accounts created during the previous build.
+- [ ] **Enable GitHub Pages** for this repository if it is not already on:
+      Settings → Pages → Source: **GitHub Actions**. The workflow does the rest.
+- [ ] **Delete the old Vercel project.** Nothing deploys there now. The site is
+      served entirely from Pages.
+- [ ] **Delete the old Supabase project.** Nothing reads from it.
 - [ ] **Rotate anything that was ever committed or shared** — the Supabase
-      anon/publishable key, the service role key, any SMTP credentials, and any
-      OpenAI or Anthropic key from the previous `.env`. They are unused now, but
-      a key that still works is still a key.
-- [ ] **Remove the old environment variables** from any deployment that had
-      them: `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`,
-      `SMTP_*`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`.
+      anon and service-role keys, any SMTP credentials, any model API key. They
+      are unused now, but a key that still works is still a key.
 
-### Environment variables the new build reads
+There are **no environment variables to set**. `AMRYN_BASE_PATH` exists only
+for serving the site from somewhere other than `/Amryn`, and has a default.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `AMRYN_SESSION_SECRET` | **In production, yes** | Signs the session cookie. `openssl rand -base64 32` |
-| `UPSTASH_REDIS_REST_URL` | No | Durable account storage |
-| `UPSTASH_REDIS_REST_TOKEN` | No | Durable account storage |
-| `AMRYN_MARKETING_URL` | No | Set it when the static site is the public face |
+## 7. The hand-written `docs/` site was retired
 
-That is the complete list. There is nothing else to configure.
+`docs/` held a build-free static marketing site, and it was what GitHub Pages
+served. It is now deleted, along with the Playwright check that exercised it.
 
-Set `AMRYN_MARKETING_URL=https://danielsmith960416.github.io/Amryn` on the new
-project. It makes this deployment defer to the static site rather than compete
-with it: the application's own homepage stays reachable, but it is not indexed
-and it declares the static site as its canonical URL. Without it, two copies of
-the same marketing copy are indexed at two URLs and search results choose
-between them arbitrarily.
+The reason is that Pages serves one directory per repository, and that
+directory is now `out/` — the built site, whose homepage carries the same
+positioning, the same headline, the same philosophy line, the same contact
+details and the same legal footer. Keeping both would have meant two copies of
+the same marketing copy, only one of which could be published.
 
----
+One thing did not survive: `docs/app.js` drove an interactive Command Centre
+demo on the public page, with three sample workspaces. There is no equivalent
+on the new homepage, because there no longer needs to be — the real platform is
+one click away, needs no password, and is richer than the mock ever was.
 
-## 7. The GitHub Pages site
-
-`docs/` is **untouched**. It still deploys to
-`danielsmith960416.github.io/Amryn` through
-`.github/workflows/deploy.yml`, and the new Next.js homepage continues its
-message rather than replacing it.
-
-This is deliberate. That site is the live public face; deleting it to make a
-point about a rebuild would take the public presence offline for however long
-the new deployment takes to go live and its DNS to settle. Once the new
-deployment is on its own domain, `docs/` and its workflow can be retired in a
-separate, reversible change — or kept as a static fallback.
+The old site remains in git history if any of it is wanted back.
 
 ---
 
@@ -208,7 +165,7 @@ separate, reversible change — or kept as a static fallback.
 
 ```bash
 npm ci
-npm run check     # typecheck + lint + 84 tests
+npm run check     # typecheck + lint + 81 tests
 npm run build
 ```
 

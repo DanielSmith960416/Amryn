@@ -1,27 +1,13 @@
-import { AppShell } from '@/components/shell/app-shell';
-import { requireUser } from '@/lib/auth/current-user';
-import { loadWorkspace } from '@/lib/workspace';
+import { PlatformGuard } from '@/components/shell/platform-guard';
 
 /**
  * The client area.
  *
- * `requireUser` runs here, once, so every page beneath this layout is behind
- * authentication by construction rather than by each page remembering to check.
- * The previous build used Next middleware for this; a layout guard is simpler
- * and, because it runs in the Node runtime, it can read the account store.
+ * The guard runs in the browser rather than here, because a static export has
+ * no server to run it on. Every page beneath this layout is still rendered to
+ * HTML at build time from the demonstration workspace — the guard decides what
+ * is shown, not what exists.
  */
-export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireUser();
-  const workspace = loadWorkspace();
-
-  return (
-    <AppShell
-      userName={user.fullName}
-      userEmail={user.email}
-      companyName={user.companyName}
-      isDemo={workspace.isDemo}
-    >
-      {children}
-    </AppShell>
-  );
+export default function PlatformLayout({ children }: { children: React.ReactNode }) {
+  return <PlatformGuard>{children}</PlatformGuard>;
 }

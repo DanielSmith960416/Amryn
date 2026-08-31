@@ -2,7 +2,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/shell/theme-toggle';
+import { OpenPlatformLink } from './open-platform-link';
 import { AIGrowthIntelligence, DigitalTwin, OpportunityRadar, TM } from '@/components/shell/tm';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * The public site's header and footer.
@@ -20,13 +22,13 @@ const CONTACT_EMAIL = 'danielsmith960416@gmail.com';
 const CONTACT_PHONE = '067 004 8810';
 const CONTACT_PHONE_TEL = '+27670048810';
 
-export function MarketingNav({ signedIn }: { signedIn: boolean }) {
+export function MarketingNav() {
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2" aria-label="Amryn, home">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}
@@ -34,7 +36,7 @@ export function MarketingNav({ signedIn }: { signedIn: boolean }) {
             priority
           />
           <Image
-            src="/brand/amryn-icon-mark-white.png"
+            src={withBasePath("/brand/amryn-icon-mark-white.png")}
             alt=""
             width={553}
             height={563}
@@ -64,20 +66,10 @@ export function MarketingNav({ signedIn }: { signedIn: boolean }) {
 
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          {signedIn ? (
-            <Button asChild variant="primary" size="sm">
-              <Link href="/command-centre">Open the platform</Link>
-            </Button>
-          ) : (
-            <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                <Link href="/sign-in">Sign in</Link>
-              </Button>
-              <Button asChild variant="primary" size="sm">
-                <Link href="/sign-up">Get started</Link>
-              </Button>
-            </>
-          )}
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Link href="/sign-in">Continue</Link>
+          </Button>
+          <OpenPlatformLink size="sm" />
         </div>
       </div>
     </header>
@@ -91,7 +83,7 @@ export function MarketingFooter() {
         <div className="flex flex-wrap items-start justify-between gap-8">
           <div>
             <Image
-              src="/brand/amryn-lockup-secondary.png"
+              src={withBasePath("/brand/amryn-lockup-secondary.png")}
               alt="Amryn™ AIGrowthIntelligence®"
               width={746}
               height={270}

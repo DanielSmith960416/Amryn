@@ -78,24 +78,16 @@ That is the whole setup. No database to provision, no external service to sign
 up for, no keys required. The platform opens on a demonstration workspace so
 there is something to look at from the first screen.
 
-Before deploying anywhere real, set one variable:
-
-```bash
-# Required in production. Signs the session cookie.
-AMRYN_SESSION_SECRET="$(openssl rand -base64 32)"
-```
-
-In development a secret is generated per process if none is set. In production
-its absence is a hard error — a secret that changed on every deploy would sign
-every client out on every deploy.
+There is nothing to configure, in development or in production. The one
+optional variable is `AMRYN_BASE_PATH`, and only if you serve the site from
+somewhere other than `/Amryn`.
 
 ### Checks
 
 ```bash
 npm run check          # typecheck + lint + tests
-npm test               # 84 unit tests over the Intelligence Layer and auth
-npm run check:site     # smoke-checks the static marketing site in a browser
-npm run build          # production build
+npm test               # 81 unit tests over the Intelligence Layer and the device profile
+npm run build          # static export to out/
 ```
 
 ---
@@ -179,41 +171,39 @@ the stock report's section E.
 
 ---
 
-## Auth and accounts
+## There is no login, and that is deliberate
 
-Self-contained, deliberately small:
+A static site has no server. There is nowhere to check a password, nowhere to
+keep a secret, and nothing to sign a session with. **Every page of the client
+area is a file that anyone with its address can fetch**, whether or not they
+have seen the entry form.
 
-- **Passwords** — Node's `scrypt`, memory-hard, cost parameters stored inside
-  the hash so they can be raised later without invalidating existing passwords.
-- **Sessions** — an HMAC-signed, HTTP-only cookie carrying the account id and
-  an expiry. No session table, no store round-trip per request.
-- **Accounts** — behind an `AccountStore` interface with two implementations.
+So the platform does not pretend otherwise. Opening a workspace asks for a name
+and a business, stores them in `localStorage`, and lets you in. No password is
+asked for — asking for one would be the dishonest part, since nothing would
+check it. `src/lib/profile.ts` carries the full reasoning, and a notice on both
+entry pages and in Settings tells the reader in plain words.
 
-| Store | When it is used | Durable |
-|---|---|---|
-| In-memory | No `UPSTASH_*` variables set | **No** — lost on restart |
-| Upstash Redis (REST) | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Yes |
+**This is a door, not a lock.** It is an honest trade while the workspace holds
+demonstration figures and nothing else, which is the case today: the same
+illustrative business for every visitor, labelled on every page.
 
-The sign-up page and Settings both say plainly which one is running. An account
-that quietly evaporates on the next deploy is worse than one that was never
-offered.
+### When you need real accounts
 
-```bash
-UPSTASH_REDIS_REST_URL="https://…"
-UPSTASH_REDIS_REST_TOKEN="…"
-```
+The moment a real client's numbers go in here, this stops being acceptable and
+the product needs a server again. That means a host that runs Node — Vercel,
+Netlify, Fly, a VPS — and roughly:
 
-**Swapping in Clerk or Auth.js** is a new file implementing `AccountStore`
-plus a replacement for `src/lib/auth/session.ts`. Nothing above those two
-modules knows how authentication works.
+| To restore | You need |
+|---|---|
+| Real passwords and sessions | A server, and one secret it can keep |
+| Per-client data | A database, and a tenancy model |
+| Private pages | Server-side rendering, so unauthorised requests never receive the HTML |
 
-### What is not built yet
+The Intelligence Layer, every view and both reports are unaffected by that
+change — they already read one `Workspace`. What changes is who is allowed to
+see which one.
 
-- **Password reset.** No mail service is configured, so the sign-in page says
-  so and gives a contact address rather than offering a link that leads
-  nowhere.
-- **Roles and permissions.** Every signed-in reader sees the whole workspace.
-  When roles are needed, `src/components/shell/navigation.ts` has the seam.
 
 ---
 
@@ -301,10 +291,10 @@ src/
       decision-log/           DECISION_LOG
       reports/                WEEKLY + MONTHLY_INTELLIGENCE
       settings/               SETTINGS
-    api/reports/[period]/     the print-ready executive report
+    (report)/report/          the print-ready executive reports
   lib/
     intelligence/             the brain — pure, tested
-    auth/                     password, session, account store
+    profile.ts                the device gate, and why it is not security
     reports/                  report rendering
     workspace.ts              the seam
     format.ts                 presentation formatting
@@ -317,38 +307,29 @@ docs/                         the GitHub Pages marketing site (unchanged)
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript (strict, with
-`noUncheckedIndexedAccess`) · Tailwind CSS 4 · Zod · Vitest.
+Next.js 15 (App Router, static export) · React 19 · TypeScript (strict, with
+`noUncheckedIndexedAccess`) · Tailwind CSS 4 · Vitest.
 
-Fourteen runtime dependencies. No database driver, no ORM, no charting runtime,
-no auth SDK. Charts are hand-written SVG rendered on the server; the client
-bundle is ~103 kB shared.
+Seven runtime dependencies. No database driver, no ORM, no charting runtime, no
+auth SDK, no server. Charts are hand-written SVG rendered at build time; the
+client bundle is ~103 kB shared.
 
 ### Deploying
 
-The two pieces are deployed separately and point at each other.
+```bash
+npm run build      # → out/, a complete static site
+```
 
-**The application** goes to Vercel. Import the repository and set
-`AMRYN_SESSION_SECRET`, the two `UPSTASH_*` variables for durable accounts, and
-`AMRYN_MARKETING_URL` if the static site is your public face. Nothing else is
-needed — there is no database to provision.
+`.github/workflows/deploy.yml` runs that on every push to `main` and publishes
+`out/` to GitHub Pages. There is nothing else: no hosting account, no
+environment variables, no database, no service to configure or pay for. The
+whole site — marketing pages, client platform and both executive reports — is
+HTML rendered at build time.
 
-**The static marketing site** is `docs/`, deployed to GitHub Pages by
-`.github/workflows/deploy.yml` on every push to `main`. Its one piece of
-configuration is `APP_URL` at the top of `docs/app.js`: set it to the
-application's URL and the "Sign in" and "Open the platform" links reveal
-themselves, pointed at `/sign-in` and `/sign-up`. Leave it empty and they stay
-hidden — a marketing site with a sign-in button that 404s is worse than one
-without.
+The site is served from a repository subpath, so `next.config.ts` sets
+`basePath: '/Amryn'`. On a custom domain served from the root, build with
+`AMRYN_BASE_PATH=""`.
 
-`npm run check:site` exercises both states in a real browser, so neither breaks
-silently. `APP_URL` already points at the existing Vercel project, so it needs
-no change — [`docs-internal/MIGRATION.md`](docs-internal/MIGRATION.md) lists the
-environment variables that do.
-
-One of them is not optional: without `AMRYN_SESSION_SECRET` a production
-deployment cannot create a session. The sign-up page detects that and says so
-rather than taking a password into a form that would fail.
 
 ---
 

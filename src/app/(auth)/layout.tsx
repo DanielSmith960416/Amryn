@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { AIGrowthIntelligence, TM } from '@/components/shell/tm';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * The sign-up and sign-in surround.
@@ -15,7 +16,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <header className="px-5 py-5 sm:px-8">
         <Link href="/" className="inline-flex items-center gap-2">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}
@@ -23,7 +24,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             priority
           />
           <Image
-            src="/brand/amryn-icon-mark-white.png"
+            src={withBasePath("/brand/amryn-icon-mark-white.png")}
             alt=""
             width={553}
             height={563}

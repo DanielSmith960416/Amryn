@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,8 @@ export const metadata: Metadata = { title: 'Weekly & Monthly Briefs' };
  * WEEKLY_INTELLIGENCE and MONTHLY_INTELLIGENCE.
  *
  * The formal weekly executive report the client receives in PDF is generated
- * from this same brief — `/api/reports/weekly` renders exactly what is on this
- * page. That is the point of the workspace seam: the page and the PDF cannot
+ * from this same brief — `/report/weekly` renders exactly what is on this page.
+ * That is the point of the workspace seam: the page and the PDF cannot
  * disagree, because there is one computation and two renderings of it.
  */
 export default function ReportsPage() {
@@ -27,14 +28,14 @@ export default function ReportsPage() {
         actions={
           <>
             <Button asChild variant="primary">
-              <a href="/api/reports/weekly" target="_blank" rel="noopener">
-                Open the weekly PDF
-              </a>
+              <Link href="/report/weekly" target="_blank" rel="noopener">
+                Open the weekly report
+              </Link>
             </Button>
             <Button asChild variant="secondary">
-              <a href="/api/reports/monthly" target="_blank" rel="noopener">
+              <Link href="/report/monthly" target="_blank" rel="noopener">
                 Monthly report
-              </a>
+              </Link>
             </Button>
           </>
         }
@@ -61,9 +62,9 @@ export default function ReportsPage() {
           <p>
             The report opens as a print-ready page. Use your browser&rsquo;s Print dialog and choose
             &ldquo;Save as PDF&rdquo; — the layout, page breaks and margins are already set for A4.
-            Generating the file server-side would mean shipping a headless browser into the
-            deployment, which is a great deal of weight for a document the browser can already
-            produce faithfully.
+            This site is served as static files, so there is no server to generate the file for
+            you; the browser&rsquo;s own typesetter produces a document indistinguishable from one
+            that was.
           </p>
           <p>
             Forecast figures anywhere in the report are projections on the year-to-date average.

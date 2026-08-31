@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils/cn';
 import { NAV_GROUPS, PRIMARY_NAV, isActive, type NavItem } from './navigation';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * The client-area chrome.
@@ -70,7 +71,7 @@ export function AppShell({
 
           <Link href="/command-centre" className="flex shrink-0 items-center gap-2">
             <Image
-              src="/brand/amryn-icon-mark.png"
+              src={withBasePath("/brand/amryn-icon-mark.png")}
               alt=""
               width={553}
               height={563}
@@ -78,7 +79,7 @@ export function AppShell({
               priority
             />
             <Image
-              src="/brand/amryn-icon-mark-white.png"
+              src={withBasePath("/brand/amryn-icon-mark-white.png")}
               alt=""
               width={553}
               height={563}

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { ThemeScript } from '@/components/shell/theme-script';
+import { withBasePath } from '@/lib/base-path';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
     'updated DigitalTwin® of your operations with external OpportunityRadar® intelligence, in ' +
     'one Executive Command Centre.',
   applicationName: 'Amryn™ AIGrowthIntelligence®',
-  icons: { icon: '/brand/amryn-icon-mark.png' },
+  icons: { icon: withBasePath('/brand/amryn-icon-mark.png') },
   openGraph: {
     title: 'Amryn™ AIGrowthIntelligence®',
     description: 'See Your Business. See Your Market. Know What To Do Next.',

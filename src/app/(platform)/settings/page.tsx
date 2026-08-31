@@ -3,12 +3,12 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Table, TableWrap, Td, Th } from '@/components/ui/table';
-import { currentUser } from '@/lib/auth/current-user';
-import { describeStore } from '@/lib/auth/store';
 import { COMPLIANCE_PROFILES } from '@/lib/intelligence/inventory';
 import { HEALTH_WEIGHTS, MANUAL_ASSESSMENTS } from '@/lib/intelligence/health';
 import { OPPORTUNITY_WEIGHTS } from '@/lib/intelligence/opportunity';
 import { percent } from '@/lib/format';
+import { DoorNotLock } from '@/components/shell/door-not-lock';
+import { AccountCard } from '@/features/settings/account-card';
 import { loadWorkspace } from '@/lib/workspace';
 
 export const metadata: Metadata = { title: 'Settings' };
@@ -23,10 +23,8 @@ export const metadata: Metadata = { title: 'Settings' };
  * assessments rather than measurements. A composite score whose composition is
  * a secret is a score nobody can act on.
  */
-export default async function SettingsPage() {
-  const user = await currentUser();
+export default function SettingsPage() {
   const w = loadWorkspace();
-  const store = describeStore();
 
   return (
     <>
@@ -37,33 +35,7 @@ export default async function SettingsPage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
-        <Card>
-          <CardHeader title="Your account" />
-          <CardBody>
-            <dl className="space-y-3">
-              {[
-                ['Name', user?.fullName ?? '—'],
-                ['Email', user?.email ?? '—'],
-                ['Business', user?.companyName ?? '—'],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <dt className="eyebrow">{k}</dt>
-                  <dd className="mt-0.5 text-[0.875rem] text-[var(--text-primary)]">{v}</dd>
-                </div>
-              ))}
-            </dl>
-
-            <div className="mt-5 border-t border-[var(--border)] pt-4">
-              <p className="eyebrow mb-1.5">Account storage</p>
-              <Badge tone={store.durable ? 'positive' : 'warning'}>
-                {store.durable ? 'Durable' : 'In memory only'}
-              </Badge>
-              <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-                {store.note}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
+        <AccountCard />
 
         <Card>
           <CardHeader
@@ -213,6 +185,7 @@ export default async function SettingsPage() {
           subtitle="What replacing the demonstration workspace involves"
         />
         <CardBody className="space-y-3 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
+          <DoorNotLock />
           <p>
             This workspace is seeded from the Amryn<sup className="tm">™</sup> prototypes. Every
             view above, and both executive reports, read one structure — the workspace — which is

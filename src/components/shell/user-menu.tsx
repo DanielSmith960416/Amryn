@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { LogOut, Settings } from 'lucide-react';
-import { signOutAction } from '@/features/auth/actions';
+import { clearProfile, initials } from '@/lib/profile';
 
 /**
  * Who is signed in, and the way out.
@@ -22,6 +23,7 @@ export function UserMenu({
   email: string;
   company: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
@@ -78,26 +80,20 @@ export function UserMenu({
             Settings
           </Link>
 
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              role="menuitem"
-              className="flex w-full items-center gap-2.5 border-t border-[var(--border)] px-4 py-2.5 text-left text-[0.8125rem] text-[var(--text-secondary)] hover:bg-[var(--card-inset)] hover:text-[var(--text-primary)]"
-            >
-              <LogOut className="size-4" />
-              Sign out
-            </button>
-          </form>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              clearProfile();
+              router.push('/');
+            }}
+            className="flex w-full items-center gap-2.5 border-t border-[var(--border)] px-4 py-2.5 text-left text-[0.8125rem] text-[var(--text-secondary)] hover:bg-[var(--card-inset)] hover:text-[var(--text-primary)]"
+          >
+            <LogOut className="size-4" />
+            Forget this device
+          </button>
         </div>
       ) : null}
     </div>
   );
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? (parts.at(-1)?.[0] ?? '') : '';
-  return (first + last).toUpperCase();
 }
