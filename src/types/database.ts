@@ -10,6 +10,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Enums {
   alert_status: 'new' | 'acknowledged' | 'assigned' | 'snoozed' | 'dismissed' | 'resolved';
   connection_status: 'pending' | 'connected' | 'syncing' | 'error' | 'disabled';
+  data_request_kind: 'export' | 'deletion' | 'correction';
+  data_request_status: 'received' | 'in_progress' | 'completed' | 'refused';
   data_source_category: 'accounting' | 'crm' | 'pos' | 'erp' | 'spreadsheet' | 'database' | 'api' | 'manual';
   event_kind: 'anomaly' | 'trend' | 'threshold' | 'milestone' | 'ingestion' | 'manual';
   goal_status: 'draft' | 'active' | 'at_risk' | 'achieved' | 'missed' | 'cancelled';
@@ -1037,6 +1039,53 @@ export interface Database {
           {
             foreignKeyName: 'data_imports_uploaded_by_fkey';
             columns: ['uploaded_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      data_requests: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: Enums['data_request_kind'];
+          status: Enums['data_request_status'];
+          note: string | null;
+          resolution: string | null;
+          requested_at: string;
+          responded_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind: Enums['data_request_kind'];
+          status?: Enums['data_request_status'];
+          note?: string | null;
+          resolution?: string | null;
+          requested_at?: string;
+          responded_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          kind?: Enums['data_request_kind'];
+          status?: Enums['data_request_status'];
+          note?: string | null;
+          resolution?: string | null;
+          requested_at?: string;
+          responded_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'data_requests_user_id_fkey';
+            columns: ['user_id'];
             isOneToOne: false;
             referencedRelation: 'users';
             referencedColumns: ['id'];
@@ -2222,6 +2271,9 @@ export interface Database {
           updated_at: string;
           deleted_at: string | null;
           sector_scope: Enums['market_sector'][];
+          dpa_accepted_at: string | null;
+          dpa_version: string | null;
+          dpa_accepted_by: string | null;
         };
         Insert: {
           id?: string;
@@ -2238,6 +2290,9 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
           sector_scope?: Enums['market_sector'][];
+          dpa_accepted_at?: string | null;
+          dpa_version?: string | null;
+          dpa_accepted_by?: string | null;
         };
         Update: {
           id?: string;
@@ -2254,8 +2309,18 @@ export interface Database {
           updated_at?: string;
           deleted_at?: string | null;
           sector_scope?: Enums['market_sector'][];
+          dpa_accepted_at?: string | null;
+          dpa_version?: string | null;
+          dpa_accepted_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: 'organisations_dpa_accepted_by_fkey';
+            columns: ['dpa_accepted_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
         ];
       };
       permissions: {
@@ -2759,6 +2824,10 @@ export interface Database {
           last_seen_at: string | null;
           created_at: string;
           updated_at: string;
+          terms_accepted_at: string | null;
+          terms_version: string | null;
+          privacy_accepted_at: string | null;
+          privacy_version: string | null;
         };
         Insert: {
           id: string;
@@ -2771,6 +2840,10 @@ export interface Database {
           last_seen_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          terms_accepted_at?: string | null;
+          terms_version?: string | null;
+          privacy_accepted_at?: string | null;
+          privacy_version?: string | null;
         };
         Update: {
           id?: string;
@@ -2783,6 +2856,10 @@ export interface Database {
           last_seen_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          terms_accepted_at?: string | null;
+          terms_version?: string | null;
+          privacy_accepted_at?: string | null;
+          privacy_version?: string | null;
         };
         Relationships: [
           {

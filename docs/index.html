@@ -419,6 +419,16 @@
     <a href="tel:+27670048810">067 004 8810</a>
     <span>South Africa</span>
   </div>
+  <nav class="foot__policies" aria-label="Policies">
+    <!-- Hidden until app.js resolves them against APP_URL, like every other
+         cross-site link here: a policy link pointing at a page this static
+         site does not host would be a dead link on the footer of a privacy
+         notice, which is worse than none. -->
+    <a data-app-link="/legal/privacy" hidden>Privacy Policy</a>
+    <a data-app-link="/legal/terms" hidden>Terms of Service</a>
+    <a data-app-link="/legal/cookies" hidden>Cookies</a>
+    <a data-app-link="/legal/dpa" hidden>Data Processing Addendum</a>
+  </nav>
   <p class="foot__legal">
     Amryn™ AIGrowthIntelligence®, Amryn™DigitalTwin® and Amryn™OpportunityRadar® are trademarks
     of Amryn. © 2026 Amryn. All rights reserved.

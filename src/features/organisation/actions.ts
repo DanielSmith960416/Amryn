@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ACTIVE_ORG_COOKIE, requireUser } from '@/lib/auth/session';
 import { checkLimit } from '@/lib/auth/rate-limit';
+import { LEGAL_VERSION } from '@/lib/legal/documents';
 
 /**
  * Switches the organisation the user is acting in.
@@ -111,6 +112,13 @@ const onboardingSchema = z.object({
   industry: z.string().trim().max(120).optional(),
   countryCode: z.string().trim().length(2, 'Use a two-letter country code').toUpperCase(),
   currencyCode: z.string().trim().length(3, 'Use a three-letter currency code').toUpperCase(),
+  // The organisation is a separate consenting party from the person creating
+  // it. POPIA section 21 requires a written agreement with an operator, and
+  // this is where the organisation enters it — accepted by an administrator on
+  // its behalf, not inherited from that person's own sign-up.
+  acceptedDpa: z.literal('on', {
+    error: 'Please accept the Data Processing Addendum on behalf of your organisation.',
+  }),
 });
 
 export type OnboardingState = { status: 'idle' } | { status: 'error'; message: string };
@@ -127,13 +135,14 @@ export async function createOrganisation(
   _previous: OnboardingState,
   formData: FormData,
 ): Promise<OnboardingState> {
-  await requireUser();
+  const user = await requireUser();
 
   const parsed = onboardingSchema.safeParse({
     name: formData.get('name'),
     industry: formData.get('industry') || undefined,
     countryCode: formData.get('countryCode'),
     currencyCode: formData.get('currencyCode'),
+    acceptedDpa: formData.get('acceptedDpa'),
   });
 
   if (!parsed.success) {
@@ -154,6 +163,29 @@ export async function createOrganisation(
 
   if (error || !data) {
     return { status: 'error', message: explainCreateFailure(error) };
+  }
+
+  // Written after the organisation exists rather than passed into it: the
+  // creation function's parameters are part of a signature the deployed
+  // application resolves by name, and widening it to carry a consent field
+  // would break every deployment that had not yet applied the change.
+  //
+  // A failure here is deliberately not fatal. The organisation is created and
+  // the person is inside it; refusing them entry because a timestamp did not
+  // write would be a worse answer than a record we can repair, and the
+  // acceptance itself is not lost — they gave it, and the next administrator
+  // action will be asked for it again.
+  const { error: consentError } = await supabase
+    .from('organisations')
+    .update({
+      dpa_accepted_at: new Date().toISOString(),
+      dpa_version: LEGAL_VERSION,
+      dpa_accepted_by: user.id,
+    })
+    .eq('id', data);
+
+  if (consentError) {
+    console.error('organisation created but the addendum acceptance did not record', consentError);
   }
 
   const cookieStore = await cookies();

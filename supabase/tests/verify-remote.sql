@@ -10,19 +10,19 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 with checks as (
-  select 1 as ord, 'Tables' as item, count(*)::text as found, '47' as expected,
-         (count(*) = 47) as ok
+  select 1 as ord, 'Tables' as item, count(*)::text as found, '48' as expected,
+         (count(*) = 48) as ok
     from pg_tables where schemaname = 'public'
 
   union all
-  select 2, 'Tables with RLS enabled', count(*)::text, '47', count(*) = 47
+  select 2, 'Tables with RLS enabled', count(*)::text, '48', count(*) = 48
     from pg_tables t
     join pg_class c on c.relname = t.tablename
     join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
    where t.schemaname = 'public' and c.relrowsecurity
 
   union all
-  select 3, 'RLS policies', count(*)::text, '146', count(*) = 146
+  select 3, 'RLS policies', count(*)::text, '148', count(*) = 148
     from pg_policies where schemaname = 'public'
 
   union all

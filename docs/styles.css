@@ -435,6 +435,10 @@ button{ font:inherit; color:inherit; }
   font-family:var(--f-mono); font-size:.8rem; color:var(--mute); }
 .foot__contact a{ text-decoration:none; }
 .foot__contact a:hover{ color:var(--signal); }
+.foot__policies{ grid-column:1/-1; display:flex; flex-wrap:wrap; gap:.35rem 1.5rem;
+  font-family:var(--f-mono); font-size:.78rem; }
+.foot__policies a{ color:var(--mute); text-decoration:none; }
+.foot__policies a:hover{ color:var(--signal); }
 .foot__legal{ grid-column:1/-1; font-size:.74rem; color:var(--mute);
   border-top:1px solid var(--rule); padding-top:1.25rem; }
 @media (max-width:620px){

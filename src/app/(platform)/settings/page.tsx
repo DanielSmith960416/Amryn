@@ -73,6 +73,17 @@ export default async function SettingsPage() {
                 </p>
               </Card>
             </Link>
+
+            <Link href="/settings/privacy">
+              <Card interactive className="h-full p-5">
+                <p className="text-[0.9375rem] font-semibold text-[var(--text-primary)]">
+                  Your privacy
+                </p>
+                <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+                  Take a copy of what we hold about you, or ask us to correct or delete it.
+                </p>
+              </Card>
+            </Link>
           </div>
         </div>
 

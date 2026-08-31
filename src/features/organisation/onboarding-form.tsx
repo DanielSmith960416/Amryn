@@ -3,7 +3,8 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { Input, Label } from '@/components/ui/field';
+import Link from 'next/link';
+import { Checkbox, Input, Label } from '@/components/ui/field';
 import { createOrganisation, type OnboardingState } from './actions';
 import { AuthError } from '@/features/auth/auth-error';
 
@@ -49,6 +50,21 @@ export function OnboardingForm() {
           />
         </div>
       </div>
+
+      {/* The organisation is agreeing, not the person — so this is asked
+          separately from the terms they accepted when they signed up, and the
+          label says on whose behalf it is being given. */}
+      <Checkbox name="acceptedDpa" required className="pt-1">
+        I am authorised to act for this organisation, and I accept the{' '}
+        <Link
+          href="/legal/dpa"
+          target="_blank"
+          className="font-medium text-[var(--brand)] hover:underline"
+        >
+          Data Processing Addendum
+        </Link>{' '}
+        on its behalf.
+      </Checkbox>
 
       {state.status === 'error' ? (
         <AuthError message={state.message} />

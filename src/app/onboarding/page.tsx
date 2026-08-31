@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
 import { OnboardingForm } from '@/features/organisation/onboarding-form';
+import { LegalFooter } from '@/components/legal/legal-footer';
 import { getWorkspace, requireUser } from '@/lib/auth/session';
 import { isSupabaseConfigured } from '@/lib/env';
 
@@ -51,6 +52,8 @@ export default async function OnboardingPage() {
         <div className="mt-7">
           <OnboardingForm />
         </div>
+
+        <LegalFooter className="mt-10" />
       </div>
     </div>
   );

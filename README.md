@@ -48,7 +48,7 @@ would provide, so the migrations can be exercised against plain PostgreSQL.
 
 ### What is built
 
-- **Multi-tenant PostgreSQL schema** — 47 tables, Row Level Security on every
+- **Multi-tenant PostgreSQL schema** — 48 tables, Row Level Security on every
   one. A user reads a row only if they are an active member of its
   organisation, its branch falls inside their scope, and they hold the
   permission gating that table. All three are decided in SQL. Forty-six
@@ -79,6 +79,46 @@ Two different things, kept apart deliberately:
   own `sector_scope` under Settings → Organisation; it defaults to every sector
   and is enforced inside RLS, so the pipeline, reports and the assistant all
   honour the same choice.
+
+### Legal documents and POPIA
+
+The platform carries its own policies at `/legal/privacy`, `/legal/terms`,
+`/legal/cookies` and `/legal/dpa`, readable without signing in — a privacy
+policy behind a login is not notice to anyone deciding whether to sign up.
+
+**They are drafts.** `src/lib/legal/documents.ts` holds the company details
+they depend on, and the ones nobody can invent are obvious placeholders in
+square brackets: the registration number, the registered address and the
+Information Officer POPIA requires a responsible party to register and name.
+While any of those remain, every legal page shows a notice saying so. Fill them
+in, have the documents reviewed by a South African attorney, and the notice
+disappears.
+
+`LEGAL_VERSION` in the same file is what acceptance is recorded against.
+Changing a document means bumping it, after which everyone's recorded consent
+correctly reads as consent to a different wording, and they are asked again
+under Settings → Your privacy.
+
+Consent is captured where it is given:
+
+| Where | What | Stored on |
+| --- | --- | --- |
+| Sign-up | Terms + Privacy Policy | `user_profiles.terms_*`, `privacy_*` |
+| Creating an organisation | Data Processing Addendum | `organisations.dpa_*` |
+
+Sign-up consent takes a detour through the account's own metadata, because the
+profile row it belongs on may not exist for hours — the address still has to be
+confirmed. `amryn.handle_new_user()` and `public.ensure_user_profile()` both
+copy it across, and both use `coalesce` so a later acceptance is never rolled
+back to the one captured at sign-up.
+
+Under **Settings → Your privacy** a person can download everything held about
+them immediately (`/api/privacy/export`, which runs as the caller and cannot be
+pointed at anybody else), and record a request for a copy, a correction or
+deletion. Those land in `data_requests`, readable only by the person who made
+them — deliberately not by their organisation's administrators, since an
+employer who can see that someone asked to have their information deleted is a
+reason for them not to ask.
 
 ### Deploying
 

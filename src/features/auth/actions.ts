@@ -33,6 +33,7 @@ import { siteUrl } from '@/lib/env';
 import { classifyAuthError, signInErrorMessage } from './errors';
 import { safeNextPath } from './next-path';
 import { checkAuthLimit } from '@/lib/auth/rate-limit';
+import { LEGAL_VERSION } from '@/lib/legal/documents';
 
 
 export async function signInWithPassword(
@@ -73,6 +74,7 @@ export async function signUpWithPassword(
     email: formData.get('email'),
     password: formData.get('password'),
     fullName: formData.get('fullName'),
+    accepted: formData.get('accepted'),
   });
 
   if (!parsed.success) {
@@ -82,12 +84,25 @@ export async function signUpWithPassword(
   const limit = await checkAuthLimit('signUp', parsed.data.email);
   if (!limit.allowed) return { status: 'error', message: limit.message! };
 
+  // Recorded at the moment it is given, on the account itself. The profile row
+  // this belongs on may not exist for hours — the address still has to be
+  // confirmed — and consent that is only written once somebody comes back is
+  // not a record of what they agreed to when they signed up. The database
+  // copies these onto the profile whichever path creates it.
+  const acceptedAt = new Date().toISOString();
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      data: { full_name: parsed.data.fullName },
+      data: {
+        full_name: parsed.data.fullName,
+        terms_version: LEGAL_VERSION,
+        terms_accepted_at: acceptedAt,
+        privacy_version: LEGAL_VERSION,
+        privacy_accepted_at: acceptedAt,
+      },
       emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(formData.get('next')))}`,
     },
   });

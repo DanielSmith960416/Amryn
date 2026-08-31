@@ -6,8 +6,19 @@ export const credentialsSchema = z.object({
   password: z.string().min(8, 'Passwords must be at least 8 characters'),
 });
 
+/**
+ * Creating an account.
+ *
+ * The acceptance is validated here rather than trusted to the checkbox's own
+ * `required` attribute. POPIA treats consent as something that has to be
+ * given, and a browser attribute is not a record that it was — the server has
+ * to be the one that refuses, or the record is of nothing.
+ */
 export const signUpSchema = credentialsSchema.extend({
   fullName: z.string().trim().min(2, 'Enter your name').max(120),
+  accepted: z.literal('on', {
+    error: 'Please accept the Terms of Service and Privacy Policy to continue.',
+  }),
 });
 
 export const magicLinkSchema = z.object({

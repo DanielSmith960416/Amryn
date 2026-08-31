@@ -5,6 +5,7 @@ import { Sidebar } from './sidebar';
 import { TopNav } from './top-nav';
 import type { NavGroup, NavItem } from './navigation';
 import type { Enums } from '@/types/database';
+import { LegalFooter } from '@/components/legal/legal-footer';
 
 /**
  * The dashboard chrome.
@@ -67,6 +68,7 @@ export function AppShell({
         />
         <main id="main" className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {children}
+          <LegalFooter className="mt-12 border-t border-[var(--border)] pt-5" />
         </main>
       </div>
     </div>

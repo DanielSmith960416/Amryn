@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { LegalFooter } from '@/components/legal/legal-footer';
 
 /**
  * Sign-in chrome: the dark navy intelligence environment on the left, the form
@@ -59,8 +60,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <div className="flex items-center justify-center px-5 py-12 sm:px-10">
+      <div className="flex flex-col items-center justify-center px-5 py-12 sm:px-10">
         <div className="w-full max-w-sm">{children}</div>
+        <LegalFooter className="mt-10 w-full max-w-sm justify-center" />
       </div>
     </div>
   );

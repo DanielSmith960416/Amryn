@@ -336,3 +336,103 @@
 .animate-radar { animation: amryn-radar 4s linear infinite; transform-origin: center; }
 .animate-rise { animation: amryn-rise 0.35s ease-out both; }
 .animate-soft-pulse { animation: amryn-pulse 1.8s ease-in-out infinite; }
+
+/* ── legal documents ────────────────────────────────────────────────────────
+   These are pages people are asked to actually read, so they are set like
+   prose rather than like interface: a comfortable measure, generous leading,
+   and headings that separate without shouting. Scoped to .legal so nothing
+   here leaks into the application. */
+.legal {
+  max-width: 42rem;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.legal h1 {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  text-wrap: balance;
+  margin-bottom: 0.5rem;
+}
+
+.legal .updated {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  margin-bottom: 2.5rem;
+}
+
+.legal h2 {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.legal h3 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.legal p { margin-bottom: 1rem; }
+.legal p:last-child { margin-bottom: 0; }
+
+.legal ul,
+.legal ol {
+  margin: 0 0 1rem 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.legal ol { list-style: decimal; }
+.legal li { margin-bottom: 0.4rem; }
+.legal li::marker { color: var(--text-tertiary); }
+
+.legal strong { color: var(--text-primary); font-weight: 600; }
+
+.legal a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Wide content scrolls inside its own box rather than pushing the page
+   sideways on a phone. */
+.legal .table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.legal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.legal th {
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.legal td {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.legal tr:last-child td { border-bottom: 0; }

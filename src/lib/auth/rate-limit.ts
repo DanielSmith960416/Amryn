@@ -38,6 +38,10 @@ export const LIMITS = {
   passwordReset: { max: 5, window: '1 hour' },
   createOrganisation: { max: 5, window: '1 hour' },
   invite: { max: 30, window: '1 hour' },
+  // Generous enough that nobody exercising a right is impeded by it — a limit
+  // that stopped someone asking what is held about them would be the wrong
+  // kind of protection — but low enough that the queue cannot be flooded.
+  dataRequest: { max: 10, window: '24 hours' },
 } as const satisfies Record<string, Limit>;
 
 function hash(value: string): string {

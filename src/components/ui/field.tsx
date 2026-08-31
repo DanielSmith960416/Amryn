@@ -47,3 +47,35 @@ export function FieldError({ message }: { message?: string }) {
     </p>
   );
 }
+
+/**
+ * A checkbox with its label beside it.
+ *
+ * The whole label is the hit target, and the accent colour is the brand's, so
+ * a ticked box reads as ticked in every theme. Children rather than a string,
+ * because the one place this matters most — accepting terms — needs links
+ * inside the label, and a label you cannot read the terms from is a tick box
+ * for something else.
+ */
+export function Checkbox({
+  children,
+  className,
+  ...props
+}: ComponentPropsWithoutRef<'input'> & { children: React.ReactNode }) {
+  return (
+    <label className={cn('flex cursor-pointer items-start gap-2.5', className)}>
+      <input
+        type="checkbox"
+        className={cn(
+          'mt-0.5 h-4 w-4 shrink-0 rounded border-[var(--border-strong)]',
+          'accent-[var(--brand)] focus:outline-none focus-visible:ring-2',
+          'focus-visible:ring-[var(--brand)] focus-visible:ring-offset-1',
+        )}
+        {...props}
+      />
+      <span className="text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+        {children}
+      </span>
+    </label>
+  );
+}

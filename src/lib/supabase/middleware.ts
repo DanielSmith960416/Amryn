@@ -30,6 +30,10 @@ const PUBLIC_PATHS = [
   // the recipient already has in front of them. Accepting is a separate step
   // and needs a session.
   '/invite',
+  // Someone deciding whether to create an account has to be able to read these
+  // first. A privacy policy behind a sign-in is not notice to anybody who has
+  // not already agreed to it.
+  '/legal',
 ];
 
 /**

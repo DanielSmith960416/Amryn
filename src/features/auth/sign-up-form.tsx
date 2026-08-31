@@ -3,7 +3,8 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { Input, Label } from '@/components/ui/field';
+import { Checkbox, Input, Label } from '@/components/ui/field';
+import Link from 'next/link';
 import { signUpWithPassword } from './actions';
 import type { ActionState } from './schemas';
 import { AuthError } from './auth-error';
@@ -49,6 +50,30 @@ export function SignUpForm({ next }: { next?: string }) {
         />
         <p className="mt-1.5 text-[0.75rem] text-[var(--text-tertiary)]">At least 8 characters.</p>
       </div>
+
+      {/* Accepting is a deliberate act, so it starts unticked and the form will
+          not submit without it. The links open in a new tab: sending somebody
+          away to read the terms should not throw away the details they have
+          already typed. */}
+      <Checkbox name="accepted" required>
+        I have read and accept the{' '}
+        <Link
+          href="/legal/terms"
+          target="_blank"
+          className="font-medium text-[var(--brand)] hover:underline"
+        >
+          Terms of Service
+        </Link>{' '}
+        and the{' '}
+        <Link
+          href="/legal/privacy"
+          target="_blank"
+          className="font-medium text-[var(--brand)] hover:underline"
+        >
+          Privacy Policy
+        </Link>
+        .
+      </Checkbox>
 
       {state.status === 'error' ? (
         <AuthError message={state.message} />
