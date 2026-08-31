@@ -1,0 +1,62 @@
+Let colleagues join an organisation instead of starting their own
+
+Everyone who signed up got an organisation of their own and there was no way
+into anyone else's. The members screen already rendered an "invited" status and
+nothing had ever written one. The platform worked for one person at a time.
+
+The obvious implementation does not fit: organisation_members.user_id
+references auth.users and is not null, so a membership cannot exist for
+somebody who has not signed up — which is precisely who an invitation is for.
+So an invitation is its own record, and becomes a membership when accepted.
+
+The link is the credential, so it is treated as one. A 32-byte token is
+generated with a cryptographic RNG and only its SHA-256 hash is stored: the
+database never holds anything that grants access, and a leaked backup lets
+nobody in. The raw value exists once, in the response, and is shown to the
+administrator who will send it on — which the interface says, because a link
+that cannot be recovered should not be discovered to be unrecoverable.
+
+Accepting runs as accept_invitation(), SECURITY DEFINER for the same reason
+create_organisation() is: the caller is by definition not yet a member of the
+organisation being written to. Its only parameter is the token. The role and
+scope come from the invitation, never from the person accepting, so possession
+of a link cannot be turned into a role nobody granted.
+
+Bound to the address it was sent to. A forwarded invitation would otherwise
+hand a stranger the company's data under someone else's name — and forwarding
+is the normal thing to do with a link, not an attack anybody has to plan.
+Seventeen database assertions cover that and the rest: a used invitation cannot
+be taken by someone else, an expired or withdrawn one is refused, an
+administrator cannot invite into an organisation they do not manage, an
+ordinary member cannot read who else has been invited, and the same person
+clicking twice is sent where they were going rather than shown an error.
+
+super_admin is not invitable. It is the platform-wide role, and an organisation
+administrator granting it would be an escalation from tenant to platform.
+
+Three things this turned up.
+
+Sign-in ignored ?next=, so following an invitation and signing in landed on the
+dashboard with the invitation lost. It is honoured now — which makes it an
+open-redirect surface, so one shared validator decides what is safe, the auth
+callback uses it instead of its own copy, and the tests cover protocol-relative
+URLs and backslash escapes as well as the obvious absolute ones.
+
+The type generator typed a `returns table` function as string. That compiles
+and is wrong: supabase-js returns rows. Left unnarrowed so the caller has to
+say what the shape is.
+
+A `use server` file may export only async functions, so the role list needed a
+module of its own. The build found it; nothing else would have.
+
+The table count moves from 45 to 46, which is hard-coded in five places. The
+drift test written last night is what noticed.
+
+234 unit tests, 78 database assertions, and the whole flow run against a real
+PostgreSQL: an invitation created with a real token, the raw value absent from
+the table, a preview readable signed out, the wrong recipient refused, the
+right one joining as branch_manager — two members in one organisation, which
+has not been possible before.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01TMLZEJG9HDM9qM2LxC66Uu

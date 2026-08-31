@@ -232,7 +232,17 @@ for (const routine of routines) {
     }
     out.push('        };');
   }
-  out.push(`        Returns: ${routine.return_base === 'void' ? 'undefined' : scalar(routine.return_base, routine.return_base)};`);
+  // A `returns table (...)` function has prorettype `record`, and mapping that
+  // through scalar() produced `string` — a type that compiles and is wrong,
+  // since supabase-js hands back an array of rows. Left unnarrowed, so the
+  // caller has to say what the shape is rather than trusting a guess.
+  const returns =
+    routine.return_base === 'void'
+      ? 'undefined'
+      : routine.return_base === 'record'
+        ? 'Record<string, unknown>[]'
+        : scalar(routine.return_base, routine.return_base);
+  out.push(`        Returns: ${returns};`);
   out.push('      };');
 }
 out.push('    };');

@@ -24,6 +24,7 @@ export async function signOut(): Promise<void> {
 import { credentialsSchema, magicLinkSchema, signUpSchema, type ActionState } from './schemas';
 import { siteUrl } from '@/lib/env';
 import { classifyAuthError, signInErrorMessage } from './errors';
+import { safeNextPath } from './next-path';
 
 
 export async function signInWithPassword(
@@ -47,7 +48,8 @@ export async function signInWithPassword(
   if (error) return { status: 'error', message: signInErrorMessage(error.message) };
 
   revalidatePath('/', 'layout');
-  redirect('/command-centre');
+  // Validated, never used raw: an unchecked target here is an open redirect.
+  redirect(safeNextPath(formData.get('next')));
 }
 
 export async function signUpWithPassword(
@@ -70,7 +72,7 @@ export async function signUpWithPassword(
     password: parsed.data.password,
     options: {
       data: { full_name: parsed.data.fullName },
-      emailRedirectTo: `${siteUrl()}/auth/callback`,
+      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(formData.get('next')))}`,
     },
   });
 
@@ -96,7 +98,9 @@ export async function signInWithMagicLink(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data.email,
-    options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
+    options: {
+      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(formData.get('next')))}`,
+    },
   });
 
   if (error) {

@@ -11,7 +11,7 @@ const PROVIDER_NAMES: Record<string, string> = { google: 'Google', azure: 'Micro
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; provider?: string }>;
+  searchParams: Promise<{ error?: string; provider?: string; next?: string }>;
 }) {
   if (!isSupabaseConfigured()) return <NotConfigured />;
 
@@ -57,7 +57,7 @@ export default async function SignInPage({
       ) : null}
 
       <div className="mt-7">
-        <SignInForm />
+        <SignInForm next={params.next} />
       </div>
 
       <p className="mt-7 text-center text-[0.8125rem] text-[var(--text-secondary)]">
