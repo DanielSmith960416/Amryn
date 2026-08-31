@@ -44,7 +44,7 @@ export interface SchemaStatus {
   problem?: string;
 }
 
-export const EXPECTED = { tables: 48, permissions: 30, minRoleGrants: 100 } as const;
+export const EXPECTED = { tables: 49, permissions: 30, minRoleGrants: 100 } as const;
 
 /**
  * Server-only. The connection string carries the database password, so it must

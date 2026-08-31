@@ -48,7 +48,7 @@ would provide, so the migrations can be exercised against plain PostgreSQL.
 
 ### What is built
 
-- **Multi-tenant PostgreSQL schema** — 48 tables, Row Level Security on every
+- **Multi-tenant PostgreSQL schema** — 49 tables, Row Level Security on every
   one. A user reads a row only if they are an active member of its
   organisation, its branch falls inside their scope, and they hold the
   permission gating that table. All three are decided in SQL. Forty-six
@@ -146,6 +146,44 @@ makes its own file look already applied.
 
 Nothing applies migrations automatically on deploy, deliberately: a build step
 with DDL rights on a production database runs on every preview branch too.
+
+### Two-step sign-in
+
+TOTP, issued and checked by Supabase. What this repository owns is the part an
+application must not get wrong: making the requirement real.
+
+The obvious implementation is a redirect — if the session has not answered the
+challenge, send it to `/verify`. That is worth doing and is not the control.
+Every browser session also carries a key that speaks to PostgREST directly, and
+a session that skipped the challenge is perfectly valid as far as the database
+is concerned, so a redirect hides the data without protecting it.
+
+So it is enforced where the data is. Supabase records the assurance level in
+the token (`aal1` = a password, `aal2` = a password and a second factor), and
+migration 15 adds `amryn.mfa_satisfied()` to `is_member()` and
+`has_permission()` — the two functions every one of the 148 policies already
+goes through. A condition repeated 148 times is one that will be missing from
+the 149th.
+
+`user_profiles.mfa_enabled` is what that guard consults. It is not the same
+thing as having a factor, and the two must move together: set only after
+Supabase confirms a verified factor, cleared in the same breath as removing the
+last one. A flag set with no factor to present is an account locked out of its
+own data with nothing able to satisfy the guard.
+
+**Recovery.** The failure mode of two-factor authentication is not an attacker,
+it is a lost phone. Ten single-use codes, hashed on the way in for the same
+reason a password is. Redeeming one is deliberately *not* a sign-in — it
+removes the factor and asks the person to enrol again — so getting back in
+still costs a password *and* a code. Removing a factor from a session that has
+not presented it is exactly what Supabase refuses, so that one call uses the
+service role key, confined to `src/features/mfa/admin.ts`. Without that key
+configured the code is not spent: burning a single-use code on an attempt that
+cannot succeed leaves somebody worse off than before they tried.
+
+`supabase/tests/18` covers it, including the assertion that matters most — that
+a session which has not presented the factor is refused the data by the
+database, not merely redirected.
 
 ### The security log
 

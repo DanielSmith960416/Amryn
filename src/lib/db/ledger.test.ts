@@ -26,9 +26,17 @@ const DB = 'amryn_ledger_test';
 const DIR = 'supabase/migrations';
 
 const ALL = readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort();
-/** Everything the deployment had: up to and including migration 12. */
-const THROUGH_12 = ALL.filter((f) => !/_1[34]_/.test(f));
-const AFTER_12 = ALL.filter((f) => /_1[34]_/.test(f));
+
+/**
+ * Everything the deployment had: up to and including migration 12.
+ *
+ * Selected by the number in the filename rather than by excluding the ones
+ * that happened to be new when this was written — otherwise adding migration
+ * 16 silently changes which scenario is being tested, and it stops being the
+ * deployment's.
+ */
+const THROUGH_12 = ALL.filter((f) => /_(0[1-9]|1[0-2])_/.test(f));
+const AFTER_12 = ALL.filter((f) => !THROUGH_12.includes(f));
 
 async function reachable(): Promise<boolean> {
   const client = new Client({ ...CONN, database: 'postgres' });
@@ -155,9 +163,11 @@ describe.skipIf(!available)('applySchema on a database that is behind', () => {
     expect(result.applied?.map((a) => a.file)).toEqual(AFTER_12);
     expect(result.applied?.every((a) => a.ok)).toBe(true);
     expect(result.ok).toBe(true);
-    expect(result.message).toContain('Applied 2 migrations');
-    // It found the twelve that were already there rather than trying them.
-    expect(result.message).toContain('12 already in place');
+    expect(result.message).toContain(
+      `Applied ${AFTER_12.length} migration${AFTER_12.length === 1 ? '' : 's'}`,
+    );
+    // It found the ones already there rather than trying them again.
+    expect(result.message).toContain(`${THROUGH_12.length} already in place`);
   }, 60_000);
 
   it('reaches the state the application expects', async () => {

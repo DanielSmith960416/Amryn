@@ -30,6 +30,7 @@ export default function robots(): MetadataRoute.Robots {
         '/command-centre',
         '/settings/',
         '/onboarding',
+        '/verify',
         '/reset-password',
       ],
     },

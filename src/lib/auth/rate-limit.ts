@@ -42,6 +42,13 @@ export const LIMITS = {
   // that stopped someone asking what is held about them would be the wrong
   // kind of protection — but low enough that the queue cannot be flooded.
   dataRequest: { max: 10, window: '24 hours' },
+  // Six digits is a one-in-a-million guess, which is a different proposition
+  // when the guesses are free. Ten an hour leaves room for a phone whose clock
+  // has drifted and closes the door on anything automated.
+  mfaVerify: { max: 10, window: '1 hour' },
+  // Deliberately tighter. A recovery code is the way past the second factor,
+  // and unlike a six-digit code there is no expiry racing the attacker.
+  mfaRecovery: { max: 5, window: '1 hour' },
 } as const satisfies Record<string, Limit>;
 
 function hash(value: string): string {

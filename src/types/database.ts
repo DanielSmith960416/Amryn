@@ -1697,6 +1697,38 @@ export interface Database {
           },
         ];
       };
+      mfa_recovery_codes: {
+        Row: {
+          id: string;
+          user_id: string;
+          code_hash: string;
+          used_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          code_hash: string;
+          used_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          code_hash?: string;
+          used_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'mfa_recovery_codes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       notifications: {
         Row: {
           id: string;
@@ -2828,6 +2860,8 @@ export interface Database {
           terms_version: string | null;
           privacy_accepted_at: string | null;
           privacy_version: string | null;
+          mfa_enabled: boolean;
+          mfa_enabled_at: string | null;
         };
         Insert: {
           id: string;
@@ -2844,6 +2878,8 @@ export interface Database {
           terms_version?: string | null;
           privacy_accepted_at?: string | null;
           privacy_version?: string | null;
+          mfa_enabled?: boolean;
+          mfa_enabled_at?: string | null;
         };
         Update: {
           id?: string;
@@ -2860,6 +2896,8 @@ export interface Database {
           terms_version?: string | null;
           privacy_accepted_at?: string | null;
           privacy_version?: string | null;
+          mfa_enabled?: boolean;
+          mfa_enabled_at?: string | null;
         };
         Relationships: [
           {
@@ -2923,6 +2961,18 @@ export interface Database {
           p_entity_id?: string | null;
           p_summary?: string | null;
           p_metadata?: Json | null;
+        };
+        Returns: undefined;
+      };
+      redeem_recovery_code: {
+        Args: {
+          p_hash: string;
+        };
+        Returns: boolean;
+      };
+      replace_recovery_codes: {
+        Args: {
+          p_hashes: string[];
         };
         Returns: undefined;
       };

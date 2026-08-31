@@ -10,19 +10,19 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 with checks as (
-  select 1 as ord, 'Tables' as item, count(*)::text as found, '48' as expected,
-         (count(*) = 48) as ok
+  select 1 as ord, 'Tables' as item, count(*)::text as found, '49' as expected,
+         (count(*) = 49) as ok
     from pg_tables where schemaname = 'public'
 
   union all
-  select 2, 'Tables with RLS enabled', count(*)::text, '48', count(*) = 48
+  select 2, 'Tables with RLS enabled', count(*)::text, '49', count(*) = 49
     from pg_tables t
     join pg_class c on c.relname = t.tablename
     join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
    where t.schemaname = 'public' and c.relrowsecurity
 
   union all
-  select 3, 'RLS policies', count(*)::text, '147', count(*) = 147
+  select 3, 'RLS policies', count(*)::text, '148', count(*) = 148
     from pg_policies where schemaname = 'public'
 
   union all
@@ -34,7 +34,7 @@ with checks as (
     from public.role_permissions
 
   union all
-  select 6, 'Functions in the amryn schema', count(*)::text, '15', count(*) = 15
+  select 6, 'Functions in the amryn schema', count(*)::text, '16', count(*) = 16
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'amryn'

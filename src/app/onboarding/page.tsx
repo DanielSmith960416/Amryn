@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import Image from 'next/image';
 import { OnboardingForm } from '@/features/organisation/onboarding-form';
 import { LegalFooter } from '@/components/legal/legal-footer';
-import { getWorkspace, requireUser } from '@/lib/auth/session';
+import { getWorkspace, requireVerifiedUser } from '@/lib/auth/session';
 import { isSupabaseConfigured } from '@/lib/env';
 
 export const metadata: Metadata = { title: 'Set up your organisation' };
@@ -20,7 +20,10 @@ export const dynamic = 'force-dynamic';
 export default async function OnboardingPage() {
   if (!isSupabaseConfigured()) redirect('/sign-in');
 
-  await requireUser();
+  // requireVerifiedUser, for the same reason requireWorkspace checks first: at
+  // aal1 the database shows this person no organisations, and this page would
+  // invite a long-standing member to create a new one.
+  await requireVerifiedUser();
   const workspace = await getWorkspace();
   if (workspace) redirect('/command-centre');
 

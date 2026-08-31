@@ -39,5 +39,28 @@ as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;
 
+-- The whole claim set, as Supabase exposes it. Two-factor enforcement reads
+-- `aal` from here — aal1 is a password, aal2 is a password and a second
+-- factor — so a test that cannot set it cannot exercise the guard at all.
+--
+-- Supabase reads request.jwt.claims, set by PostgREST from the verified token.
+-- The test driver sets the same thing, which is why every assertion about aal
+-- has to state which level it is asserting for: the default of no setting at
+-- all is a session that never presented a second factor.
+create or replace function auth.jwt()
+returns jsonb
+language sql
+stable
+as $$
+  select coalesce(
+    nullif(current_setting('request.jwt.claims', true), ''),
+    -- Assembled from the pieces the older tests set, so that a file which
+    -- only impersonates a user still gets a coherent claim set rather than
+    -- null — which would otherwise read as "no aal" and be correct, but by
+    -- accident rather than by construction.
+    json_build_object('sub', nullif(current_setting('request.jwt.claim.sub', true), ''))::text
+  )::jsonb;
+$$;
+
 grant usage on schema auth to authenticated, anon, service_role;
 grant select on auth.users to authenticated, service_role;

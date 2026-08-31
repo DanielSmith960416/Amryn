@@ -37,6 +37,25 @@ const PUBLIC_PATHS = [
 ];
 
 /**
+ * The assurance level recorded in an access token.
+ *
+ * Read rather than verified: this only decides a redirect, and a forged token
+ * is refused by the auth server on the very next call and by the database on
+ * every query. Decoding it here avoids a round trip on every request.
+ */
+function decodeAal(accessToken: string | undefined): string | undefined {
+  if (!accessToken) return undefined;
+  try {
+    const payload = accessToken.split('.')[1];
+    if (!payload) return undefined;
+    const json = Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
+    return (JSON.parse(json) as { aal?: string }).aal;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Refreshes the Supabase session on every request and guards the dashboard.
  *
  * The session cookie has to be written onto the response that is actually
@@ -97,6 +116,30 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     url.pathname = '/sign-in';
     url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
+  }
+
+  // A session that owes a second factor is sent to answer it. This is the
+  // courtesy, not the control — the database refuses that session its data on
+  // every route regardless — but without it somebody would meet a Command
+  // Centre rendered entirely empty and conclude the platform had lost their
+  // business.
+  //
+  // Read from the token rather than by asking the auth server: middleware runs
+  // on every request, and a round trip here would be a round trip on every
+  // asset that is not excluded by the matcher. The claim is signed, so a
+  // forged one fails at the database anyway.
+  if (data.user && !isPublic && pathname !== '/verify' && pathname !== '/') {
+    const session = await supabase.auth.getSession().catch(() => null);
+    const claims = session?.data.session?.user.factors ?? [];
+    const verified = claims.some((factor) => factor.status === 'verified');
+    const aal = decodeAal(session?.data.session?.access_token);
+
+    if (verified && aal === 'aal1') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/verify';
+      url.searchParams.set('next', pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
   if (data.user && (pathname === '/sign-in' || pathname === '/sign-up')) {

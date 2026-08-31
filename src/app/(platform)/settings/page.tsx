@@ -74,6 +74,17 @@ export default async function SettingsPage() {
               </Card>
             </Link>
 
+            <Link href="/settings/security">
+              <Card interactive className="h-full p-5">
+                <p className="text-[0.9375rem] font-semibold text-[var(--text-primary)]">
+                  Security
+                </p>
+                <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+                  Two-step sign-in, and how you prove it is you.
+                </p>
+              </Card>
+            </Link>
+
             <Link href="/settings/privacy">
               <Card interactive className="h-full p-5">
                 <p className="text-[0.9375rem] font-semibold text-[var(--text-primary)]">

@@ -15,6 +15,7 @@ import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
 import { isPermission, PermissionError, type Permission } from './permissions';
+import { mfaChallengeOutstanding } from './mfa';
 import type { Enums, Row } from '@/types/database';
 
 export const ACTIVE_ORG_COOKIE = 'amryn.org';
@@ -59,6 +60,21 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect('/sign-in');
+  return user;
+}
+
+/**
+ * The signed-in user, with any outstanding second factor already presented.
+ *
+ * The redirect is a courtesy, not the control: what actually keeps the data
+ * closed is the guard in the database, which refuses an aal1 session
+ * regardless of which page it is on. Without this the platform would still be
+ * safe and would render every page empty, which is a worse way to learn that
+ * you need to reach for your phone.
+ */
+export async function requireVerifiedUser(): Promise<User> {
+  const user = await requireUser();
+  if (await mfaChallengeOutstanding()) redirect('/verify');
   return user;
 }
 
@@ -158,6 +174,12 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
 
 export async function requireWorkspace(): Promise<Workspace> {
   if (!isSupabaseConfigured()) redirect('/sign-in');
+
+  // Before the lookup, not after. A session that owes a second factor is
+  // refused every organisation row by the database, so getWorkspace() finds
+  // nothing and the branch below would send someone who has been a member for
+  // a year to create an organisation — which reads as having lost everything.
+  if (await mfaChallengeOutstanding()) redirect('/verify');
 
   const workspace = await getWorkspace();
   if (!workspace) {
