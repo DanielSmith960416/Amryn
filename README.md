@@ -1,328 +1,379 @@
 # Amryn™ AIGrowthIntelligence®
 
-Two things live in this repository:
+**Business Inside + Market Outside = Intelligent Growth**
 
-| | What it is | Where |
-|---|---|---|
-| **Marketing site** | Static HTML, CSS and JS. No build step. Deployed to GitHub Pages. | `docs/` |
-| **Platform** | The Amryn™ software: Next.js, TypeScript, Supabase, multi-tenant. | repository root |
-
-They are deployed separately and neither depends on the other at build time.
-The marketing site links to the platform once you tell it where the platform
-lives — see [Linking the two](#linking-the-two).
+A website that acts like an app. One public marketing site, one authenticated
+client platform, and one formal executive report in PDF — all three rendered
+from a single Intelligence Layer.
 
 ---
 
-## The platform
+## What this is
 
-### Running it
+Amryn is not a multi-tenant SaaS product and is not trying to be one. It is a
+website with a client area behind it. A business signs up, opens the platform,
+and sees its own DigitalTwin®, Business Health Score, OpportunityRadar®, Risk
+Radar, Action Centre and Advanced Inventory Control. Each week it receives a
+formal executive report, generated from the same figures the screens show.
+
+The **Intelligence Layer** is the brain. It scores, classifies, ranks and
+drafts. The website is presentation and interaction over it — nothing more.
+
+```
+                       ┌──────────────────────────────────┐
+                       │        Intelligence Layer        │
+                       │      src/lib/intelligence/       │
+                       │                                  │
+                       │  finance · health · opportunity  │
+                       │  risk · kpi · inventory · brief  │
+                       │                                  │
+                       │   pure · deterministic · tested  │
+                       └────────────────┬─────────────────┘
+                                        │
+                              ┌─────────▼──────────┐
+                              │   loadWorkspace()  │
+                              │   src/lib/         │
+                              │   workspace.ts     │
+                              │                    │
+                              │  one computation   │
+                              └─────────┬──────────┘
+                                        │
+                 ┌──────────────────────┼──────────────────────┐
+                 │                      │                      │
+        ┌────────▼────────┐   ┌─────────▼────────┐   ┌─────────▼────────┐
+        │ Marketing site  │   │ Client platform  │   │ Executive report │
+        │ src/app/page    │   │ (platform)/*     │   │ api/reports/*    │
+        └─────────────────┘   └──────────────────┘   └──────────────────┘
+```
+
+The load-bearing idea: **the screen and the report cannot disagree**, because
+there is one computation and two renderings of it.
+
+---
+
+## Where the product logic came from
+
+Two Excel prototypes are the source of truth for every rule, threshold, weight
+and piece of recommendation wording in this codebase.
+
+| Workbook | Sheets | Lives in |
+|---|---|---|
+| `Amryn_AIGrowthIntelligence_Interactive_Software_Prototype.xlsx` | HOME, EXECUTIVE_COMMAND, CEO_DASHBOARD, DIGITAL_TWIN, BUSINESS_PROFILE, FINANCIAL_INTELLIGENCE, OPPORTUNITY_RADAR / DATABASE / SCORING, COMPETITOR & MARKET INTEL, RISK_RADAR & REGISTER, ACTION_CENTRE, DECISION_LOG, KPI_CENTRE, BUSINESS_HEALTH, FORECAST, WEEKLY & MONTHLY INTELLIGENCE, SETTINGS, DATA_INPUT, DEMO_DATA | `src/lib/intelligence/{finance,health,opportunity,risk,kpi,briefing}.ts`, `src/data/demo/kalahari.ts` |
+| `Amryn_AIGrowthIntelligence__Advanced_Inventory_Control.xlsx` | DASHBOARD, AUDIT LOG, DEPT SUMMARY, SETTINGS, STOCK REPORT (sections A–E) | `src/lib/intelligence/inventory.ts`, `src/data/demo/inventory.ts` |
+
+Every engine names the cell or formula it came from in a comment. Where the
+codebase departs from a workbook, it says so and says why — see
+**[Deliberate departures](#deliberate-departures)**.
+
+---
+
+## Getting it running
 
 ```bash
 npm install
-cp .env.example .env.local     # fill in your Supabase project URL and anon key
-npm run dev
+npm run dev            # http://localhost:3000
 ```
 
-Apply the migrations in `supabase/migrations/` to your Supabase project in
-filename order, then optionally `supabase/seed/seed.sql` for a worked demo
-organisation with twelve months of trading history.
+That is the whole setup. No database to provision, no external service to sign
+up for, no keys required. The platform opens on a demonstration workspace so
+there is something to look at from the first screen.
 
-Without Supabase credentials the app still starts and the sign-in page explains
-what is missing rather than failing with a stack trace.
-
-### Commands
-
-| Command | What it does |
-|---|---|
-| `npm run dev` | Development server |
-| `npm run build` | Production build |
-| `npm run check` | Typecheck, lint and unit tests |
-| `npm run test` | Unit tests only |
-| `npm run db:test` | Apply every migration to a local PostgreSQL and run the RLS suite |
-| `npm run db:types` | Regenerate `src/types/database.ts` from a live schema |
-| `npm run check:site` | Smoke-check the marketing site in a real browser |
-
-`db:test` needs a PostgreSQL 16 reachable at `PGHOST`/`PGPORT` (defaults
-`/var/tmp` and `55432`). It creates the `auth` schema and roles that Supabase
-would provide, so the migrations can be exercised against plain PostgreSQL.
-
-### What is built
-
-- **Multi-tenant PostgreSQL schema** — 47 tables, Row Level Security on every
-  one. A user reads a row only if they are an active member of its
-  organisation, its branch falls inside their scope, and they hold the
-  permission gating that table. All three are decided in SQL. Forty-six
-  assertions in `supabase/tests/` prove it.
-- **Analytical engines** — business health scoring, opportunity scoring, trend,
-  anomaly, step-change and divergence detection, and the executive briefing.
-  Pure, deterministic, 120 unit tests.
-- **AI layer** — one interface over OpenAI and Anthropic, with schema-validated
-  structured output and one corrective retry. OpenAI is the default, on
-  `gpt-4.1-mini`; set `AI_PROVIDER=anthropic` to use Claude instead, which runs
-  `claude-opus-5` with adaptive thinking. Optional either way: without an API
-  key the platform runs on its engines and says so plainly in the interface.
-- **Thirty-three routes** — Command Centre, DigitalTwin®, OpportunityRadar®,
-  performance, opportunities, strategy, risk, data, reports and administration.
-
-The design decisions, and the reasoning behind the ones that could have gone
-the other way, are in [`docs-internal/ARCHITECTURE.md`](docs-internal/ARCHITECTURE.md).
-
-### Sector scope, and Amryn's own posture
-
-Two different things, kept apart deliberately:
-
-- **Amryn trades with private-sector businesses** and does not take on
-  government-sector work itself. That is a fact about Amryn's own clients, and
-  it is stated in the marketing site's footer.
-- **The software surfaces tenders to the businesses that use it.** A municipal
-  supply tender is ordinary revenue to a wholesaler. Each customer sets their
-  own `sector_scope` under Settings → Organisation; it defaults to every sector
-  and is enforced inside RLS, so the pipeline, reports and the assistant all
-  honour the same choice.
-
-### Deploying
-
-Vercel, root directory. `/api/health` answers `200` when nothing is failing
-and `503` when something is, for an uptime monitor; `/diagnostics` answers the
-same question in prose, for a person.
-
-Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
-`NEXT_PUBLIC_SITE_URL`; add `AI_API_KEY` when you want conversational answers
-and cross-cutting recommendations.
-
-`NEXT_PUBLIC_SUPABASE_URL` is optional — it is derived from the anon key, which
-names its own project in a public claim. Set it only for a custom domain.
-
-### Supabase configuration
-
-`supabase/config.toml` holds the settings that would otherwise live only in a
-dashboard — most usefully the auth redirect allow-list, which is exactly the
-kind of thing that gets forgotten and then costs an afternoon.
-
-It does two jobs:
+Before deploying anywhere real, set one variable:
 
 ```bash
-supabase start          # local stack, seeded with the demo org
-supabase link           # the project ref is already in config.toml
-supabase config push    # applies [auth] to the remote project
+# Required in production. Signs the session cookie.
+AMRYN_SESSION_SECRET="$(openssl rand -base64 32)"
 ```
 
-**Before pushing, know what it does.** `config push` applies *everything* in the
-file, not just what you changed. If you have set something in the dashboard that
-the file does not represent, pushing resets it. The CLI prints a diff and asks
-first — read it. If you would rather configure the remote project by hand, do
-that; the file still earns its place for local development.
+In development a secret is generated per process if none is set. In production
+its absence is a hard error — a secret that changed on every deploy would sign
+every client out on every deploy.
 
-Two values must change before any push, and are marked in the file:
+### Checks
 
-```toml
-site_url = "https://your-project.vercel.app"
-additional_redirect_urls = ["https://your-project.vercel.app/auth/callback"]
+```bash
+npm run check          # typecheck + lint + tests
+npm test               # 62 unit tests over the Intelligence Layer and auth
+npm run build          # production build
 ```
-
-Vercel gives preview deployments a new hostname per commit, so allow the pattern
-`https://your-project-*.vercel.app/auth/callback` rather than adding them
-individually.
-
-Google and Microsoft sign-in are already wired into the sign-in page. Enable a
-provider in the file, supply its credentials through the environment variables
-in `.env.example`, and it works — no code change.
 
 ---
 
-## Linking the two
+## The Intelligence Layer
 
-The marketing site's "Sign in" and "Open the platform" links are driven by one
-constant near the top of `docs/app.js`:
+`src/lib/intelligence/` is pure. No file in it performs I/O, reads a request or
+calls a model. Every function takes data and returns data, which is what makes
+a score testable, reproducible and explainable.
 
-```js
-var APP_URL = 'https://your-project.vercel.app';
-```
+| Module | What it decides |
+|---|---|
+| `finance.ts` | Derived columns, year-to-date roll-up, trend readings, branch status bands, forecast |
+| `health.ts` | Business Health Score — 8 weighted components, status bands |
+| `opportunity.ts` | OpportunityRadar® six-factor scoring, classification, pipeline summary |
+| `risk.ts` | Probability × impact, classification bands, register summary |
+| `kpi.ts` | Variance against target, on/near/below bands, Action Centre summary |
+| `inventory.ts` | Expiry status rules, dormancy classification, compliance summary, department matrix, owner recommendations, compliance profiles |
+| `briefing.ts` | Executive insights, weekly brief, monthly report |
 
-**It is currently empty, so those links are hidden.** The platform has not been
-deployed yet; `https://amryn.vercel.app` was tried and returns 404. Deploy
-first, then set this to whatever Vercel gives you — a marketing site with a
-Sign in button that 404s is worse than one without.
+### The rules, in one place
 
-`npm run check:site` exercises both states and reports what the committed value
-resolves to, so you can confirm the links before pushing.
+**Expiry status** (universal, never varies by sector):
 
-#### Deploying the platform to Vercel
-
-Vercel's Git integration handles this: connect the repository once, and every
-push to `main` deploys automatically, with a preview deployment per pull
-request. No secrets are stored in GitHub and there is no workflow to maintain.
-
-1. **Import the repository** at [vercel.com/new](https://vercel.com/new). Leave
-   the root directory as the repository root — the platform lives there, and
-   Next.js is detected automatically. `docs/` is ignored by Vercel and keeps
-   deploying to GitHub Pages independently.
-
-   The first build **succeeds with no environment variables set**, so you get a
-   deployment URL before configuring anything. The app runs, and the sign-in
-   page explains what is still missing rather than erroring.
-
-2. **Add the environment variables** under Project → Settings → Environment
-   Variables, from `.env.example`: `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
-   `NEXT_PUBLIC_SITE_URL` set to the deployment's own URL. Redeploy to pick
-   them up.
-
-   `NEXT_PUBLIC_SUPABASE_URL` is not in that list on purpose. It is worked out
-   from the anon key, so there is no second value to get wrong — requiring two
-   settings that must agree is what produced a live deployment answering
-   "Invalid API key" while both settings looked plausible.
-
-   Keep the `NEXT_PUBLIC_` prefix on the ones you do set. They are meant to reach the
-   browser — the anon key grants nothing on its own, since Row Level Security
-   decides every row it can read. `SUPABASE_SERVICE_ROLE_KEY` is the one that
-   must never be public, and it is deliberately unprefixed.
-
-   For the intelligence layer, add `AI_API_KEY` with an OpenAI key. No prefix —
-   it is a server-side secret and must not reach the browser.
-
-3. **Apply the migrations.** Run everything in `supabase/migrations/` against
-   your Supabase project in filename order. Optionally `supabase/seed/seed.sql`
-   for a worked demo organisation.
-
-   With the CLI, from a machine that can reach Supabase:
-
-   ```bash
-   npx supabase login                 # opens a browser
-   npx supabase link                  # project ref is already in config.toml
-   npx supabase db push               # applies migrations/ in order
-   ```
-
-   Or paste each file into the SQL editor in filename order — seven files, and
-   they are ordinary SQL with no CLI-specific syntax.
-
-   **Then check it landed.** Run `supabase/tests/verify-remote.sql` in the SQL
-   editor. A migration skipped or applied out of order does not fail loudly; it
-   fails later as a confusing runtime error somewhere unrelated. The query
-   returns ten rows, all of which should read `OK`.
-
-4. **Allow the auth redirect.** Set the Site URL to the deployment and add
-   `https://<deployment>/auth/callback` to the redirect allow-list — either in
-   the [dashboard](https://supabase.com/dashboard/project/tnkmrrfxzsrbfndpkonh/auth/url-configuration)
-   under **Authentication → URL Configuration**, or from
-   `supabase/config.toml` (see [Supabase configuration](#supabase-configuration)
-   below).
-
-   Skipping this is the easiest mistake to make and the slowest to diagnose:
-   password sign-in keeps working, while magic links and Google or Microsoft
-   sign-in fail *after* the user has already left your page, so it looks like
-   the provider's fault.
-
-5. **Point the marketing site at it.** Set `APP_URL` in `docs/app.js` to the
-   deployment URL, run `npm run check:site` to confirm, and push. That reveals
-   the Sign in and Open the platform links.
-
-If you plan to put a custom domain on the deployment, do that before step 5 and
-use the custom domain — it survives a project rename or a move off Vercel, and
-saves changing this twice.
-
----
-
-## The marketing site
-
-### Structure
-
-```
-docs/                → everything GitHub Pages serves
-  index.html         → positioning band, Command Centre shell, content bands
-  styles.css         → design system + layout
-  app.js             → workspace data, Command Centre behaviour, APP_URL
-  brand/             → supplied brand artwork (see BRAND-USAGE.txt)
-  .nojekyll          → tells Pages to serve the folder as-is
-.github/workflows/deploy.yml
-```
-
-For orientation, the platform beside it:
-
-```
-src/app/             → routes: (auth), (platform), api
-src/components/      → ui, dashboard, charts, intelligence, opportunities, shell
-src/features/        → auth, organisation, intelligence, opportunities, assistant
-src/lib/             → engines (pure), ai, supabase, auth, utils
-src/types/           → database.ts (generated), intelligence.ts
-supabase/            → migrations, seed, tests
-scripts/             → type generation, marketing-site check
-docs-internal/       → architecture notes
-```
-
-### Deploying the site
-
-Pages is already enabled with **Source: GitHub Actions**. Every push to `main`
-redeploys; the site lands at `https://danielsmith960416.github.io/Amryn/`.
-
-### The Command Centre demo
-
-`app.js` renders every view from the `WORKSPACES` object — nothing in the
-dashboard is hard-coded in the HTML. Switching workspace or period recomputes
-the whole view.
-
-Three workspaces ship, at deliberately different scales, because Amryn is sized
-to a decision rather than to a company:
-
-| Key | Business | Scale |
+| Status | Rule | Obligation |
 |---|---|---|
-| `highveld` | Highveld Supply Co. | Single site · 14 staff |
-| `meridian` | Meridian Retail Group | Multi-branch · 9 sites · 210 staff |
-| `kalahari` | Kalahari Freight & Logistics | National · 4 depots · 480 staff |
+| `EXPIRED` | Past the expiry date | Remove from shelf immediately; log and notify |
+| `CRITICAL` | ≤ 30 days remaining | Return to supplier or markdown |
+| `WARNING` | 31–90 days remaining | Plan action; monitor each audit cycle |
+| `CLEAR` | > 90 days remaining | No action; continue regular checks |
 
-Each carries its own `revenue` series, health `score` and `bars`, `metrics`,
-`feed`, `risks`, `ops` (radar signals) and `acts` (action register). To add a
-workspace, add a key with the same shape — the selector populates itself.
+Compliance rate is CLEAR ÷ total. Urgent is EXPIRED + CRITICAL.
 
-Views: **Command Centre** (summary), **DigitalTwin®**, **OpportunityRadar®**,
-**Actions**, **Intelligence Loop**. The rail switches them; `data-goto` buttons
-inside tiles jump between them.
+**Dormancy** — `DORMANT` (clear, left on shelf, no turnover) · `SLOW-MOVING`
+(warning, left on shelf) · `AT-RISK` (critical, still on shelf) · `WRITE-OFF`
+(expired).
 
-Interactive behaviour worth knowing about:
+**Business Health Score** — Financial 20% · Sales 15% · Customer 15% ·
+Operational 15% · Marketing 10% · People 10% · Cash Flow 10% · Strategic 5%.
+Banded `EXCELLENT` 90+ · `HEALTHY` 75+ · `STABLE` 60+ · `WEAK` 40+ · `CRITICAL`
+below 40.
 
-- **Period** re-slices the revenue series and redraws the chart and its note.
-- **Filter** on the radar narrows signals; blips are regenerated to match, and
-  blip ↔ card highlighting is wired both ways.
-- **Action register** ticks persist per workspace in `localStorage`, and drive
-  the progress bar, the rail badge and the Command Centre summary.
-- Radar blip position is derived from each signal's `urgency` (distance from
-  centre) and `size` (revenue at stake), with a stable per-id angle.
+**Opportunity score** — value 25% · probability 15% · strategic fit 20% ·
+urgency 15% · ease of execution 10% · probability again 15%. Classified `HIGH`
+above 60, `MEDIUM` above 40, otherwise `MONITOR`.
 
-### Brand
+**Risk score** — probability × impact on 0–1. `CRITICAL` above 0.60, `HIGH`
+above 0.40, `MEDIUM` above 0.20, otherwise `LOW`.
 
-Artwork in `docs/brand/` is used exactly as supplied. `BRAND-USAGE.txt` is the
-pack's own rule sheet; the short version:
+---
 
-- Never re-colour, stretch, rotate or outline a mark.
-- Lockups never below 90px wide; the icon mark never below 24px.
-- Use the `-ondark` variants on backgrounds darker than 50% luminance.
-- Brand names are never uppercased — the solid capitalisation
-  (`AIGrowthIntelligence®`, `DigitalTwin®`, `OpportunityRadar®`) is part of
-  the mark.
+## Advanced Inventory Control is not pharmacy-specific
 
-Palette: `#004AAD` brand blue, `#081B33` dark navy, `#3E7BD6` lifted blue
-(on navy only — brand blue is near-invisible there).
+The source workbook is written for a pharmacy throughout — "Pharmacist on
+Duty", SAHPRA retention periods, a dispensary department. The module here is
+sector-neutral. Every one of those decisions lives in a `ComplianceProfile`:
 
-**Known conflict:** the brand pack sets the products solid and without an "AI"
-prefix (`Amryn™DigitalTwin®`), and ships product-mark artwork that way. The
-Master Business-Building Blueprint writes them as `Amryn™ AI Digital Twin®`.
-The site follows the pack, since that is the trademark form and the artwork
-that exists. If the blueprint wins instead, the two product-mark PNGs need
-reissuing and the panel headings go back to live text.
+```ts
+interface ComplianceProfile {
+  label: string;
+  unitNoun: string;              // "product", "line", "item"
+  responsibleRoleLabel: string;  // "Pharmacist on Duty", "Quality Manager"
+  auditorRoleLabel: string;
+  regulator?: string;            // omitted where the sector has none
+  retentionNote: string;
+  disposalNote: string;
+  departments: readonly string[];
+  shifts: readonly string[];
+}
+```
 
-### Editing the demo data
+Three ship: `pharmacy-sahpra` (reproduces the workbook exactly),
+`food-retail`, and `general`. Adding a fourth is a new object in
+`src/lib/intelligence/inventory.ts` — no engine, page or component changes.
+The expiry rules themselves never vary: expiry dating is expiry dating,
+whatever is on the shelf.
 
-All of it lives at the top of `app.js`:
+SAHPRA, insurance and disposal language is retained in full under the pharmacy
+profile, including the retention period and the insurance/financial notes in
+the stock report's section E.
 
-- **Revenue** — the `revenue` array per workspace, monthly, in thousands of Rand.
-  Twelve entries; `MONTHS` labels them.
-- **Health score** — `score` and `scoreDelta`; the ring and the counter both read it.
-- **Radar signals** — `ops[]`. `kind` is `opportunity` or `threat`, `urgency`
-  is 0–1 (0 = centre), `size` is the blip radius in SVG units.
-- **Actions** — `acts[]` as `[title, rationale, owner, effort, outcome]`.
+---
 
-### Positioning
+## Auth and accounts
 
-Copy follows section 11 of the Master Business-Building Blueprint: *See Your
-Business. See Your Market. Know What To Do Next.* — with the philosophy line
-*Business Inside + Market Outside = Intelligent Growth* carried through the
-page and the footer.
+Self-contained, deliberately small:
+
+- **Passwords** — Node's `scrypt`, memory-hard, cost parameters stored inside
+  the hash so they can be raised later without invalidating existing passwords.
+- **Sessions** — an HMAC-signed, HTTP-only cookie carrying the account id and
+  an expiry. No session table, no store round-trip per request.
+- **Accounts** — behind an `AccountStore` interface with two implementations.
+
+| Store | When it is used | Durable |
+|---|---|---|
+| In-memory | No `UPSTASH_*` variables set | **No** — lost on restart |
+| Upstash Redis (REST) | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Yes |
+
+The sign-up page and Settings both say plainly which one is running. An account
+that quietly evaporates on the next deploy is worse than one that was never
+offered.
+
+```bash
+UPSTASH_REDIS_REST_URL="https://…"
+UPSTASH_REDIS_REST_TOKEN="…"
+```
+
+**Swapping in Clerk or Auth.js** is a new file implementing `AccountStore`
+plus a replacement for `src/lib/auth/session.ts`. Nothing above those two
+modules knows how authentication works.
+
+### What is not built yet
+
+- **Password reset.** No mail service is configured, so the sign-in page says
+  so and gives a contact address rather than offering a link that leads
+  nowhere.
+- **Roles and permissions.** Every signed-in reader sees the whole workspace.
+  When roles are needed, `src/components/shell/navigation.ts` has the seam.
+
+---
+
+## The weekly executive report
+
+`/api/reports/weekly` and `/api/reports/monthly` render a print-ready A4
+document from the same workspace the screens read. Open it and use Print →
+Save as PDF.
+
+**Why not a generated PDF file.** Producing one server-side means either a
+headless Chromium in the deployment — hundreds of megabytes and a cold start
+measured in seconds — or a PDF drawing library, which means re-implementing
+layout, fonts, page breaks and table wrapping by hand for a document that would
+then look nothing like the platform. The browser already has a typesetter. The
+page is styled for A4 with real page breaks and print margins, it is
+self-contained (inline styles, no external fonts, no scripts), and the output is
+indistinguishable from a generated file. If a scheduled emailed report is ever
+needed, this same HTML is what a renderer would be pointed at.
+
+---
+
+## Replacing demo data with a client's real data
+
+Every view and both reports read one structure, assembled in one function:
+`loadWorkspace()` in `src/lib/workspace.ts`.
+
+That is the only place to change.
+
+1. **Replace the inputs.** `src/data/demo/kalahari.ts` and
+   `src/data/demo/inventory.ts` export plain arrays and objects typed against
+   `src/lib/intelligence/types.ts`. Swap them for a fetch, a CSV import, an
+   accounting API — anything that returns the same shapes.
+2. **Make `loadWorkspace` async** if the source needs awaiting. Every page is
+   already a server component; they become `await loadWorkspace()`.
+3. **Set `isDemo: false`.** Every demonstration banner across the platform and
+   the footer of the PDF disappears together.
+4. **Pick the compliance profile** for the client's sector in
+   `buildInventory`.
+5. **Supply real operational, people and strategic inputs** if you have them —
+   `calculateHealthScore` takes them as its third argument, and those three
+   components stop being labelled *assumed*.
+
+No page, component or engine is touched by any of that. The numbers on every
+screen change together because they all descend from the same computation.
+
+---
+
+## Deliberate departures
+
+Where this codebase does not do exactly what a workbook does, and why.
+
+| Workbook behaviour | What this does | Why |
+|---|---|---|
+| KPI status uses higher-is-better for every metric, so *Risks Open* against a target of 0 reads **ON TARGET** with three open | `lowerIsBetter` inverts the comparison for those metrics | A register full of open risks must not render as healthy |
+| Marketing Health divides new customers by a literal `8` | Divides by months actually reported | A January-only workspace scored near zero on marketing purely because eleven months were empty |
+| Opportunity score is unbounded — R2m of value alone contributes 500 points | Reported score capped at 100; the raw figure stays available | The "/100" on the card has to be true |
+| Probability is weighted twice, giving it 0.30 in total | **Preserved exactly**, and surfaced in the score breakdown | Changing it would silently re-rank every opportunity a client has already reviewed |
+| Demo expiry dates are fixed, so the sample decays to all-EXPIRED as the file ages | Dates are offsets from the viewing date | The demo keeps demonstrating all four status bands; the rules are exercised, not bypassed |
+| Department summary shows all departments including empty ones at 0% | Empty departments kept, compliance shown as **—**, risk shown as *No stock held* | On a compliance record, "we hold nothing here" and "we did not look here" must not render identically — and holding nothing is not failing |
+| Section E prints every recommendation regardless of counts | Recommendations that no longer apply are dropped; insurance and financial notes always print | Telling an owner to escalate expired stock they do not have teaches them to skim the report |
+| Briefing paragraphs are literal text | Reconstructed from the figures, in the same voice | A hard-coded sentence stops being true the moment the data changes — which is what makes the AI-SIMULATED label honest |
+
+---
+
+## Project structure
+
+```
+src/
+  app/
+    page.tsx                  public marketing homepage
+    (auth)/                   sign-up, sign-in
+    (platform)/               the client area — one auth guard in its layout
+      command-centre/         EXECUTIVE_COMMAND
+      digital-twin/           DIGITAL_TWIN + BUSINESS_HEALTH
+      opportunity-radar/      OPPORTUNITY_RADAR + DATABASE + SCORING
+      risk-radar/             RISK_RADAR + RISK_REGISTER
+      action-centre/          ACTION_CENTRE
+      inventory/              Advanced Inventory Control
+        audit-log/            AUDIT LOG
+        stock-report/         STOCK REPORT sections A–E
+      financial/              FINANCIAL_INTELLIGENCE
+      kpi-centre/             KPI_CENTRE
+      forecast/               FORECAST
+      market/                 MARKET + COMPETITOR_INTELLIGENCE
+      decision-log/           DECISION_LOG
+      reports/                WEEKLY + MONTHLY_INTELLIGENCE
+      settings/               SETTINGS
+    api/reports/[period]/     the print-ready executive report
+  lib/
+    intelligence/             the brain — pure, tested
+    auth/                     password, session, account store
+    reports/                  report rendering
+    workspace.ts              the seam
+    format.ts                 presentation formatting
+  data/demo/                  demonstration data from the workbooks
+  components/                 design system, shell, charts, tables
+docs/                         the GitHub Pages marketing site (unchanged)
+```
+
+---
+
+## Stack
+
+Next.js 15 (App Router) · React 19 · TypeScript (strict, with
+`noUncheckedIndexedAccess`) · Tailwind CSS 4 · Zod · Vitest.
+
+Fourteen runtime dependencies. No database driver, no ORM, no charting runtime,
+no auth SDK. Charts are hand-written SVG rendered on the server; the client
+bundle is ~103 kB shared.
+
+**Deploying to Vercel:** import the repository, set `AMRYN_SESSION_SECRET`
+(and the two `UPSTASH_*` variables for durable accounts), deploy. No other
+configuration is needed.
+
+---
+
+## Design
+
+Three themes — light, medium, dark — plus following the operating system,
+applied before first paint so a reader who chose dark never sees a flash of
+white. Every colour is a token in `src/app/globals.css`; no component
+hard-codes a hex value.
+
+Brand colours are fixed by the asset pack: `#004AAD` brand blue, `#081B33`
+dark navy, `#3E7BD6` lifted blue on navy (brand blue disappears there).
+Archivo for display, IBM Plex Sans for text, IBM Plex Mono for figures — set
+with tabular numerals so a column of numbers aligns on the decimal rather than
+jittering as it changes.
+
+Desktop-first and information-dense, because it is built for decision-makers,
+but it reads correctly down to 320px. Wide tables scroll inside their own
+container so the page body never scrolls sideways and no column is lost — a
+compliance record with hidden columns is a summary of a compliance record, which
+is a different and much less useful document.
+
+---
+
+## Trademarks and disclosure
+
+Amryn™ AIGrowthIntelligence®, Amryn™DigitalTwin® and Amryn™OpportunityRadar®
+are trademarks of Amryn. © 2026 Amryn. All rights reserved.
+
+All figures in the demonstration workspace are illustrative, not real client
+data. Every page that renders them says so — repeated per page rather than
+declared once, because a reader who deep-links into the Risk Radar must not have
+to remember a banner they never saw.
+
+Amryn trades with private-sector businesses and does not take on
+government-sector work itself. This is a statement about Amryn's own clients,
+not a limit on the software: the OpportunityRadar® surfaces tenders and
+public-sector opportunities to the businesses that use it, and each of them sets
+its own sector scope.
+
+Forecast figures are projections on year-to-date averages. They are not
+guaranteed results and carry that warning wherever they appear.
+
+---
+
+## Contact
+
+danielsmith960416@gmail.com · 067 004 8810 · South Africa
+
+See [`docs-internal/MIGRATION.md`](docs-internal/MIGRATION.md) for what was
+retired from the previous build and confirmation that nothing depends on it.

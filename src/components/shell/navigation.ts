@@ -1,19 +1,25 @@
-import type { Permission } from '@/lib/auth/permissions';
-
 /**
- * The information architecture from specification §6, as data.
+ * The client area's information architecture, as data.
  *
- * Navigation is generated from this, and each entry names the permission it
- * needs. A user never sees a section they cannot open — which matters more
- * than it sounds: a nav full of dead ends teaches people the product is
- * broken.
+ * It follows the prototype's HOME sheet, which is the navigation the product
+ * was designed around: Executive Command, DigitalTwin®, OpportunityRadar®,
+ * Risk Radar, Action Centre, KPI Centre, the intelligence modules, Advanced
+ * Inventory Control and the reports.
+ *
+ * The previous build gated every entry on one of thirty permissions across
+ * eight roles. This build has no role hierarchy — the brief asks for a website
+ * that acts like an app, not a multi-tenant SaaS on day one — so every signed-in
+ * reader sees the whole workspace. When roles are needed, a `permission` field
+ * returns here and `visibleGroups` filters on it; nothing else moves.
  */
+
 export interface NavItem {
   label: string;
   href: string;
-  permission?: Permission;
-  /** Rendered with the trademark superscript. */
+  /** Rendered as a superscript that never scales with the surrounding text. */
   trademark?: '®' | '™';
+  /** One line, shown in the mobile drawer where there is room to explain. */
+  hint?: string;
 }
 
 export interface NavGroup {
@@ -21,90 +27,80 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export const PRIMARY_NAV: NavItem[] = [
-  { label: 'Command Centre', href: '/command-centre' },
-  { label: 'DigitalTwin', href: '/digital-twin', permission: 'view_intelligence', trademark: '®' },
-  { label: 'OpportunityRadar', href: '/opportunity-radar', permission: 'view_opportunities', trademark: '®' },
-  { label: 'Performance', href: '/performance', permission: 'view_performance' },
-  { label: 'Strategy', href: '/strategy', permission: 'view_goals' },
-];
-
 export const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Command',
+    items: [
+      {
+        label: 'Executive Command Centre',
+        href: '/command-centre',
+        hint: 'What matters this week',
+      },
+      { label: 'Action Centre', href: '/action-centre', hint: 'Every action has an owner' },
+      { label: 'Decision Log', href: '/decision-log', hint: 'Organisational memory' },
+    ],
+  },
   {
     label: 'Intelligence',
     items: [
-      { label: 'AI DigitalTwin', href: '/digital-twin', permission: 'view_intelligence', trademark: '®' },
-      { label: 'AI OpportunityRadar', href: '/opportunity-radar', permission: 'view_opportunities', trademark: '®' },
-      { label: 'Intelligence Feed', href: '/intelligence-feed', permission: 'view_intelligence' },
-      { label: 'Market Intelligence', href: '/market-intelligence', permission: 'view_market_intelligence' },
-      { label: 'Competitor Intelligence', href: '/competitors', permission: 'view_competitors' },
+      {
+        label: 'DigitalTwin',
+        href: '/digital-twin',
+        trademark: '®',
+        hint: 'The business, modelled',
+      },
+      {
+        label: 'OpportunityRadar',
+        href: '/opportunity-radar',
+        trademark: '®',
+        hint: 'Scored growth openings',
+      },
+      { label: 'Risk Radar', href: '/risk-radar', hint: 'Register and exposure' },
+      { label: 'Market & Competitors', href: '/market', hint: 'The view outside' },
     ],
   },
   {
     label: 'Performance',
     items: [
-      { label: 'Business Overview', href: '/performance', permission: 'view_performance' },
-      { label: 'Financial Performance', href: '/performance/financial', permission: 'view_financial_data' },
-      { label: 'Sales Performance', href: '/performance/sales', permission: 'view_sales_data' },
-      { label: 'Operations', href: '/performance/operations', permission: 'view_operations_data' },
-      { label: 'Branch Performance', href: '/performance/branches', permission: 'view_performance' },
+      { label: 'Financial Intelligence', href: '/financial', hint: 'Month by month' },
+      { label: 'KPI Centre', href: '/kpi-centre', hint: 'Current against target' },
+      { label: 'Forecast', href: '/forecast', hint: 'Projection, not guarantee' },
     ],
   },
   {
-    label: 'Opportunities',
+    label: 'Operations',
     items: [
-      { label: 'Opportunity Pipeline', href: '/opportunities', permission: 'view_opportunities' },
-      { label: 'Saved Opportunities', href: '/opportunities/saved', permission: 'view_opportunities' },
-    ],
-  },
-  {
-    label: 'Strategy',
-    items: [
-      { label: 'Goals', href: '/strategy', permission: 'view_goals' },
-      { label: 'Strategic Initiatives', href: '/strategy/initiatives', permission: 'view_goals' },
-      { label: 'Recommendations', href: '/recommendations', permission: 'view_recommendations' },
-    ],
-  },
-  {
-    label: 'Risk',
-    items: [
-      { label: 'Risk Dashboard', href: '/risk', permission: 'view_risks' },
-      { label: 'Alerts', href: '/alerts', permission: 'view_alerts' },
-      { label: 'Risk Register', href: '/risk/register', permission: 'view_risks' },
-    ],
-  },
-  {
-    label: 'Data',
-    items: [
-      { label: 'Connected Sources', href: '/data', permission: 'view_data_sources' },
-      { label: 'Data Imports', href: '/data/imports', permission: 'view_data_sources' },
-      { label: 'Data Health', href: '/data/health', permission: 'view_data_sources' },
+      {
+        label: 'Advanced Inventory Control',
+        href: '/inventory',
+        hint: 'Compliance, audit log and stock intelligence',
+      },
     ],
   },
   {
     label: 'Reporting',
-    items: [{ label: 'Reports', href: '/reports', permission: 'generate_reports' }],
-  },
-  {
-    label: 'Administration',
     items: [
-      { label: 'Organisation', href: '/settings/organisation', permission: 'manage_organisation' },
-      { label: 'Users', href: '/settings/users', permission: 'manage_users' },
-      { label: 'Roles & Permissions', href: '/settings/roles', permission: 'manage_users' },
-      { label: 'Billing', href: '/settings/billing', permission: 'manage_billing' },
-      { label: 'Settings', href: '/settings' },
+      { label: 'Weekly & Monthly Briefs', href: '/reports', hint: 'Download the executive PDF' },
+      { label: 'Settings', href: '/settings', hint: 'Profile and data sources' },
     ],
   },
 ];
 
-/** Drops anything the reader cannot open, and any group left empty. */
-export function visibleGroups(permissions: ReadonlySet<Permission>): NavGroup[] {
-  return NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => !item.permission || permissions.has(item.permission)),
-  })).filter((group) => group.items.length > 0);
-}
+/** The five that fit across the top bar on a desktop. */
+export const PRIMARY_NAV: NavItem[] = [
+  { label: 'Command Centre', href: '/command-centre' },
+  { label: 'DigitalTwin', href: '/digital-twin', trademark: '®' },
+  { label: 'OpportunityRadar', href: '/opportunity-radar', trademark: '®' },
+  { label: 'Inventory', href: '/inventory' },
+  { label: 'Reports', href: '/reports' },
+];
 
-export function visiblePrimary(permissions: ReadonlySet<Permission>): NavItem[] {
-  return PRIMARY_NAV.filter((item) => !item.permission || permissions.has(item.permission));
+/**
+ * Whether a nav entry should read as current.
+ *
+ * Exact match, or a path segment below it — so `/inventory/audit-log` lights
+ * `/inventory`, while `/reports` does not light `/report-builder`.
+ */
+export function isActive(href: string, pathname: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
 }

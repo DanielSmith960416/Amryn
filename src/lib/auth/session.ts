@@ -1,244 +1,123 @@
 import 'server-only';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { cookies } from 'next/headers';
 
 /**
- * Session and workspace resolution.
+ * Sessions as a signed cookie.
  *
- * Every server component and server action starts here. `requireWorkspace()`
- * returns the caller, the organisation they are acting in, their role, their
- * scope and their effective permissions in a single round trip — or redirects,
- * which is why it is safe to treat its result as non-null everywhere else.
+ * No session table, no store round-trip on every request: the cookie carries
+ * the account id and an expiry, HMAC-signed with a server secret. That is the
+ * whole mechanism, and it is the right size for this product.
+ *
+ * What it buys: a page can identify its reader without touching the account
+ * store. What it costs: a session cannot be revoked before it expires, other
+ * than by rotating `AMRYN_SESSION_SECRET`, which signs everyone out. For a
+ * fourteen-day executive session that is an acceptable trade; if per-session
+ * revocation is ever needed, add a token id to the payload and a deny-list to
+ * the store.
  */
-import { cache } from 'react';
-import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
-import type { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured } from '@/lib/env';
-import { isPermission, PermissionError, type Permission } from './permissions';
-import type { Enums, Row } from '@/types/database';
 
-export const ACTIVE_ORG_COOKIE = 'amryn.org';
+export const SESSION_COOKIE = 'amryn_session';
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
 
-export interface Workspace {
-  user: User;
-  profile: Row<'user_profiles'> | null;
-  organisation: Row<'organisations'>;
-  membership: Row<'organisation_members'>;
-  role: Enums['org_role'];
-  scope: { kind: Enums['scope_kind']; ids: string[]; label: string };
-  permissions: ReadonlySet<Permission>;
-  /** Every organisation the user belongs to, for the switcher. */
-  organisations: { id: string; name: string; slug: string; role: Enums['org_role'] }[];
+export interface SessionPayload {
+  /** Account id. */
+  sub: string;
+  /** Unix seconds. */
+  exp: number;
+}
+
+class MissingSecretError extends Error {
+  constructor() {
+    super(
+      'AMRYN_SESSION_SECRET is not set. Generate one with `openssl rand -base64 32` and add it ' +
+        'to your environment before signing anyone in.',
+    );
+    this.name = 'MissingSecretError';
+  }
 }
 
 /**
- * The signed-in user, or null. Uses getUser() rather than getSession() so the
- * token is verified against the auth server rather than merely decoded.
+ * In development a missing secret is generated once per process, so the
+ * platform runs out of the box. In production it is a hard error: a secret
+ * that changes on every deploy would sign every client out on every deploy,
+ * and one baked into the source would not be a secret.
  */
-export const getCurrentUser = cache(async (): Promise<User | null> => {
-  // Without configuration there is no session to have. Returning null lets
-  // every caller take its existing signed-out path — which ends at the
-  // sign-in page, where the missing configuration is explained — instead of
-  // throwing a server-side exception on every route.
-  if (!isSupabaseConfigured()) return null;
+function secret(): string {
+  const configured = process.env.AMRYN_SESSION_SECRET;
+  if (configured && configured.length >= 16) return configured;
 
-  // The same guard the middleware carries. An upstream failure — Supabase
-  // unreachable, a rejected key, a network blip — should cost a redirect to
-  // sign-in, not a server-side exception on whichever page the caller was on.
+  if (process.env.NODE_ENV === 'production') throw new MissingSecretError();
+
+  const g = globalThis as { __amrynDevSecret?: string };
+  g.__amrynDevSecret ??= randomBytes(32).toString('base64url');
+  return g.__amrynDevSecret;
+}
+
+function sign(body: string): string {
+  return createHmac('sha256', secret()).update(body).digest('base64url');
+}
+
+export function encodeSession(payload: SessionPayload): string {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${body}.${sign(body)}`;
+}
+
+/** Returns null for anything that is not a valid, unexpired, correctly signed token. */
+export function decodeSession(token: string | undefined): SessionPayload | null {
+  if (!token) return null;
+
+  const dot = token.lastIndexOf('.');
+  if (dot <= 0) return null;
+
+  const body = token.slice(0, dot);
+  const signature = token.slice(dot + 1);
+
+  let provided: Buffer;
+  let expected: Buffer;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return null;
-    return data.user;
-  } catch (error) {
-    console.error('[amryn:auth] could not resolve the current user', error);
+    provided = Buffer.from(signature, 'base64url');
+    expected = Buffer.from(sign(body), 'base64url');
+  } catch {
     return null;
   }
-});
+  // timingSafeEqual throws on a length mismatch, which is itself a signal, so
+  // the lengths are compared first and the result is the same either way.
+  if (provided.length !== expected.length) return null;
+  if (!timingSafeEqual(provided, expected)) return null;
 
-export async function requireUser(): Promise<User> {
-  const user = await getCurrentUser();
-  if (!user) redirect('/sign-in');
-  return user;
-}
-
-/**
- * Resolves the organisation the user is acting in.
- *
- * Cached per request: the Command Centre alone would otherwise resolve this
- * a dozen times while rendering its panels.
- */
-export const getWorkspace = cache(async (): Promise<Workspace | null> => {
-  if (!isSupabaseConfigured()) return null;
-
-  const user = await getCurrentUser();
-  if (!user) return null;
-
-  const supabase = await createClient();
-
-  const { data: memberships } = await supabase
-    .from('organisation_members')
-    .select('*, organisations!inner(id, name, slug)')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .order('joined_at', { ascending: true });
-
-  if (!memberships || memberships.length === 0) return null;
-
-  const available = memberships
-    .map((m) => {
-      // The embed can be null or, for some relationship shapes, an array.
-      // A membership whose organisation did not come back is not something to
-      // crash over — it is one the user cannot act in, so drop it.
-      const raw = m.organisations as unknown;
-      const org = (Array.isArray(raw) ? raw[0] : raw) as
-        | { id: string; name: string; slug: string }
-        | null
-        | undefined;
-      if (!org?.id) return null;
-      return { id: org.id, name: org.name, slug: org.slug, role: m.role };
-    })
-    .filter((o): o is NonNullable<typeof o> => o !== null);
-
-  if (available.length === 0) return null;
-
-  // Honour the switcher's choice if it is still a live membership.
-  const cookieStore = await cookies();
-  const preferred = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
-  const membership =
-    memberships.find((m) => m.organisation_id === preferred) ?? memberships[0];
-  if (!membership) return null;
-
-  const [{ data: organisation }, { data: existingProfile }, permissions] = await Promise.all([
-    supabase.from('organisations').select('*').eq('id', membership.organisation_id).single(),
-    supabase.from('user_profiles').select('*').eq('id', user.id).maybeSingle(),
-    resolvePermissions(membership.organisation_id, membership.id, membership.role),
-  ]);
-
-  if (!organisation) return null;
-
-  // A profile is normally written by a trigger on auth.users, which a hosted
-  // Supabase project may refuse to install — the SQL editor does not own that
-  // table. Where it is absent, nothing else creates the row, and the name and
-  // avatar are missing everywhere for the life of the account.
-  //
-  // Only when it is actually missing, which is once per account at most.
-  let profile = existingProfile;
-  if (!profile) {
-    const { error } = await supabase.rpc('ensure_user_profile');
-    if (error) {
-      // Not worth failing the page over: the profile is presentation, and the
-      // rest of the workspace is already loaded.
-      console.error('[amryn:auth] could not create the user profile', error.message);
-    } else {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-      profile = data;
-    }
+  let payload: SessionPayload;
+  try {
+    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as SessionPayload;
+  } catch {
+    return null;
   }
 
-  return {
-    user,
-    profile: profile ?? null,
-    organisation,
-    membership,
-    role: membership.role,
-    scope: {
-      kind: membership.scope_kind,
-      ids: membership.scope_ids,
-      label: await describeScope(membership),
-    },
-    permissions,
-    organisations: available,
-  };
-});
+  if (typeof payload?.sub !== 'string' || typeof payload?.exp !== 'number') return null;
+  if (payload.exp * 1000 <= Date.now()) return null;
 
-export async function requireWorkspace(): Promise<Workspace> {
-  if (!isSupabaseConfigured()) redirect('/sign-in');
-
-  const workspace = await getWorkspace();
-  if (!workspace) {
-    const user = await getCurrentUser();
-    // Signed in but belonging to nothing: send them to create an organisation
-    // rather than to a sign-in page they have already passed.
-    redirect(user ? '/onboarding' : '/sign-in');
-  }
-  return workspace;
+  return payload;
 }
 
-/**
- * Effective permissions: the role's defaults, then per-member overrides.
- *
- * This mirrors amryn.has_permission() in the database. If the two ever
- * disagree, the database wins — the worst outcome is a control that is shown
- * and then refuses, never one that is hidden but works.
- */
-async function resolvePermissions(
-  organisationId: string,
-  memberId: string,
-  role: Enums['org_role'],
-): Promise<ReadonlySet<Permission>> {
-  const supabase = await createClient();
+export async function startSession(accountId: string): Promise<void> {
+  const token = encodeSession({
+    sub: accountId,
+    exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
+  });
 
-  const [{ data: defaults }, { data: overrides }] = await Promise.all([
-    supabase.from('role_permissions').select('permission_key').eq('role', role),
-    supabase
-      .from('member_permission_overrides')
-      .select('permission_key, granted')
-      .eq('organisation_id', organisationId)
-      .eq('member_id', memberId),
-  ]);
-
-  const effective = new Set<Permission>();
-  for (const row of defaults ?? []) {
-    if (isPermission(row.permission_key)) effective.add(row.permission_key);
-  }
-  for (const row of overrides ?? []) {
-    if (!isPermission(row.permission_key)) continue;
-    if (row.granted) effective.add(row.permission_key);
-    else effective.delete(row.permission_key);
-  }
-  return effective;
+  (await cookies()).set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  });
 }
 
-async function describeScope(membership: Row<'organisation_members'>): Promise<string> {
-  if (membership.scope_kind === 'organisation') return 'Whole organisation';
-
-  const supabase = await createClient();
-  const table =
-    membership.scope_kind === 'region'
-      ? 'regions'
-      : membership.scope_kind === 'branch'
-        ? 'branches'
-        : 'departments';
-
-  const { data } = await supabase.from(table).select('name').in('id', membership.scope_ids);
-  const names = (data ?? []).map((r) => r.name);
-  if (names.length === 0) return 'No assigned scope';
-  if (names.length <= 2) return names.join(' and ');
-  return `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
+export async function endSession(): Promise<void> {
+  (await cookies()).delete(SESSION_COOKIE);
 }
 
-/* ── guards ────────────────────────────────────────────────────────────── */
-
-export function can(workspace: Workspace, permission: Permission): boolean {
-  return workspace.permissions.has(permission);
-}
-
-/** Throws rather than redirecting: use inside server actions. */
-export function assertPermission(workspace: Workspace, permission: Permission): void {
-  if (!can(workspace, permission)) throw new PermissionError(permission);
-}
-
-/**
- * Resolve the workspace and require a permission in one call. Used at the top
- * of a page that should not exist for a user who cannot use it.
- */
-export async function requirePermission(permission: Permission): Promise<Workspace> {
-  const workspace = await requireWorkspace();
-  if (!can(workspace, permission)) redirect('/command-centre?denied=' + permission);
-  return workspace;
+export async function readSession(): Promise<SessionPayload | null> {
+  return decodeSession((await cookies()).get(SESSION_COOKIE)?.value);
 }

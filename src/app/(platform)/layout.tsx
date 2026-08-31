@@ -1,47 +1,25 @@
 import { AppShell } from '@/components/shell/app-shell';
-import { visibleGroups, visiblePrimary } from '@/components/shell/navigation';
-import { requireWorkspace } from '@/lib/auth/session';
-import { ROLE_LABELS } from '@/lib/auth/permissions';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/current-user';
+import { loadWorkspace } from '@/lib/workspace';
 
 /**
- * Every authenticated route sits inside this layout, so `requireWorkspace()`
- * runs once per request and the redirect for a signed-out or org-less user
- * happens in one place rather than at the top of twenty pages.
+ * The client area.
  *
- * Nothing under here can be prerendered: every page is a function of who is
- * asking, and Row Level Security narrows the data per session. Declaring that
- * explicitly also keeps the build honest — without it, Next attempts a
- * prerender, reaches for Supabase credentials that a fresh deployment has not
- * been given yet, and fails the build before anyone has had a chance to set
- * them.
+ * `requireUser` runs here, once, so every page beneath this layout is behind
+ * authentication by construction rather than by each page remembering to check.
+ * The previous build used Next middleware for this; a layout guard is simpler
+ * and, because it runs in the Node runtime, it can read the account store.
  */
-export const dynamic = 'force-dynamic';
-
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
-  const workspace = await requireWorkspace();
-  const supabase = await createClient();
-
-  const { count } = await supabase
-    .from('alerts')
-    .select('id', { count: 'exact', head: true })
-    .eq('organisation_id', workspace.organisation.id)
-    .eq('status', 'new');
-
-  const name =
-    workspace.profile?.full_name ?? workspace.user.email?.split('@')[0] ?? 'Account';
+  const user = await requireUser();
+  const workspace = loadWorkspace();
 
   return (
     <AppShell
-      primary={visiblePrimary(workspace.permissions)}
-      groups={visibleGroups(workspace.permissions)}
-      organisations={workspace.organisations}
-      activeOrganisationId={workspace.organisation.id}
-      userName={name}
-      userEmail={workspace.user.email ?? ''}
-      scopeLabel={workspace.scope.label}
-      roleLabel={ROLE_LABELS[workspace.role] ?? workspace.role}
-      unreadCount={count ?? 0}
+      userName={user.fullName}
+      userEmail={user.email}
+      companyName={user.companyName}
+      isDemo={workspace.isDemo}
     >
       {children}
     </AppShell>
