@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ACTIVE_ORG_COOKIE, requireUser } from '@/lib/auth/session';
+import { checkLimit } from '@/lib/auth/rate-limit';
 
 /**
  * Switches the organisation the user is acting in.
@@ -138,6 +139,9 @@ export async function createOrganisation(
   if (!parsed.success) {
     return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check the details.' };
   }
+
+  const limit = await checkLimit('createOrganisation', null);
+  if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('create_organisation', {

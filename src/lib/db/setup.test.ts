@@ -85,7 +85,7 @@ describe('EXPECTED', () => {
     // cannot drift into disagreeing about what "ready" means. It earned its
     // place immediately: migration 11 added organisation_invitations, and this
     // is what noticed that "ready" still meant 45.
-    expect(EXPECTED.tables).toBe(46);
+    expect(EXPECTED.tables).toBe(47);
     expect(EXPECTED.permissions).toBe(30);
   });
 });

@@ -18,6 +18,12 @@ const PUBLIC_PATHS = [
   // a health check that needs credentials reports on the credentials rather
   // than on the service.
   '/api/health',
+  // Not open — internalAccess() closes both, admitting an administrator or a
+  // caller holding the token. They are listed here so middleware lets the
+  // request reach that check: redirecting to sign-in first would mean the
+  // token could never be used, and the token exists precisely for when nobody
+  // can sign in.
+  '/setup',
   // An invitation is followed by someone who does not have an account yet, so
   // the page has to be readable signed out. It reveals only the organisation's
   // name, the role and the address the invitation was sent to — all of which

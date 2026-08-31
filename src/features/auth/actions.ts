@@ -32,6 +32,7 @@ import {
 import { siteUrl } from '@/lib/env';
 import { classifyAuthError, signInErrorMessage } from './errors';
 import { safeNextPath } from './next-path';
+import { checkAuthLimit } from '@/lib/auth/rate-limit';
 
 
 export async function signInWithPassword(
@@ -46,6 +47,11 @@ export async function signInWithPassword(
   if (!parsed.success) {
     return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check your details.' };
   }
+
+  // Checked after validation so a malformed submission does not consume an
+  // attempt, and before the credentials are tried so a refusal costs nothing.
+  const limit = await checkAuthLimit('signIn', parsed.data.email);
+  if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
@@ -72,6 +78,9 @@ export async function signUpWithPassword(
   if (!parsed.success) {
     return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check your details.' };
   }
+
+  const limit = await checkAuthLimit('signUp', parsed.data.email);
+  if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
@@ -101,6 +110,9 @@ export async function signInWithMagicLink(
   if (!parsed.success) {
     return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check your address.' };
   }
+
+  const limit = await checkAuthLimit('signIn', parsed.data.email);
+  if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
@@ -141,6 +153,9 @@ export async function requestPasswordReset(
   if (!parsed.success) {
     return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check your address.' };
   }
+
+  const limit = await checkAuthLimit('passwordReset', parsed.data.email);
+  if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
