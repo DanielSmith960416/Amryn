@@ -23,6 +23,7 @@ import 'server-only';
  */
 import { createClient } from '@/lib/supabase/server';
 import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
+import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped';
@@ -189,7 +190,7 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
     },
   ];
 
-  const optional: Check = aiCheck();
+  const optional: Check[] = [aiCheck(), await emailCheck()];
 
   if (configProblem) {
     const skipped: Check[] = [
@@ -205,7 +206,7 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
       status: 'skipped' as const,
       detail: 'Skipped — there is no configuration to connect with.',
     }));
-    return summarise([...configuration, ...skipped, optional]);
+    return summarise([...configuration, ...skipped, ...optional]);
   }
 
   const [reachable, ...rest] = await Promise.all([
@@ -248,10 +249,55 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
       ]
     : [reachable, ...rest];
 
-  return summarise([...configuration, ...connected, optional]);
+  return summarise([...configuration, ...connected, ...optional]);
 }
 
 /* ── individual checks ─────────────────────────────────────────────────── */
+
+/**
+ * Can the platform actually send an email?
+ *
+ * Settings that look right and a server that refuses them are
+ * indistinguishable until something connects, and finding out at the moment
+ * you invite a colleague is finding out too late. This opens a connection and
+ * authenticates without sending anything.
+ *
+ * Optional: with no mail service the invitation link is shown to whoever
+ * created it, which works, so this is a warning rather than a failure.
+ */
+async function emailCheck(): Promise<Check> {
+  const config = smtpConfig();
+
+  if (!config) {
+    return {
+      name: 'Email delivery',
+      status: 'warn',
+      detail:
+        'No mail service configured. Invitations still work — the link is shown to whoever creates one, to pass on themselves.',
+      remedy:
+        'To send them automatically, set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM, then redeploy.',
+    };
+  }
+
+  return attempt('Email delivery', async () => {
+    const result = await verifySmtp();
+    return result.ok
+      ? {
+          name: 'Email delivery',
+          status: 'ok',
+          // Host and port are not secrets, and are the two settings most often
+          // wrong. The password never appears here or in any error above.
+          detail: `Connected to ${config.host}:${config.port}${config.secure ? ' over TLS' : ' with STARTTLS'}, and it accepted the credentials. Invitations are emailed.`,
+        }
+      : {
+          name: 'Email delivery',
+          status: 'fail',
+          detail: `${config.host}:${config.port} did not accept the connection — ${describe(result.problem)}.`,
+          remedy:
+            'Check the host, port and credentials. Port 465 expects TLS from the first byte; 587 starts in the clear and upgrades, and using the wrong one produces a hang rather than a refusal.',
+        };
+  });
+}
 
 function checkReachable(): Promise<Check> {
   return attempt(
