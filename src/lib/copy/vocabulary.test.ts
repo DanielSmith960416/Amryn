@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { EXEMPT_PATHS, OPERATOR_VOCABULARY } from './vocabulary';
 
@@ -20,13 +20,31 @@ import { EXEMPT_PATHS, OPERATOR_VOCABULARY } from './vocabulary';
  * the anon key necessarily names the anon key.
  */
 
+/**
+ * Every source file, including ones not yet committed.
+ *
+ * `git ls-files` alone lists only what is tracked, which meant a brand-new
+ * file was invisible to this guard until after it had been committed — and a
+ * new file is exactly when the check is worth having. It let
+ * src/features/mfa/admin.ts through on the run that mattered.
+ *
+ * --cached --others --exclude-standard is tracked files plus untracked ones
+ * that .gitignore does not cover, which is the set a contributor is about to
+ * commit.
+ */
 function sourceFiles(): string[] {
-  const listed = execSync('git ls-files "src/**/*.ts" "src/**/*.tsx"', { encoding: 'utf8' });
+  const listed = execSync(
+    'git ls-files --cached --others --exclude-standard "src/**/*.ts" "src/**/*.tsx"',
+    { encoding: 'utf8' },
+  );
   return listed
     .split('\n')
     .filter(Boolean)
     .filter((path) => !path.endsWith('.test.ts') && !path.endsWith('.test.tsx'))
-    .filter((path) => !EXEMPT_PATHS.some((exempt) => path.startsWith(exempt)));
+    .filter((path) => !EXEMPT_PATHS.some((exempt) => path.startsWith(exempt)))
+    // A path can be listed twice — tracked and modified, say — and scanning it
+    // twice would report the same offender twice.
+    .filter((path, index, all) => all.indexOf(path) === index);
 }
 
 /**
@@ -35,12 +53,14 @@ function sourceFiles(): string[] {
  * Comments go first: an explanation of why a message avoids naming the anon
  * key necessarily names the anon key.
  *
- * Then the two places operator wording is *supposed* to live. `console.*`
- * calls are the server log, which is exactly where the setting at fault
- * belongs. `detail:` is the field an AuthFault carries for the same purpose —
- * the counterpart of `message:`, which is checked. Without this the guard
- * would push the diagnosis out of the code altogether, and a deployment that
- * says nothing anywhere is worse than one that says the wrong thing on screen.
+ * Then the places operator wording is *supposed* to live. `console.*` calls
+ * are the server log, which is exactly where the setting at fault belongs.
+ * `detail:` and `problem:` are the fields that carry the operator's half of a
+ * failure — the counterparts of `message:`, which is checked — and both are
+ * consumed by ourFault(), which logs them and returns the customer's sentence.
+ * Without this the guard would push the diagnosis out of the code altogether,
+ * and a deployment that says nothing anywhere is worse than one that says the
+ * wrong thing on screen.
  */
 function customerFacing(source: string): string {
   return source
@@ -48,7 +68,7 @@ function customerFacing(source: string): string {
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
     .replace(/console\.(error|warn|info|log|debug)\([\s\S]*?\n\s*\);/g, ' ')
     .replace(/console\.(error|warn|info|log|debug)\([^\n]*\);/g, ' ')
-    .replace(/\bdetail:[\s\S]*?,\n/g, ' ');
+    .replace(/\b(detail|problem):[\s\S]*?,\n/g, ' ');
 }
 
 /**
@@ -75,6 +95,38 @@ function readableText(source: string): string[] {
 
   return found;
 }
+
+/**
+ * The guard has to see a file that has never been committed.
+ *
+ * This is not hypothetical: it is the bug this test was written after. The
+ * listing used `git ls-files`, which is tracked files only, so a new file was
+ * exempt until its second run — and src/features/mfa/admin.ts went in with a
+ * string naming an environment variable, past a check that was looking the
+ * other way.
+ */
+describe('the file listing', () => {
+  // Not under src/lib/copy/, which is exempt — the decoy has to sit somewhere
+  // the guard actually watches or it proves nothing.
+  const decoy = 'src/features/__untracked-probe.ts';
+
+  beforeAll(() => {
+    writeFileSync(decoy, "export const NOTE = 'Open /diagnostics and check the anon key.';\n");
+  });
+
+  afterAll(() => {
+    rmSync(decoy, { force: true });
+  });
+
+  it('includes a file that has never been committed', () => {
+    expect(sourceFiles()).toContain(decoy);
+  });
+
+  it('and would fail on it, which is the whole point', () => {
+    const offenders = readableText(readFileSync(decoy, 'utf8'));
+    expect(offenders.some((text) => /diagnostics/i.test(text))).toBe(true);
+  });
+});
 
 describe('customer-facing copy', () => {
   const files = sourceFiles();
