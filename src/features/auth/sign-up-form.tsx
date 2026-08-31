@@ -8,7 +8,7 @@ import { signUpWithPassword } from './actions';
 import type { ActionState } from './schemas';
 import { AuthError } from './auth-error';
 
-export function SignUpForm() {
+export function SignUpForm({ next }: { next?: string }) {
   const [state, action] = useActionState(signUpWithPassword, { status: 'idle' } as ActionState);
 
   if (state.status === 'sent') {
@@ -24,6 +24,9 @@ export function SignUpForm() {
 
   return (
     <form action={action} className="space-y-4">
+        {/* Carried through so an invitation survives signing in.
+            Validated server-side; never used as given. */}
+        {next ? <input type="hidden" name="next" value={next} /> : null}
       <div>
         <Label htmlFor="fullName">Full name</Label>
         <Input id="fullName" name="fullName" autoComplete="name" required />

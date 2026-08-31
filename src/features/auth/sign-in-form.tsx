@@ -10,7 +10,7 @@ import { AuthError } from './auth-error';
 
 const idle: ActionState = { status: 'idle' };
 
-export function SignInForm() {
+export function SignInForm({ next }: { next?: string }) {
   const [mode, setMode] = useState<'password' | 'magic'>('password');
   const [passwordState, passwordAction] = useActionState(signInWithPassword, idle);
   const [magicState, magicAction] = useActionState(signInWithMagicLink, idle);
@@ -20,6 +20,9 @@ export function SignInForm() {
   return (
     <div className="space-y-5">
       <form action={mode === 'password' ? passwordAction : magicAction} className="space-y-4">
+        {/* Carried through so an invitation survives signing in.
+            Validated server-side; never used as given. */}
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <div>
           <Label htmlFor="email">Work email</Label>
           <Input

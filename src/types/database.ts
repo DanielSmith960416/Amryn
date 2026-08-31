@@ -2066,6 +2066,79 @@ export interface Database {
           },
         ];
       };
+      organisation_invitations: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          email: string;
+          role: Enums['org_role'];
+          scope_kind: Enums['scope_kind'];
+          scope_ids: string[];
+          token_hash: string;
+          invited_by: string | null;
+          expires_at: string;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          revoked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          email: string;
+          role?: Enums['org_role'];
+          scope_kind?: Enums['scope_kind'];
+          scope_ids?: string[];
+          token_hash: string;
+          invited_by?: string | null;
+          expires_at?: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          email?: string;
+          role?: Enums['org_role'];
+          scope_kind?: Enums['scope_kind'];
+          scope_ids?: string[];
+          token_hash?: string;
+          invited_by?: string | null;
+          expires_at?: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'organisation_invitations_accepted_by_fkey';
+            columns: ['accepted_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'organisation_invitations_invited_by_fkey';
+            columns: ['invited_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'organisation_invitations_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       organisation_members: {
         Row: {
           id: string;
@@ -2702,6 +2775,12 @@ export interface Database {
     };
     Views: { [_ in never]: never };
     Functions: {
+      accept_invitation: {
+        Args: {
+          p_token: string;
+        };
+        Returns: string;
+      };
       create_organisation: {
         Args: {
           p_name: string;
@@ -2715,6 +2794,12 @@ export interface Database {
       ensure_user_profile: {
         Args: Record<string, never>;
         Returns: undefined;
+      };
+      invitation_preview: {
+        Args: {
+          p_token: string;
+        };
+        Returns: Record<string, unknown>[];
       };
     };
     Enums: Enums;

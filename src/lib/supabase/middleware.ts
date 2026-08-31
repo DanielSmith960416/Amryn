@@ -14,6 +14,12 @@ const PUBLIC_PATHS = [
   '/reset-password',
   '/auth',
   '/diagnostics',
+  // An invitation is followed by someone who does not have an account yet, so
+  // the page has to be readable signed out. It reveals only the organisation's
+  // name, the role and the address the invitation was sent to — all of which
+  // the recipient already has in front of them. Accepting is a separate step
+  // and needs a session.
+  '/invite',
 ];
 
 /**

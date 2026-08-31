@@ -48,7 +48,7 @@ would provide, so the migrations can be exercised against plain PostgreSQL.
 
 ### What is built
 
-- **Multi-tenant PostgreSQL schema** — 45 tables, Row Level Security on every
+- **Multi-tenant PostgreSQL schema** — 46 tables, Row Level Security on every
   one. A user reads a row only if they are an active member of its
   organisation, its branch falls inside their scope, and they hold the
   permission gating that table. All three are decided in SQL. Forty-six

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { safeNextPath } from '@/features/auth/next-path';
 
 /**
  * OAuth and magic-link landing point.
@@ -13,7 +14,9 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const requested = searchParams.get('next');
 
-  const next = requested && /^\/(?!\/)/.test(requested) ? requested : '/command-centre';
+  // One rule, shared with the sign-in actions. Two copies of a redirect
+  // check are two chances to disagree about what is safe.
+  const next = safeNextPath(requested);
 
   if (!code) {
     return NextResponse.redirect(`${origin}/sign-in?error=missing_code`);
