@@ -287,7 +287,14 @@ async function emailCheck(): Promise<Check> {
           status: 'ok',
           // Host and port are not secrets, and are the two settings most often
           // wrong. The password never appears here or in any error above.
-          detail: `Connected to ${config.host}:${config.port}${config.secure ? ' over TLS' : ' with STARTTLS'}, and it accepted the credentials. Invitations are emailed.`,
+          //
+          // The second sentence exists because this check going green while
+          // confirmation emails fail to arrive is a genuinely confusing state:
+          // Supabase generates those tokens itself and sends them itself, so
+          // they are configured in its dashboard and nothing here reaches them.
+          detail:
+            `Connected to ${config.host}:${config.port}${config.secure ? ' over TLS' : ' with STARTTLS'}, and it accepted the credentials. ` +
+            'Invitations are emailed. Sign-in and confirmation emails are Supabase’s own, set separately under Authentication → Emails.',
         }
       : {
           name: 'Email delivery',

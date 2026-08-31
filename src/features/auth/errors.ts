@@ -85,11 +85,16 @@ const PATTERNS: ReadonlyArray<{ test: RegExp; kind: AuthFaultKind; message: stri
     message: 'New accounts are turned off for this workspace. Ask whoever administers it for an invitation.',
   },
   {
+    // Deliberately not "no email service is configured yet". That was true
+    // when nothing was set up and became wrong the moment something was — and
+    // a message that confidently names the wrong cause sends the reader to
+    // check a setting that is already correct.
     test: /error sending|smtp|confirmation email/i,
     kind: 'service',
     message:
       'The account may have been created, but the confirmation email could not be sent. ' +
-      'This deployment has no email service configured yet.',
+      'That is a fault in this deployment, not in what you typed. Whoever administers it ' +
+      'should check the mail settings under Supabase → Authentication → Emails.',
   },
   {
     test: /rate limit|only request this after|too many requests/i,
