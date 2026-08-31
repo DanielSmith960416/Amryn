@@ -99,13 +99,40 @@ enable_manual_linking = false
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
-# On locally, off in production: a real deployment should confirm addresses
-# before it will hand someone a session.
-enable_confirmations = false
+# Turn this on once mail is configured below. It was off because Supabase's
+# built-in sender is capped at a handful of messages an hour and is meant for
+# development — with confirmations on and no mail service, people sign up, wait
+# for a message that never arrives, and are stuck with no way to tell why.
+enable_confirmations = true
 secure_password_change = true
 max_frequency = "1s"
 otp_length = 6
 otp_expiry = 3600
+
+# ── sending ───────────────────────────────────────────────────────────────
+# Supabase generates confirmation, recovery and change-of-address tokens
+# internally and sends them itself, so this cannot be done from the
+# application: these are the only emails the platform does not control.
+#
+# The same credentials as SMTP_* in Vercel. Both mail paths through one
+# provider means one domain to verify, one reputation to keep, and one place to
+# look when something stops arriving.
+#
+# `supabase config push` applies this to the linked project. Without the CLI,
+# set the same five values by hand in
+# Authentication → Emails → SMTP, and treat what is written here as the record
+# of what they should be.
+#
+# The password is read from the environment, never committed. Supabase's CLI
+# expands env(...) at push time.
+[auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 587
+user = "resend"
+pass = "env(SMTP_PASSWORD)"
+admin_email = "no-reply@amryn.co.za"
+sender_name = "Amryn"
 
 [auth.sessions]
 # An executive dashboard left open on an unlocked laptop is a real exposure.
