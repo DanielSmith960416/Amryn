@@ -89,6 +89,35 @@ revoke all on function public.record_account_event(text, text) from public, anon
 grant execute on function public.record_account_event(text, text) to authenticated, anon;
 
 -- ── withdraw the forgeable path ──────────────────────────────────────────
+--
+-- Two changes, and the second is the one that makes the first survivable.
+--
+-- Dropping the policy is what removes the forgeable write. But audit_logs
+-- carries FORCE row level security, which applies to the table's owner too —
+-- and with no insert policy left, "everyone" includes the owner. Every
+-- SECURITY DEFINER function that writes an audit row runs as that owner:
+-- the two below, and create_organisation(), whose last statement records
+-- 'organisation.created'. An error inside a function rolls the whole call
+-- back, so dropping the policy alone would have broken organisation creation
+-- outright — on the onboarding form, for every new customer.
+--
+-- On a local PostgreSQL this is invisible: there the owner is a superuser, and
+-- a superuser bypasses row level security whether or not it is forced. On a
+-- hosted Supabase project the postgres role is not a superuser, so it is
+-- subject to the policies like anyone else. This is the third time that
+-- difference has hidden a fault from the test suite; supabase/tests/17 now
+-- reproduces it deliberately.
+--
+-- Lifting FORCE is the correct answer rather than a workaround. What must be
+-- true of an append-only log is that the application cannot write to it
+-- directly and can only read its own organisation's rows — and both survive:
+-- the revoke below removes the write privilege from authenticated entirely,
+-- which is a stronger guarantee than a policy, and audit_read still governs
+-- every read, because a caller is never the owner. The only writers left are
+-- the definer functions, which is what "the only way the application writes an
+-- audit row" was meant to mean.
+alter table public.audit_logs no force row level security;
+
 drop policy if exists audit_append on public.audit_logs;
 revoke insert, update, delete on public.audit_logs from authenticated, anon;
 

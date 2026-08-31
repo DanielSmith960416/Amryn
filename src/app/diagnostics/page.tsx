@@ -33,7 +33,9 @@ export default async function DiagnosticsPage({
   const { key } = await searchParams;
   if ((await internalAccess(key)) === 'denied') notFound();
 
-  const report = await runDiagnostics();
+  // Access was established above, so the check that needs a direct database
+  // connection is allowed here — this page has one reader and is not polled.
+  const report = await runDiagnostics({ directConnection: true });
   const healthy = report.summary.fail === 0;
 
   return (

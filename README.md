@@ -102,6 +102,51 @@ the paths exempt from the rule; a test walks the source for them, ignoring
 comments, `console.*` calls and `detail:` fields. It fails on a sentence that
 names a migration, a schema, an environment variable or `/diagnostics`.
 
+### Applying migrations
+
+There are two moments, and they used to be handled by the same refusal.
+
+**An empty database.** Open `/setup` and press *Build the database*. It applies
+the whole generated file in one transaction — all of it or none, never half.
+
+**A database that already exists.** `/setup` now applies only the migrations
+that database has not recorded, each in its own transaction. This was the
+missing case: adding a migration to a deployment with customers in it had no
+route through the application at all, and the answer offered was *"clear the
+public schema first"*, which on a production database destroys it.
+
+From a terminal instead, with `SUPABASE_DB_URL` set or in `.env.local`:
+
+```
+npm run db:migrate:dry     # list what is outstanding, change nothing
+npm run db:migrate         # apply it
+```
+
+`/diagnostics` names the outstanding files under **Pending migrations**.
+
+#### How it knows
+
+`amryn.schema_migrations` records each file as it is applied, in the same
+transaction that applies it — so a migration cannot be half applied, and cannot
+be recorded without having been applied.
+
+A database that predates the ledger has no record of the twelve migrations it
+has already had, and running them again would fail on the first `create table`.
+So on first use the ledger is seeded by *looking*: each migration has a
+signature in `supabase/migrations/signatures.json` — one SQL expression that is
+true only once that file has been applied. Guessing is not acceptable here,
+because marking a migration applied when it was not means the next run skips
+it, and the fault surfaces much later as a missing column that nothing explains.
+
+Adding a migration therefore means adding its signature. The generator refuses
+to build without one, and a database test walks the migrations one at a time
+asserting that every signature turns true at its own file **and no earlier** —
+a signature satisfied by an earlier migration is the dangerous kind, because it
+makes its own file look already applied.
+
+Nothing applies migrations automatically on deploy, deliberately: a build step
+with DDL rights on a production database runs on every preview branch too.
+
 ### The security log
 
 `audit_logs` is written only by `record_security_event()` and

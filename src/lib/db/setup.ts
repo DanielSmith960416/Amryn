@@ -24,6 +24,13 @@ import 'server-only';
  */
 import { Client } from 'pg';
 import { SETUP_SQL, MIGRATION_FILES } from './setup-sql';
+import {
+  applyPending,
+  ensureLedger,
+  pendingMigrations,
+  signatureHolds,
+  type AppliedMigration,
+} from './ledger';
 
 /** How complete the database is, decided by looking rather than by remembering. */
 export type SchemaState = 'absent' | 'partial' | 'ready';
@@ -70,7 +77,13 @@ async function connect(): Promise<Client> {
     // Supabase terminates TLS with a certificate this container has no root
     // for. The connection is still encrypted; only the chain is unverified,
     // and the alternative is not connecting at all.
-    ssl: { rejectUnauthorized: false },
+    //
+    // Off only when the connection string says so in as many words. A local
+    // PostgreSQL over a unix socket offers no TLS at all and refuses the
+    // handshake, so the standard `sslmode=disable` has to mean something —
+    // but it is the operator's own explicit statement about their own
+    // database, never a fallback this code reaches for when TLS fails.
+    ssl: /[?&]sslmode=disable(&|$)/.test(url) ? false : { rejectUnauthorized: false },
     connectionTimeoutMillis: 10_000,
     statement_timeout: 120_000,
   });
@@ -144,30 +157,33 @@ export interface SetupResult {
   schema?: SchemaStatus;
   /** Notices Postgres raised, which is where the file reports what it did. */
   notices?: string[];
+  /** Per-migration outcomes, when this was an incremental run. */
+  applied?: AppliedMigration[];
+  /** Files still to apply after this run, if it stopped early. */
+  outstanding?: string[];
 }
 
+/**
+ * Brings the database up to date, whatever state it is in.
+ *
+ * Two paths, because building from nothing and changing something that exists
+ * are different problems and were being solved by the same refusal.
+ *
+ *   · Empty → the generated file, in one transaction. Either the whole schema
+ *     appears or nothing does.
+ *   · Already has a schema → only the migrations it has not recorded, each in
+ *     its own transaction.
+ *
+ * The second path is what was missing. Adding a migration to a deployment with
+ * customers in it had no route through the application at all: the state was
+ * neither absent nor ready, and this function answered "clear the public
+ * schema first" — advice that, followed on a production database, destroys it.
+ */
 export async function applySchema(): Promise<SetupResult> {
   const before = await readSchemaStatus();
 
   if (before.problem) {
     return { ok: false, message: `Could not reach the database — ${before.problem}`, schema: before };
-  }
-
-  // Refusing when it is already built is the whole safety story. Without it,
-  // this is a route on the public internet that runs DDL.
-  if (before.state === 'ready') {
-    return { ok: true, message: 'Already built. Nothing to do.', schema: before };
-  }
-
-  if (before.state === 'partial') {
-    return {
-      ok: false,
-      message:
-        `The database is half built — ${before.tables} tables, ${before.permissions} permissions. ` +
-        'Applying the schema over the top would fail on the first table that already exists. ' +
-        'Clear the public schema first, then run this again.',
-      schema: before,
-    };
   }
 
   let client: Client | undefined;
@@ -178,19 +194,78 @@ export async function applySchema(): Promise<SetupResult> {
       if (n.message) notices.push(n.message);
     });
 
-    // SETUP_SQL opens and closes its own transaction, so a failure anywhere
-    // leaves the database exactly as it was.
-    await client.query(SETUP_SQL);
+    // ── nothing there: build it in one transaction ───────────────────────
+    if (before.state === 'absent') {
+      // SETUP_SQL opens and closes its own transaction, so a failure anywhere
+      // leaves the database exactly as it was.
+      await client.query(SETUP_SQL);
+
+      // Then record what was applied, so the next change is incremental. The
+      // ledger seeds itself by looking at the schema, which has just become
+      // complete, so every migration is recorded as applied.
+      await ensureLedger(client);
+
+      const after = await readSchemaStatus();
+      return {
+        ok: after.state === 'ready',
+        message:
+          after.state === 'ready'
+            ? `Built: ${after.tables} tables, ${after.permissions} permissions, ${after.roleGrants} role grants.`
+            : `The script ran but the result is not what it should be — ${after.tables} tables, ${after.permissions} permissions.`,
+        schema: after,
+        notices,
+      };
+    }
+
+    // ── something there: apply only what it has not seen ─────────────────
+    //
+    // The ledger seeds itself on first use by looking for an object each
+    // migration introduces, rather than assuming how far a previous run got.
+    const { seeded } = await ensureLedger(client);
+    const pending = await pendingMigrations(client);
+
+    if (pending.length === 0) {
+      const message =
+        before.state === 'ready'
+          ? 'Already up to date. Nothing to apply.'
+          : `Every migration has been applied, but the result is not what it should be — ` +
+            `${before.tables} tables, ${before.permissions} permissions. ` +
+            `Run supabase/tests/verify-remote.sql for the full picture.`;
+      return { ok: before.state === 'ready', message, schema: before, notices };
+    }
+
+    const applied = await applyPending(client, pending, safeMessage);
+    const failed = applied.find((result) => !result.ok);
+    const outstanding = pending
+      .slice(applied.length)
+      .map((migration) => migration.file)
+      .concat(failed ? [failed.file] : []);
 
     const after = await readSchemaStatus();
+    const succeeded = applied.filter((result) => result.ok).length;
+
+    if (failed) {
+      return {
+        ok: false,
+        message:
+          `Applied ${succeeded} of ${pending.length}, then stopped at ${failed.file}: ` +
+          `${failed.problem} Nothing from that file was applied, and the ones before it stand.`,
+        schema: after,
+        notices,
+        applied,
+        outstanding,
+      };
+    }
+
     return {
       ok: after.state === 'ready',
       message:
-        after.state === 'ready'
-          ? `Built: ${after.tables} tables, ${after.permissions} permissions, ${after.roleGrants} role grants.`
-          : `The script ran but the result is not what it should be — ${after.tables} tables, ${after.permissions} permissions.`,
+        `Applied ${succeeded} migration${succeeded === 1 ? '' : 's'}` +
+        (seeded.length > 0 ? `, having found ${seeded.length} already in place` : '') +
+        `. Now ${after.tables} tables, ${after.permissions} permissions, ${after.roleGrants} role grants.`,
       schema: after,
       notices,
+      applied,
     };
   } catch (error) {
     return {
@@ -204,4 +279,41 @@ export async function applySchema(): Promise<SetupResult> {
   }
 }
 
+/**
+ * What the database still needs, without changing anything.
+ *
+ * Used by /diagnostics, which reports and never writes.
+ */
+export async function readPending(): Promise<{ files: string[]; problem?: string }> {
+  let client: Client | undefined;
+  try {
+    client = await connect();
+    const { rows } = await client.query<{ present: boolean }>(
+      "select to_regclass('amryn.schema_migrations') is not null as present",
+    );
+
+    // No ledger yet, and reporting must not create one. Fall back to the same
+    // signatures the ledger would seed itself from.
+    if (!rows[0]?.present) {
+      const files: string[] = [];
+      for (const file of MIGRATION_FILES) {
+        const applied = await signatureHolds(client, file);
+        if (!applied) files.push(file);
+      }
+      return { files };
+    }
+
+    const applied = await client.query<{ file: string }>(
+      'select file from amryn.schema_migrations',
+    );
+    const seen = new Set(applied.rows.map((row) => row.file));
+    return { files: MIGRATION_FILES.filter((file) => !seen.has(file)) };
+  } catch (error) {
+    return { files: [], problem: safeMessage(error) };
+  } finally {
+    await client?.end().catch(() => {});
+  }
+}
+
 export { MIGRATION_FILES };
+export type { AppliedMigration };

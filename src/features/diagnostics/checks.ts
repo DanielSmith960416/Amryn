@@ -25,6 +25,7 @@ import { createClient } from '@/lib/supabase/server';
 import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
 import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
+import { databaseUrl, readPending } from '@/lib/db/setup';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped';
 
@@ -127,7 +128,23 @@ async function attempt(name: string, run: () => Promise<Check>, onThrow?: string
   }
 }
 
-export async function runDiagnostics(): Promise<DiagnosticsReport> {
+export interface DiagnosticsOptions {
+  /**
+   * Whether to open a direct database connection.
+   *
+   * One check needs it — the migration ledger lives outside PostgREST's reach.
+   * It is off by default because /api/health is public and polled: a
+   * connection per request would exhaust the pooler long before anybody
+   * noticed, turning a monitoring endpoint into the outage it exists to
+   * report. The operator pages turn it on, having already established who is
+   * asking.
+   */
+  directConnection?: boolean;
+}
+
+export async function runDiagnostics(
+  options: DiagnosticsOptions = {},
+): Promise<DiagnosticsReport> {
   const configProblem = supabaseConfigError();
 
   // Report per variable. A single lumped verdict blamed "Supabase
@@ -214,6 +231,7 @@ export async function runDiagnostics(): Promise<DiagnosticsReport> {
     checkSchema(),
     checkRoleGrants(),
     checkBootstrapFunction(),
+    checkPendingMigrations(options.directConnection ?? false),
     checkRowLevelSecurity(),
     checkSession(),
     checkMembership(),
@@ -335,6 +353,66 @@ function checkReachable(): Promise<Check> {
     },
     'The connection attempt threw. The project may be paused or unreachable, or the URL may point somewhere unexpected.',
   );
+}
+
+/**
+ * Which migrations this database has not applied, by name.
+ *
+ * Every other schema check answers "is something wrong" and then guesses at
+ * the cause — a count that is short could be any of a dozen files. This one
+ * asks the database what it has recorded and reports the difference, so the
+ * remedy is a list of filenames rather than "run everything in filename
+ * order", which is advice that fails on the first table that already exists.
+ *
+ * Needs the direct connection, because the ledger lives outside the API's
+ * reach. Without one it says so rather than guessing.
+ */
+function checkPendingMigrations(allowed: boolean): Promise<Check> {
+  return attempt('Pending migrations', async () => {
+    if (!allowed) {
+      return {
+        name: 'Pending migrations',
+        status: 'skipped',
+        detail: 'Not checked here — it needs a direct database connection.',
+      };
+    }
+
+    if (!databaseUrl()) {
+      return {
+        name: 'Pending migrations',
+        status: 'warn',
+        detail: 'Cannot tell — this needs the direct database connection.',
+        remedy:
+          'Set SUPABASE_DB_URL to the session pooler string from Settings → Database, and this page can then say exactly which files are outstanding and apply them.',
+      };
+    }
+
+    const { files, problem } = await readPending();
+
+    if (problem) {
+      return {
+        name: 'Pending migrations',
+        status: 'warn',
+        detail: `Could not read the migration record — ${problem}`,
+      };
+    }
+
+    if (files.length === 0) {
+      return {
+        name: 'Pending migrations',
+        status: 'ok',
+        detail: 'Every migration in this deployment has been applied.',
+      };
+    }
+
+    return {
+      name: 'Pending migrations',
+      status: 'fail',
+      detail: `${files.length} migration${files.length === 1 ? '' : 's'} not applied: ${files.join(', ')}.`,
+      remedy:
+        'Open /setup and press “Apply the migrations”. It applies only these files, each in its own transaction, and records them — so it is safe on a database with data in it. To do it by hand instead, run those files from supabase/migrations in the SQL editor, in the order listed.',
+    };
+  });
 }
 
 function checkSchema(): Promise<Check> {

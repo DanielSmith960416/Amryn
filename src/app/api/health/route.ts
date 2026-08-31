@@ -32,13 +32,17 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: Request) {
-  const report = await runDiagnostics();
+  // Established before the checks run, not after: one of them opens a direct
+  // database connection, and this endpoint is polled by anything that can
+  // reach it. A connection per anonymous request would exhaust the pooler and
+  // cause the outage this endpoint exists to report.
+  const key = new URL(request.url).searchParams.get('key') ?? undefined;
+  const detailed = (await internalAccess(key)) !== 'denied';
+
+  const report = await runDiagnostics({ directConnection: detailed });
   const failing = report.summary.fail > 0;
 
   const status = failing ? 'failing' : report.summary.warn > 0 ? 'degraded' : 'ok';
-
-  const key = new URL(request.url).searchParams.get('key') ?? undefined;
-  const detailed = (await internalAccess(key)) !== 'denied';
 
   return NextResponse.json(
     {

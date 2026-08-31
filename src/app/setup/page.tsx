@@ -2,7 +2,13 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { internalAccess } from '@/lib/auth/internal-access';
-import { databaseUrl, looksLikePooler, readSchemaStatus, EXPECTED } from '@/lib/db/setup';
+import {
+  databaseUrl,
+  looksLikePooler,
+  readPending,
+  readSchemaStatus,
+  EXPECTED,
+} from '@/lib/db/setup';
 import { SetupForm } from '@/features/setup/setup-form';
 
 export const metadata: Metadata = {
@@ -35,6 +41,9 @@ export default async function SetupPage({
 
   const url = databaseUrl();
   const status = url ? await readSchemaStatus() : null;
+  // What this database has not recorded. Empty when there is no connection to
+  // ask, which is already reported above.
+  const pending = url ? await readPending() : { files: [] as string[] };
 
   return (
     <div className="min-h-dvh bg-[var(--bg)] px-5 py-10">
@@ -108,24 +117,37 @@ export default async function SetupPage({
                 <Stat label="Permissions" value={status.permissions} of={EXPECTED.permissions} />
                 <Stat label="Role grants" value={status.roleGrants} of={EXPECTED.minRoleGrants} />
               </dl>
-              {status.state === 'partial' ? (
-                <p className="mt-3">
-                  An earlier attempt stopped part of the way through. Applying the schema over the
-                  top would fail on the first table that already exists, so this will not try.
-                  Clearing the public schema in Supabase and returning here is the way out —
-                  destructive, and safe only because there is no real data yet.
-                </p>
-              ) : null}
             </Card>
           ) : null}
 
-          <SetupForm canRun={Boolean(url) && status?.state === 'absent'} />
+          {pending.files.length > 0 ? (
+            <Card tone="warn" title={`${pending.files.length} migration${pending.files.length === 1 ? '' : 's'} to apply`}>
+              <p>
+                This database has not seen the files below. Each is applied in its own
+                transaction and recorded, so a run that stops partway leaves the ones before it
+                standing and nothing half applied.
+              </p>
+              <ul className="mt-3 space-y-1">
+                {pending.files.map((file) => (
+                  <li key={file} className="font-mono text-[0.75rem] text-[var(--text-secondary)]">
+                    {file}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
+          <SetupForm
+            canRun={Boolean(url) && (status?.state === 'absent' || pending.files.length > 0)}
+            label={status?.state === 'absent' ? 'Build the database' : 'Apply the migrations'}
+            internalKey={key}
+          />
 
           <p className="text-[0.8125rem] text-[var(--text-tertiary)]">
             The statements come from this deployment, not from anything typed into this page. It
-            runs only while the database is empty, and does nothing once it is built. The
-            diagnostics page reports the whole picture, and is reached the same way as this
-            one.
+            builds an empty database, and afterwards applies only the migrations this database has
+            not recorded — nothing when there are none. The diagnostics page reports the whole
+            picture, and is reached the same way as this one.
           </p>
         </div>
       </main>

@@ -141,17 +141,33 @@ end $$;
 -- so they can be seeded by a role without BYPASSRLS, and puts it back. If a
 -- future edit moved the restore, or dropped it, the tables would ship
 -- writable by their owner and nothing else would say so.
+--
+-- audit_logs is the one deliberate exception, made in migration 14. It has no
+-- insert policy at all — writes come only from SECURITY DEFINER functions,
+-- which run as the owner — so forcing RLS on it would refuse the owner too and
+-- break every function that records an event, create_organisation() included.
+-- Its protection comes from the revoked grant instead, asserted below and in
+-- supabase/tests/16.
+--
+-- Named rather than counted, so that a second table quietly losing FORCE is a
+-- failure rather than an adjustment to a number.
 select pg_temp.check(
-  (select bool_and(relforcerowsecurity)
+  (select coalesce(array_agg(c.relname::text order by c.relname), array[]::text[])
      from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relkind = 'r'),
-  'row level security is forced on every table, including the two that are seeded');
+    where n.nspname = 'public' and c.relkind = 'r' and not c.relforcerowsecurity)
+    = array['audit_logs']::text[],
+  'row level security is forced on every table but the one documented exception');
+
+select pg_temp.check(
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity) = 48,
+  'all 48 tables have RLS enabled');
 
 select pg_temp.check(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r'
-      and c.relrowsecurity and c.relforcerowsecurity) = 48,
-  'all 48 tables have RLS enabled and forced');
+      and c.relrowsecurity and c.relforcerowsecurity) = 47,
+  'and 47 of them force it against the owner as well');
 
 reset role;
 rollback;

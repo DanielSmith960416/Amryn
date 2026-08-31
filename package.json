@@ -2,7 +2,7 @@
   "name": "amryn-platform",
   "version": "1.0.0",
   "private": true,
-  "description": "Amryn™ AIGrowthIntelligence® Software — multi-tenant AI business intelligence platform",
+  "description": "Amryn\u2122 AIGrowthIntelligence\u00ae Software \u2014 multi-tenant AI business intelligence platform",
   "engines": {
     "node": ">=20.9.0"
   },
@@ -17,6 +17,8 @@
     "check": "npm run typecheck && npm run lint && npm run test",
     "check:site": "node scripts/check-marketing-site.mjs",
     "db:test": "bash supabase/tests/run.sh",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:dry": "node scripts/migrate.mjs --dry-run",
     "db:types": "node scripts/generate-db-types.mjs > src/types/database.ts"
   },
   "dependencies": {

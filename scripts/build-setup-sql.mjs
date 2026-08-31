@@ -21,6 +21,26 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'supabase', 'migrations');
 const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
 
+/**
+ * One object each migration introduces, used to work out what an existing
+ * database has already had — see src/lib/db/ledger.ts.
+ *
+ * Enforced here rather than left to be noticed later: a migration with no
+ * signature reads as never applied, so a database that already has it would be
+ * told to run it again, and the run would fail on the first object that
+ * already exists. Failing the build is the cheap moment to catch that.
+ */
+const signatures = JSON.parse(readFileSync(join(dir, 'signatures.json'), 'utf8'));
+const unsigned = files.filter((file) => !signatures[file]);
+if (unsigned.length > 0) {
+  console.error(
+    `No signature for ${unsigned.join(', ')}.\n` +
+      'Add one to supabase/migrations/signatures.json: a SQL expression that is true only ' +
+      'once that migration has been applied.',
+  );
+  process.exit(1);
+}
+
 const parts = [
   `-- Amryn™ AIGrowthIntelligence® — complete database setup`,
   `--`,
@@ -110,6 +130,26 @@ writeFileSync(
     '',
     '/** The migrations it was built from, for reporting what was applied. */',
     `export const MIGRATION_FILES = ${JSON.stringify(files, null, 2)};`,
+    '',
+    '/**',
+    ' * The same migrations, individually.',
+    ' *',
+    ' * SETUP_SQL builds a database from nothing, which is the easy half. A',
+    ' * database that already exists needs the files it has not seen and only',
+    ' * those, each in its own transaction, so applying two changes to a live',
+    ' * schema cannot leave it between them.',
+    ' */',
+    '/** One object each migration creates, for deciding whether it already has. */',
+    `export const SIGNATURES: Record<string, string> = ${JSON.stringify(signatures, null, 2)};`,
+    '',
+    `export const MIGRATIONS: { file: string; sql: string }[] = ${JSON.stringify(
+      files.map((file) => ({
+        file,
+        sql: readFileSync(join(dir, file), 'utf8').trimEnd(),
+      })),
+      null,
+      2,
+    )};`,
     '',
   ].join('\n'),
 );
