@@ -102,6 +102,24 @@ the paths exempt from the rule; a test walks the source for them, ignoring
 comments, `console.*` calls and `detail:` fields. It fails on a sentence that
 names a migration, a schema, an environment variable or `/diagnostics`.
 
+### The security log
+
+`audit_logs` is written only by `record_security_event()` and
+`record_account_event()`, which take the actor from the session. The direct
+insert was withdrawn in migration 14: the old policy let any member write any
+action with anybody's id on it, which made the table a place to put claims
+rather than a record of what happened. Use `recordEvent()` /
+`recordAccountEvent()` from `src/lib/audit.ts`; both swallow their own failures,
+because a sign-in that breaks over an unsaved audit row is worse than a
+sign-in nobody wrote down.
+
+Organisation events — invitations created, withdrawn and accepted, settings
+changed — are readable by administrators of that organisation holding
+`view_audit_log`. Account events — sign-in, failed sign-in, sign-out, password
+change, data export, acceptance of new terms — carry no `organisation_id`, so
+no policy matches them and no employer can read their staff's sign-in history
+out of a workspace they administer. Those are ours as responsible party.
+
 ### Legal documents and POPIA
 
 The platform carries its own policies at `/legal/privacy`, `/legal/terms`,

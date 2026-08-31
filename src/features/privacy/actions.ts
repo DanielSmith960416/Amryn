@@ -7,6 +7,7 @@ import { requireUser } from '@/lib/auth/session';
 import { checkLimit } from '@/lib/auth/rate-limit';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
 import { ourFault } from '@/lib/errors';
+import { recordAccountEvent } from '@/lib/audit';
 
 export type RequestState =
   | { status: 'idle' }
@@ -102,6 +103,11 @@ export async function acceptCurrentDocuments(): Promise<void> {
       privacy_version: LEGAL_VERSION,
     })
     .eq('id', user.id);
+
+  await recordAccountEvent(
+    'account.terms_accepted',
+    `Accepted the terms and privacy policy, version ${LEGAL_VERSION}`,
+  );
 
   revalidatePath('/', 'layout');
 }

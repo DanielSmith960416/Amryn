@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/session';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
+import { recordAccountEvent } from '@/lib/audit';
 
 /**
  * A copy of the personal information held about the person asking.
@@ -66,6 +67,10 @@ export async function GET() {
     organisations: memberships.data ?? [],
     requests: requests.data ?? [],
   };
+
+  // Recorded against the account rather than an organisation, so that taking a
+  // copy of your own information is not an event your employer can watch.
+  await recordAccountEvent('account.data_exported', 'Downloaded a copy of their information');
 
   const stamp = new Date().toISOString().slice(0, 10);
 

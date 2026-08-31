@@ -22,7 +22,7 @@ with checks as (
    where t.schemaname = 'public' and c.relrowsecurity
 
   union all
-  select 3, 'RLS policies', count(*)::text, '148', count(*) = 148
+  select 3, 'RLS policies', count(*)::text, '147', count(*) = 147
     from pg_policies where schemaname = 'public'
 
   union all

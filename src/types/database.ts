@@ -2908,6 +2908,24 @@ export interface Database {
         };
         Returns: Record<string, unknown>[];
       };
+      record_account_event: {
+        Args: {
+          p_action: string;
+          p_summary?: string | null;
+        };
+        Returns: undefined;
+      };
+      record_security_event: {
+        Args: {
+          p_organisation_id: string;
+          p_action: string;
+          p_entity_type?: string | null;
+          p_entity_id?: string | null;
+          p_summary?: string | null;
+          p_metadata?: Json | null;
+        };
+        Returns: undefined;
+      };
     };
     Enums: Enums;
     CompositeTypes: { [_ in never]: never };

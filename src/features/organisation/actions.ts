@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ACTIVE_ORG_COOKIE, requireUser } from '@/lib/auth/session';
 import { checkLimit } from '@/lib/auth/rate-limit';
 import { ourFault } from '@/lib/errors';
+import { recordEvent } from '@/lib/audit';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
 
 /**
@@ -102,12 +103,10 @@ export async function updateSectorScope(
     };
   }
 
-  await supabase.from('audit_logs').insert({
-    organisation_id: workspace.organisation.id,
-    actor_id: workspace.user.id,
-    action: 'organisation.sector_scope_changed',
-    entity_type: 'organisation',
-    entity_id: workspace.organisation.id,
+  // Through the function, not an insert. The direct write was withdrawn in
+  // migration 14 — it let a member put anybody's name on any action.
+  await recordEvent(workspace.organisation.id, 'organisation.settings_changed', {
+    entityId: workspace.organisation.id,
     summary: `Radar sector scope set to ${parsed.data.join(', ')}`,
   });
 
@@ -197,6 +196,11 @@ export async function createOrganisation(
   if (consentError) {
     ourFault('onboarding', consentError);
   }
+
+  await recordEvent(data, 'organisation.settings_changed', {
+    entityId: data,
+    summary: `Data processing addendum accepted (version ${LEGAL_VERSION})`,
+  });
 
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_ORG_COOKIE, data, {

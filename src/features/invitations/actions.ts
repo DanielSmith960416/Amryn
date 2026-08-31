@@ -26,6 +26,7 @@ import { isEmailConfigured, sendMail } from '@/lib/email/smtp';
 import { invitationEmail } from '@/lib/email/invitation';
 import { INVITABLE_ROLES, INVITATION_DAYS } from './roles';
 import { ourFault } from '@/lib/errors';
+import { recordEvent } from '@/lib/audit';
 
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().email('That does not look like an email address'),
@@ -107,6 +108,15 @@ export async function createInvitation(
   }
 
   const link = `${siteUrl()}/invite/${token}`;
+
+  // The address, not the token. Whoever reads this log is entitled to know who
+  // was invited to their organisation; the token is a credential and belongs
+  // in no record that anybody can read.
+  await recordEvent(workspace.organisation.id, 'invitation.created', {
+    entityType: 'invitation',
+    summary: `${parsed.data.email} invited as ${ROLE_LABELS[parsed.data.role] ?? parsed.data.role}`,
+  });
+
   revalidatePath('/settings/users');
 
   // The invitation exists from here on. Sending the email is an attempt to
@@ -153,6 +163,11 @@ export async function revokeInvitation(formData: FormData): Promise<void> {
     .eq('id', id.data)
     .eq('organisation_id', workspace.organisation.id)
     .is('accepted_at', null);
+
+  await recordEvent(workspace.organisation.id, 'invitation.withdrawn', {
+    entityType: 'invitation',
+    entityId: id.data,
+  });
 
   revalidatePath('/settings/users');
 }

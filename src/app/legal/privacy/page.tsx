@@ -182,8 +182,10 @@ export default function PrivacyPage() {
           as hashes — we count attempts without recording who made them.
         </li>
         <li>
-          Sign-ins, permission changes and organisation changes are recorded so we can answer what
-          happened to an account.
+          Sign-ins, sign-outs, failed sign-in attempts, password changes, invitations and changes to
+          an organisation&rsquo;s settings are recorded, so that we can answer what happened to an
+          account. Those records are written by the database itself and cannot be edited or
+          attributed to somebody else by anyone using the platform.
         </li>
       </ul>
       <p>

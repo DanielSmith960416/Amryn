@@ -100,7 +100,7 @@ export const PROCESSING = [
   {
     category: 'Security records',
     items:
-      'Timestamps of sign-ins, organisation and permission changes, and hashed identifiers used to limit repeated attempts',
+      'Timestamps of sign-ins, sign-outs, failed sign-in attempts, password changes, invitations and organisation setting changes, plus hashed identifiers used to limit repeated attempts',
     purpose: 'Detecting misuse, and being able to answer what happened to an account',
     basis: 'Our legitimate interest in keeping the service and your data secure',
   },

@@ -5,8 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ACTIVE_ORG_COOKIE } from '@/lib/auth/session';
+import { recordAccountEvent } from '@/lib/audit';
 
 export async function signOut(): Promise<void> {
+  // Recorded before the session ends, because afterwards there is no session
+  // to attribute it to and the row would say nobody signed out.
+  await recordAccountEvent('account.signed_out');
+
   const supabase = await createClient();
   await supabase.auth.signOut();
 
@@ -62,9 +67,18 @@ export async function signInWithPassword(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   // Not every failure here is a wrong password. Sending someone to retype
-  // correct details because the deployment's API key was rejected is worse
-  // than saying so.
-  if (error) return { status: 'error', message: signInErrorMessage(error.message) };
+  // correct details because a rejected key was the real problem is worse than
+  // saying so.
+  if (error) {
+    // The attempt is recorded with no actor — there is no session, and the
+    // address is not written down, so this counts failures without building a
+    // list of who tried. A log of only the successful sign-ins would miss the
+    // one pattern worth looking for.
+    await recordAccountEvent('account.sign_in_failed', classifyAuthError(error.message).kind);
+    return { status: 'error', message: signInErrorMessage(error.message) };
+  }
+
+  await recordAccountEvent('account.signed_in', 'Signed in with a password');
 
   revalidatePath('/', 'layout');
   // Validated, never used raw: an unchecked target here is an open redirect.
@@ -234,6 +248,8 @@ export async function setNewPassword(
   if (error) {
     return { status: 'error', message: authErrorMessage(error.message) };
   }
+
+  await recordAccountEvent('account.password_changed', 'Password set from a reset link');
 
   revalidatePath('/', 'layout');
   redirect('/command-centre');

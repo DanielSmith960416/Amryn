@@ -13,6 +13,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { ACTIVE_ORG_COOKIE } from '@/lib/auth/session';
+import { recordEvent } from '@/lib/audit';
 
 export type AcceptState = { status: 'idle' } | { status: 'error'; message: string };
 
@@ -42,6 +43,11 @@ export async function acceptInvitation(
   // Land in the organisation just joined rather than whichever one the
   // switcher last remembered.
   if (typeof data === 'string') {
+    await recordEvent(data, 'invitation.accepted', {
+      entityType: 'membership',
+      summary: 'Joined by invitation',
+    });
+
     const cookieStore = await cookies();
     cookieStore.set(ACTIVE_ORG_COOKIE, data, {
       httpOnly: true,
