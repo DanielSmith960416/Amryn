@@ -169,7 +169,7 @@ function MissingUrl() {
         </li>
         <li>Copy it, and replace the password placeholder with your database password.</li>
         <li>
-          In Vercel, add it as{' '}
+          In your host&rsquo;s environment settings, add it as{' '}
           <code className="font-mono text-[0.85em]">SUPABASE_DB_URL</code>, then redeploy.
         </li>
       </ol>

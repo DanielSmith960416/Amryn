@@ -176,12 +176,27 @@ export function siteUrl(): string {
   // Truthiness, not `??`: an empty string is a value, and `?? ` would return
   // it — which is how "Falling back to " came to be printed with nothing
   // after it.
-  return (
-    present(process.env.NEXT_PUBLIC_SITE_URL) ??
-    (present(process.env.VERCEL_URL)
-      ? `https://${present(process.env.VERCEL_URL)}`
-      : 'http://localhost:3000')
-  );
+  const configured = present(process.env.NEXT_PUBLIC_SITE_URL);
+  if (configured) return configured;
+
+  // What the host calls its own address, in the order a deployment is likely
+  // to have one. Each is set by the platform, not by us, so a preview
+  // deployment gets its own URL without anybody configuring anything —
+  // which is the whole reason to consult them rather than requiring
+  // NEXT_PUBLIC_SITE_URL everywhere.
+  const fromHost =
+    present(process.env.RAILWAY_PUBLIC_DOMAIN) ??
+    present(process.env.CF_PAGES_URL) ??
+    present(process.env.RENDER_EXTERNAL_URL) ??
+    present(process.env.FLY_APP_NAME);
+
+  if (fromHost) {
+    // Some report a bare hostname, others a full URL. Normalising here means
+    // the caller never has to care which.
+    return /^https?:\/\//i.test(fromHost) ? fromHost : `https://${fromHost}`;
+  }
+
+  return `http://localhost:${present(process.env.PORT) ?? '3000'}`;
 }
 
 /** Server-only. Throws if called where it could reach a browser bundle. */

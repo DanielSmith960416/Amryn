@@ -10,7 +10,7 @@ const BASE = {
   roleLabel: 'Branch manager',
   inviterName: 'Daniel Smith',
   inviterEmail: 'daniel@highveld.example',
-  link: 'https://amryn.vercel.app/invite/abc123token',
+  link: 'https://app.amryn.ai/invite/abc123token',
   expiresInDays: 14,
 };
 
@@ -67,7 +67,7 @@ describe('invitationEmail', () => {
   it('escapes the link, which ends up inside an href', () => {
     const mail = invitationEmail({
       ...BASE,
-      link: 'https://amryn.vercel.app/invite/a"onmouseover="alert(1)',
+      link: 'https://app.amryn.ai/invite/a"onmouseover="alert(1)',
     });
     expect(mail.html).not.toContain('onmouseover="alert');
     expect(mail.html).toContain('&quot;');

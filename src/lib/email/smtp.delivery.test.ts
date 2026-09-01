@@ -19,7 +19,7 @@ const { invitationEmail } = await import('./invitation');
 const PORT = 2526;
 const USER = 'amryn-test';
 const PASSWORD = 'sup3r-s3cret-mail-password';
-const LINK = 'https://amryn.vercel.app/invite/REAL-TOKEN-VALUE';
+const LINK = 'https://app.amryn.ai/invite/REAL-TOKEN-VALUE';
 
 let server: SMTPServer;
 let received: ParsedMail | null = null;

@@ -708,19 +708,39 @@ function summarise(checks: Check[]): DiagnosticsReport {
  *
  * A fix that is merged but not deployed looks exactly like a fix that did not
  * work, and telling them apart otherwise means comparing wording between
- * screenshots. Vercel sets these; other hosts may not, in which case the page
- * says so rather than implying it knows.
+ * screenshots.
+ *
+ * Every host names these differently and none is guaranteed, so all the common
+ * spellings are consulted and the page says "unknown" rather than implying it
+ * knows. Ordered most specific first: a build running in GitHub Actions for a
+ * Railway deploy has both, and the deployment's own answer is the true one.
  */
 function buildInfo(): DiagnosticsReport['build'] {
   const commit =
-    process.env.VERCEL_GIT_COMMIT_SHA ??
+    process.env.RAILWAY_GIT_COMMIT_SHA ??
+    process.env.CF_PAGES_COMMIT_SHA ??
+    process.env.RENDER_GIT_COMMIT ??
     process.env.GITHUB_SHA ??
     process.env.SOURCE_COMMIT ??
     null;
 
+  const ref =
+    process.env.RAILWAY_GIT_BRANCH ??
+    process.env.CF_PAGES_BRANCH ??
+    process.env.RENDER_GIT_BRANCH ??
+    process.env.GITHUB_REF_NAME ??
+    null;
+
+  // Previously `VERCEL_DEPLOYMENT_ID ? null : null`, which returns null either
+  // way — a ternary that reads as a decision and makes none. There is no
+  // portable deploy timestamp, so this is the process start: on a container
+  // host that is the deploy, and on a warm serverless instance it is at least
+  // honest about how long this instance has been answering.
+  const startedAt = new Date(Date.now() - Math.round(process.uptime() * 1000));
+
   return {
     commit: commit ? commit.slice(0, 7) : null,
-    ref: process.env.VERCEL_GIT_COMMIT_REF ?? null,
-    deployedAt: process.env.VERCEL_DEPLOYMENT_ID ? null : null,
+    ref,
+    deployedAt: startedAt.toISOString(),
   };
 }

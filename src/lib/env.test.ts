@@ -17,7 +17,15 @@ import {
  * empty optional NEXT_PUBLIC_SITE_URL failed validation, which condemned the
  * whole configuration, which threw on every page.
  */
-const KEYS = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SITE_URL', 'VERCEL_URL'] as const;
+const KEYS = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'NEXT_PUBLIC_SITE_URL',
+  'RAILWAY_PUBLIC_DOMAIN',
+  'CF_PAGES_URL',
+  'RENDER_EXTERNAL_URL',
+  'PORT',
+] as const;
 const original = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
 
 afterEach(() => {
@@ -91,7 +99,7 @@ describe('supabaseConfigError', () => {
     withEnv({
       NEXT_PUBLIC_SUPABASE_URL: VALID_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: VALID_KEY,
-      NEXT_PUBLIC_SITE_URL: 'amryn.vercel.app',
+      NEXT_PUBLIC_SITE_URL: 'app.amryn.ai',
     });
     expect(supabaseConfigError()).toContain('NEXT_PUBLIC_SITE_URL');
   });
@@ -105,13 +113,35 @@ describe('siteUrl', () => {
   });
 
   it('uses the configured value when it is real', () => {
-    withEnv({ NEXT_PUBLIC_SITE_URL: 'https://amryn.vercel.app' });
-    expect(siteUrl()).toBe('https://amryn.vercel.app');
+    withEnv({ NEXT_PUBLIC_SITE_URL: 'https://app.amryn.ai' });
+    expect(siteUrl()).toBe('https://app.amryn.ai');
   });
 
-  it('falls back to the host’s own address when nothing is set', () => {
-    withEnv({ VERCEL_URL: 'amryn.vercel.app' });
-    expect(siteUrl()).toBe('https://amryn.vercel.app');
+  it('falls back to whatever the host calls itself', () => {
+    // A preview deployment gets a URL nobody configured. Reading the host's
+    // own answer is what makes sign-in links work there without ceremony.
+    withEnv({ RAILWAY_PUBLIC_DOMAIN: 'amryn-production.up.railway.app' });
+    expect(siteUrl()).toBe('https://amryn-production.up.railway.app');
+  });
+
+  it('accepts a host that reports a full URL rather than a hostname', () => {
+    // Railway gives a bare domain, Cloudflare Pages gives a URL. Normalising
+    // in one place means no caller has to know which host it is on.
+    withEnv({ CF_PAGES_URL: 'https://amryn.pages.dev' });
+    expect(siteUrl()).toBe('https://amryn.pages.dev');
+  });
+
+  it('prefers the configured value over anything the host says', () => {
+    withEnv({
+      NEXT_PUBLIC_SITE_URL: 'https://app.amryn.ai',
+      RAILWAY_PUBLIC_DOMAIN: 'amryn-production.up.railway.app',
+    });
+    expect(siteUrl()).toBe('https://app.amryn.ai');
+  });
+
+  it('follows PORT locally, so a second dev server still gets working links', () => {
+    withEnv({ PORT: '4000' });
+    expect(siteUrl()).toBe('http://localhost:4000');
   });
 });
 

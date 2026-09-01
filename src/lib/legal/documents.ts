@@ -53,9 +53,15 @@ export const PROCESSORS = [
     location: 'European Union / United States, depending on project region',
   },
   {
-    name: 'Vercel',
-    purpose: 'Application hosting and delivery',
-    location: 'United States, with edge delivery worldwide',
+    name: 'Railway',
+    purpose: 'Application hosting — the server that runs the platform',
+    location: 'Depends on the region chosen for the deployment',
+  },
+  {
+    name: 'Cloudflare',
+    purpose:
+      'Domain name resolution, content delivery, TLS termination and the web application firewall',
+    location: 'Global edge network; the nearest location to the visitor answers',
   },
   {
     name: 'Your chosen email provider',

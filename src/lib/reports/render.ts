@@ -7,8 +7,9 @@ import { compactMoney, count, date, percent, score } from '@/lib/format';
  *
  * **Why HTML and not a generated PDF file.** Producing a real PDF server-side
  * means either a headless Chromium in the deployment — hundreds of megabytes,
- * a cold start measured in seconds, and a Vercel function that no longer fits
- * the free tier — or a PDF drawing library, which means re-implementing layout,
+ * a cold start measured in seconds, and a container image several times the
+ * size of the application — or a PDF drawing library, which means
+ * re-implementing layout,
  * fonts, page breaks and table wrapping by hand and getting a document that
  * looks nothing like the platform.
  *
