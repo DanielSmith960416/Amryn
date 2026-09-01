@@ -5,41 +5,89 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/states';
 import { requirePermission } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { bankDetails } from '@/lib/env';
+import { annualSaving, describeLimit, loadPlans } from '@/lib/billing/plans';
+import { isEntitlement } from '@/lib/billing/entitlements';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatMoney, humanise } from '@/lib/utils/format';
+import { PlanPicker, type PickerPlan } from '@/features/billing/plan-picker';
+import { PaymentInstructions } from '@/features/billing/payment-instructions';
 
 export const metadata: Metadata = { title: 'Billing' };
 
-/** Plans per specification §35, in rand. */
-const PLANS = [
-  { key: 'starter', name: 'Starter', priceCents: 99_900, blurb: 'One site, two data sources.' },
-  { key: 'growth', name: 'Growth', priceCents: 399_900, blurb: 'Multi-branch, eight sources.' },
-  { key: 'professional', name: 'Professional', priceCents: 999_900, blurb: 'Full radar, unlimited sources.' },
-  { key: 'enterprise', name: 'Enterprise', priceCents: null, blurb: 'Custom, with SSO and support.' },
-] as const;
-
-export default async function BillingPage() {
+/**
+ * What the organisation is on, what it could be on, and what it has used.
+ *
+ * Everything on this page is read from the catalogue in the database. The
+ * previous version carried its own list of four plans and four prices beside
+ * a subscription record holding different numbers, so the page and the
+ * platform could disagree about what had been bought — and did.
+ */
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ upgrade?: string }>;
+}) {
   const workspace = await requirePermission('manage_billing');
+  const { upgrade } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: subscription }, { data: invoices }] = await Promise.all([
-    supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('organisation_id', workspace.organisation.id)
-      .maybeSingle(),
+  const [plans, { data: invoices }, { data: activation }] = await Promise.all([
+    loadPlans(),
     supabase
       .from('billing_records')
       .select('*')
       .eq('organisation_id', workspace.organisation.id)
       .order('issued_on', { ascending: false })
       .limit(12),
+    supabase
+      .from('subscription_activations')
+      .select('*')
+      .eq('organisation_id', workspace.organisation.id)
+      .in('state', ['awaiting_payment', 'payment_confirmed'])
+      .maybeSingle(),
   ]);
 
-  const currency = workspace.organisation.currency_code;
-  const creditsUsed = subscription
-    ? Math.min(100, (subscription.ai_credits_used / Math.max(1, subscription.ai_credits_monthly)) * 100)
-    : 0;
+  const subscription = workspace.subscription;
+  const entitlements = workspace.entitlements;
+
+  // Named from the catalogue rather than from the enum, so "Growth" is spelled
+  // one way across the product.
+  const currentPlanName =
+    plans.find((p) => p.plan === subscription?.plan)?.name ??
+    (subscription ? humanise(subscription.plan) : null);
+
+  // What the customer was trying to reach when they were sent here.
+  const wanted = upgrade && isEntitlement(upgrade) ? entitlements.get(upgrade) : null;
+
+  const creditLimit = entitlements.limit('ai_credits');
+  const creditsUsed = subscription?.ai_credits_used ?? 0;
+  const creditPercent =
+    creditLimit && creditLimit > 0 ? Math.min(100, (creditsUsed / creditLimit) * 100) : 0;
+
+  const pickerPlans: PickerPlan[] = plans.map((plan) => ({
+    plan: plan.plan,
+    name: plan.name,
+    tagline: plan.tagline,
+    priceCentsMonthly: plan.priceCentsMonthly,
+    priceCentsAnnual: plan.priceCentsAnnual,
+    currency: plan.currency,
+    contactSales: plan.contactSales,
+    savingCents: annualSaving(plan),
+    includes: [
+      `${describeLimit(plan.limits.seats)} people`,
+      `${describeLimit(plan.limits.data_sources)} data sources`,
+      `${describeLimit(plan.limits.ai_credits)} AI requests a month`,
+      ...plan.includes
+        .filter((key) => entitlements.get(key)?.kind === 'feature')
+        .map((key) => entitlements.get(key)?.name ?? key)
+        // The first three lines already carry the quotas; the rest are the
+        // features that actually distinguish the tiers, and a card that lists
+        // sixteen of them distinguishes nothing.
+        .filter((name) => !['Executive Command Centre', 'Financial intelligence', 'Performance tracking', 'Weekly briefing'].includes(name))
+        .slice(0, 5),
+    ],
+  }));
 
   return (
     <>
@@ -49,48 +97,40 @@ export default async function BillingPage() {
         description="Your plan, what it includes and what you have used of it."
       />
 
+      {wanted ? (
+        <div className="mb-5 rounded-xl border border-[var(--brand)]/30 bg-[var(--brand)]/8 px-4 py-3">
+          <p className="text-[0.875rem] font-medium text-[var(--text-primary)]">
+            {wanted.name} is not part of {currentPlanName ?? 'your plan'}
+          </p>
+          <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+            {wanted.description} Choosing a plan below that includes it takes effect as soon as
+            the payment is confirmed.
+          </p>
+        </div>
+      ) : null}
+
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {PLANS.map((plan) => {
-              const current = subscription?.plan === plan.key;
-              return (
-                <Card
-                  key={plan.key}
-                  tone={current ? 'brand' : 'default'}
-                  className={cn('p-4', current && 'ring-1 ring-[var(--brand)]')}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-[0.9375rem] font-semibold text-[var(--text-primary)]">
-                      {plan.name}
-                    </p>
-                    {current ? <Badge tone="brand">Current</Badge> : null}
-                  </div>
-                  <p className="numeric mt-2 text-[1.25rem] font-semibold text-[var(--text-primary)]">
-                    {plan.priceCents === null
-                      ? 'Custom'
-                      : formatMoney(plan.priceCents, currency, { compact: false, decimals: 0 })}
-                    {plan.priceCents === null ? null : (
-                      <span className="font-sans text-[0.75rem] font-normal text-[var(--text-tertiary)]">
-                        {' '}
-                        / month
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-1.5 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
-                    {plan.blurb}
-                  </p>
-                </Card>
-              );
-            })}
-          </div>
+        <div className="space-y-5 lg:col-span-2">
+          <Card>
+            <CardHeader
+              title="Plans"
+              subtitle="Prices in rand, excluding VAT. Yearly is charged once, for twelve months."
+            />
+            <CardBody>
+              <PlanPicker
+                plans={pickerPlans}
+                currentPlan={subscription?.plan ?? null}
+                disabled={workspace.access.state !== 'open'}
+              />
+            </CardBody>
+          </Card>
 
           <Card>
             <CardHeader title="Invoices" subtitle="Most recent first" />
             {(invoices ?? []).length === 0 ? (
               <EmptyState
                 title="No invoices yet"
-                description="Invoices appear here once the first billing period closes."
+                description="Invoices appear here once the first period closes."
               />
             ) : (
               <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
@@ -121,36 +161,47 @@ export default async function BillingPage() {
           </Card>
         </div>
 
-        <div>
+        <div className="space-y-5">
+          {activation ? (
+            <PaymentInstructions
+              activation={activation}
+              planName={plans.find((p) => p.plan === activation.plan)?.name ?? humanise(activation.plan)}
+              bank={bankDetails()}
+            />
+          ) : null}
+
           {subscription ? (
             <Card>
               <CardHeader
-                title="This period"
+                title={currentPlanName ?? 'This period'}
                 subtitle={`${formatDate(subscription.current_period_start)} — ${formatDate(subscription.current_period_end)}`}
                 actions={
-                  <Badge tone={subscription.status === 'active' ? 'positive' : 'warning'}>
+                  <Badge tone={workspace.access.state === 'open' ? 'positive' : 'warning'}>
                     {humanise(subscription.status)}
                   </Badge>
                 }
               />
               <CardBody className="space-y-4">
-                <Usage label="Seats" value={`${subscription.seats}`} />
-                <Usage label="Data source limit" value={`${subscription.data_source_limit}`} />
+                <Usage label="People" value={describeLimit(entitlements.limit('seats'))} />
+                <Usage
+                  label="Data sources"
+                  value={describeLimit(entitlements.limit('data_sources'))}
+                />
 
                 <div>
                   <div className="mb-1.5 flex items-baseline justify-between text-[0.8125rem]">
                     <span className="text-[var(--text-secondary)]">AI usage</span>
                     <span className="numeric text-[var(--text-primary)]">
-                      {subscription.ai_credits_used} / {subscription.ai_credits_monthly}
+                      {creditsUsed} / {describeLimit(creditLimit)}
                     </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-[var(--card-inset)]">
                     <div
                       className={cn(
                         'h-full rounded-full',
-                        creditsUsed > 90 ? 'bg-[var(--negative)]' : 'bg-[var(--brand)]',
+                        creditPercent > 90 ? 'bg-[var(--negative)]' : 'bg-[var(--brand)]',
                       )}
-                      style={{ width: `${Math.max(2, creditsUsed)}%` }}
+                      style={{ width: `${Math.max(2, creditPercent)}%` }}
                     />
                   </div>
                 </div>
@@ -166,10 +217,39 @@ export default async function BillingPage() {
             <Card>
               <EmptyState
                 title="No subscription"
-                description="This organisation has no subscription record. That should not happen — every organisation is created with one."
+                description="This organisation has no subscription on record. Choose a plan and we will set one up."
               />
             </Card>
           )}
+
+          <Card>
+            <CardHeader title="What your plan includes" />
+            <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
+              {entitlements
+                .list('feature')
+                .map((item) => (
+                  <li key={item.key} className="flex items-baseline justify-between gap-3 px-5 py-2.5">
+                    <span
+                      className={cn(
+                        'text-[0.8125rem]',
+                        item.included
+                          ? 'text-[var(--text-primary)]'
+                          : 'text-[var(--text-tertiary)] line-through',
+                      )}
+                    >
+                      {item.name}
+                    </span>
+                    {item.included ? (
+                      <span aria-label="Included" className="text-[0.8125rem] text-[var(--positive)]">
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="text-[0.6875rem] text-[var(--text-tertiary)]">Not included</span>
+                    )}
+                  </li>
+                ))}
+            </ul>
+          </Card>
         </div>
       </div>
     </>

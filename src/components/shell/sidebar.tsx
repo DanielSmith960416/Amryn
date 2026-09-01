@@ -87,6 +87,16 @@ export function Sidebar({
                       >
                         {item.label}
                         {item.trademark ? <span className="tm">{item.trademark}</span> : null}
+                        {/* Not hidden. Somebody who cannot see a feature cannot
+                            decide they want it. */}
+                        {item.locked ? (
+                          <span
+                            className="ml-1.5 rounded px-1 py-px align-middle text-[0.5625rem] font-semibold uppercase tracking-wide text-[var(--text-tertiary)] ring-1 ring-[var(--border)]"
+                            title="Not part of your plan yet"
+                          >
+                            Upgrade
+                          </span>
+                        ) : null}
                       </Link>
                     </li>
                   );

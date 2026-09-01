@@ -199,6 +199,47 @@ export function siteUrl(): string {
   return `http://localhost:${present(process.env.PORT) ?? '3000'}`;
 }
 
+/**
+ * Where a customer sends the money.
+ *
+ * Configuration rather than code because the account is the company's, not the
+ * software's, and because a deployment for a different entity — a reseller, a
+ * second market — needs its own without a release. Nothing here is a secret: a
+ * bank account number is printed on every invoice a business issues, and
+ * treating it as one would only mean nobody could see where to pay.
+ */
+export interface BankDetails {
+  accountName: string;
+  bank: string;
+  accountNumber: string;
+  branchCode: string;
+  swift?: string;
+  /** Where proof of payment is emailed. */
+  proofTo: string;
+}
+
+export function bankDetails(): BankDetails | null {
+  const accountName = present(process.env.PAYMENT_ACCOUNT_NAME);
+  const bank = present(process.env.PAYMENT_BANK);
+  const accountNumber = present(process.env.PAYMENT_ACCOUNT_NUMBER);
+  const branchCode = present(process.env.PAYMENT_BRANCH_CODE);
+  const proofTo = present(process.env.PAYMENT_PROOF_EMAIL);
+
+  // All or nothing. Half a set of banking details is worse than none: someone
+  // would transfer money against an incomplete instruction and it would not
+  // arrive.
+  if (!accountName || !bank || !accountNumber || !branchCode || !proofTo) return null;
+
+  return {
+    accountName,
+    bank,
+    accountNumber,
+    branchCode,
+    swift: present(process.env.PAYMENT_SWIFT),
+    proofTo,
+  };
+}
+
 /** Server-only. Throws if called where it could reach a browser bundle. */
 export function serviceRoleKey(): string {
   if (typeof window !== 'undefined') {

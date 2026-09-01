@@ -8,6 +8,7 @@ import { OpportunityDial } from '@/components/intelligence/opportunity-dial';
 import { VALUE_ONLY_CEILING, opportunityFactors } from '@/lib/intelligence/opportunity';
 import { count, date, money, percent, score } from '@/lib/format';
 import { loadWorkspace } from '@/lib/workspace';
+import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'OpportunityRadar®' };
 
@@ -19,7 +20,11 @@ export const metadata: Metadata = { title: 'OpportunityRadar®' };
  * contributed to its score. A ranked list nobody can interrogate is a ranked
  * list nobody trusts.
  */
-export default function OpportunityRadarPage() {
+export default async function OpportunityRadarPage() {
+  // Sends the reader to billing with the feature named, rather than to an
+  // empty page or a refusal they cannot act on.
+  await requireEntitlement('opportunity_pipeline');
+
   const w = loadWorkspace();
   const currency = w.profile.currency;
 

@@ -6,6 +6,7 @@ import { Stat, StatGrid } from '@/components/ui/stat';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { count, date } from '@/lib/format';
 import { loadWorkspace } from '@/lib/workspace';
+import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Risk Radar' };
 
@@ -17,7 +18,11 @@ const TREND_TONE = { Worsening: 'negative', Stable: 'neutral', Improving: 'posit
  * Risks are ranked by score, and ties break on trend — of two risks scoring the
  * same, the one getting worse is the one to look at first.
  */
-export default function RiskRadarPage() {
+export default async function RiskRadarPage() {
+  // Sends the reader to billing with the feature named, rather than to an
+  // empty page or a refusal they cannot act on.
+  await requireEntitlement('risk_radar');
+
   const w = loadWorkspace();
 
   return (

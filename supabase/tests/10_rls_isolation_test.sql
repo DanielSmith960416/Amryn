@@ -23,6 +23,16 @@ insert into public.organisations (id, name, slug) values
   ('a0000000-0000-0000-0000-000000000001', 'Northwind Supply', 'northwind'),
   ('b0000000-0000-0000-0000-000000000002', 'Rival Holdings', 'rival');
 
+-- Every organisation created by the platform is opened with a subscription;
+-- these fixtures build organisations by hand, so they have to supply one. It
+-- is not decoration: migration 16 refuses writes to an organisation whose
+-- subscription is lapsed, and an organisation with no subscription row at all
+-- reads as unpaid — which is the safe direction, and the reason this insert
+-- is here rather than the rule being softened to let a missing row through.
+insert into public.subscriptions (organisation_id, plan, status) values
+  ('a0000000-0000-0000-0000-000000000001', 'professional', 'active'),
+  ('b0000000-0000-0000-0000-000000000002', 'professional', 'active');
+
 insert into public.branches (id, organisation_id, name) values
   ('c0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-000000000001', 'Johannesburg'),
   ('c0000000-0000-0000-0000-00000000000b', 'a0000000-0000-0000-0000-000000000001', 'Cape Town'),

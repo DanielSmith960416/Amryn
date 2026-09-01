@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { Card, CardBody } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AssistantConsole } from '@/features/assistant/console';
-import { requirePermission } from '@/lib/auth/session';
+import { includes, requirePermission } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { isAiEnabled } from '@/lib/ai/provider';
 
@@ -19,6 +20,9 @@ export const metadata: Metadata = { title: 'AI Assistant' };
  */
 export default async function AssistantPage() {
   const workspace = await requirePermission('use_ai_assistant');
+  // Permission and entitlement are different questions: the person is allowed
+  // to use the assistant, and the company may not have bought it.
+  if (!includes(workspace, 'ai_assistant')) redirect('/settings/billing?upgrade=ai_assistant');
   const supabase = await createClient();
 
   const { data: conversation } = await supabase

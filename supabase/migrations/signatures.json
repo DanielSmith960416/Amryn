@@ -13,5 +13,6 @@
   "20260831120000_12_rate_limits.sql": "to_regproc('public.check_rate_limit') is not null",
   "20260831140000_13_consent_and_data_rights.sql": "to_regclass('public.data_requests') is not null",
   "20260831160000_14_security_events.sql": "to_regproc('public.record_account_event') is not null",
-  "20260831180000_15_two_factor.sql": "to_regproc('amryn.mfa_satisfied') is not null"
+  "20260831180000_15_two_factor.sql": "to_regproc('amryn.mfa_satisfied') is not null",
+  "20260901090000_16_subscription_entitlements.sql": "to_regclass('public.subscription_plans') is not null"
 }

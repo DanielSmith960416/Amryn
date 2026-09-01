@@ -21,6 +21,12 @@ insert into public.organisations (id, name, slug) values
 insert into public.organisations (id, name, slug, sector_scope) values
   ('d0000000-0000-0000-0000-000000000002', 'Private Only Ltd', 'private-only', '{private}');
 
+-- Built by hand rather than through create_organisation, so the subscription
+-- every organisation normally carries has to be supplied. See migration 16.
+insert into public.subscriptions (organisation_id, plan, status) values
+  ('d0000000-0000-0000-0000-000000000001', 'professional', 'active'),
+  ('d0000000-0000-0000-0000-000000000002', 'professional', 'active');
+
 insert into public.organisation_members (organisation_id, user_id, role, scope_kind) values
   ('d0000000-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555', 'executive', 'organisation'),
   ('d0000000-0000-0000-0000-000000000002', '66666666-6666-6666-6666-666666666666', 'executive', 'organisation');

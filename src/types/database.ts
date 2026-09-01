@@ -1194,6 +1194,34 @@ export interface Database {
           },
         ];
       };
+      entitlements: {
+        Row: {
+          key: string;
+          category: string;
+          name: string;
+          description: string;
+          kind: string;
+          sort_order: number;
+        };
+        Insert: {
+          key: string;
+          category: string;
+          name: string;
+          description: string;
+          kind?: string;
+          sort_order?: number;
+        };
+        Update: {
+          key?: string;
+          category?: string;
+          name?: string;
+          description?: string;
+          kind?: string;
+          sort_order?: number;
+        };
+        Relationships: [
+        ];
+      };
       financial_records: {
         Row: {
           id: string;
@@ -2374,6 +2402,42 @@ export interface Database {
         Relationships: [
         ];
       };
+      plan_entitlements: {
+        Row: {
+          plan: Enums['subscription_plan'];
+          entitlement_key: string;
+          included: boolean;
+          limit_value: number | null;
+        };
+        Insert: {
+          plan: Enums['subscription_plan'];
+          entitlement_key: string;
+          included?: boolean;
+          limit_value?: number | null;
+        };
+        Update: {
+          plan?: Enums['subscription_plan'];
+          entitlement_key?: string;
+          included?: boolean;
+          limit_value?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'plan_entitlements_entitlement_key_fkey';
+            columns: ['entitlement_key'];
+            isOneToOne: false;
+            referencedRelation: 'entitlements';
+            referencedColumns: ['key'];
+          },
+          {
+            foreignKeyName: 'plan_entitlements_plan_fkey';
+            columns: ['plan'];
+            isOneToOne: false;
+            referencedRelation: 'subscription_plans';
+            referencedColumns: ['plan'];
+          },
+        ];
+      };
       rate_limits: {
         Row: {
           bucket: string;
@@ -2782,6 +2846,156 @@ export interface Database {
           },
         ];
       };
+      subscription_activations: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          plan: Enums['subscription_plan'];
+          term_months: number;
+          amount_cents: number;
+          currency_code: string;
+          reference: string;
+          state: string;
+          requested_by: string | null;
+          requested_at: string;
+          token_hash: string | null;
+          confirmed_by: string | null;
+          confirmed_at: string | null;
+          payment_note: string | null;
+          expires_at: string | null;
+          activated_at: string | null;
+          activated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          plan: Enums['subscription_plan'];
+          term_months?: number;
+          amount_cents: number;
+          currency_code?: string;
+          reference: string;
+          state?: string;
+          requested_by?: string | null;
+          requested_at?: string;
+          token_hash?: string | null;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+          payment_note?: string | null;
+          expires_at?: string | null;
+          activated_at?: string | null;
+          activated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          plan?: Enums['subscription_plan'];
+          term_months?: number;
+          amount_cents?: number;
+          currency_code?: string;
+          reference?: string;
+          state?: string;
+          requested_by?: string | null;
+          requested_at?: string;
+          token_hash?: string | null;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+          payment_note?: string | null;
+          expires_at?: string | null;
+          activated_at?: string | null;
+          activated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'subscription_activations_activated_by_fkey';
+            columns: ['activated_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'subscription_activations_confirmed_by_fkey';
+            columns: ['confirmed_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'subscription_activations_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: true;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'subscription_activations_requested_by_fkey';
+            columns: ['requested_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      subscription_plans: {
+        Row: {
+          plan: Enums['subscription_plan'];
+          name: string;
+          tagline: string;
+          price_cents_monthly: number | null;
+          price_cents_annual: number | null;
+          currency_code: string;
+          seats: number;
+          data_source_limit: number | null;
+          ai_credits_monthly: number;
+          trial_days: number;
+          contact_sales: boolean;
+          is_public: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          plan: Enums['subscription_plan'];
+          name: string;
+          tagline: string;
+          price_cents_monthly?: number | null;
+          price_cents_annual?: number | null;
+          currency_code?: string;
+          seats?: number;
+          data_source_limit?: number | null;
+          ai_credits_monthly?: number;
+          trial_days?: number;
+          contact_sales?: boolean;
+          is_public?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          plan?: Enums['subscription_plan'];
+          name?: string;
+          tagline?: string;
+          price_cents_monthly?: number | null;
+          price_cents_annual?: number | null;
+          currency_code?: string;
+          seats?: number;
+          data_source_limit?: number | null;
+          ai_credits_monthly?: number;
+          trial_days?: number;
+          contact_sales?: boolean;
+          is_public?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+        ];
+      };
       subscriptions: {
         Row: {
           id: string;
@@ -2789,7 +3003,7 @@ export interface Database {
           plan: Enums['subscription_plan'];
           status: Enums['subscription_status'];
           seats: number;
-          data_source_limit: number;
+          data_source_limit: number | null;
           ai_credits_monthly: number;
           ai_credits_used: number;
           price_cents_monthly: number;
@@ -2799,6 +3013,12 @@ export interface Database {
           current_period_end: string;
           created_at: string;
           updated_at: string;
+          cancel_at_period_end: boolean;
+          cancelled_at: string | null;
+          grace_until: string | null;
+          last_payment_at: string | null;
+          activated_at: string | null;
+          activated_by: string | null;
         };
         Insert: {
           id?: string;
@@ -2806,7 +3026,7 @@ export interface Database {
           plan?: Enums['subscription_plan'];
           status?: Enums['subscription_status'];
           seats?: number;
-          data_source_limit?: number;
+          data_source_limit?: number | null;
           ai_credits_monthly?: number;
           ai_credits_used?: number;
           price_cents_monthly?: number;
@@ -2816,6 +3036,12 @@ export interface Database {
           current_period_end?: string;
           created_at?: string;
           updated_at?: string;
+          cancel_at_period_end?: boolean;
+          cancelled_at?: string | null;
+          grace_until?: string | null;
+          last_payment_at?: string | null;
+          activated_at?: string | null;
+          activated_by?: string | null;
         };
         Update: {
           id?: string;
@@ -2823,7 +3049,7 @@ export interface Database {
           plan?: Enums['subscription_plan'];
           status?: Enums['subscription_status'];
           seats?: number;
-          data_source_limit?: number;
+          data_source_limit?: number | null;
           ai_credits_monthly?: number;
           ai_credits_used?: number;
           price_cents_monthly?: number;
@@ -2833,8 +3059,21 @@ export interface Database {
           current_period_end?: string;
           created_at?: string;
           updated_at?: string;
+          cancel_at_period_end?: boolean;
+          cancelled_at?: string | null;
+          grace_until?: string | null;
+          last_payment_at?: string | null;
+          activated_at?: string | null;
+          activated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: 'subscriptions_activated_by_fkey';
+            columns: ['activated_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'subscriptions_organisation_id_fkey';
             columns: ['organisation_id'];
@@ -2910,13 +3149,44 @@ export interface Database {
         ];
       };
     };
-    Views: { [_ in never]: never };
+    Views: {
+      organisation_entitlements: {
+        Row: {
+          organisation_id: string | null;
+          entitlement_key: string | null;
+          category: string | null;
+          name: string | null;
+          description: string | null;
+          kind: string | null;
+          sort_order: number | null;
+          included: boolean | null;
+          limit_value: number | null;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       accept_invitation: {
         Args: {
           p_token: string;
         };
         Returns: string;
+      };
+      activation_preview: {
+        Args: {
+          p_token: string;
+        };
+        Returns: Record<string, unknown>[];
+      };
+      apply_subscription_plan: {
+        Args: {
+          p_organisation: string;
+          p_plan: string;
+          p_status?: string | null;
+          p_period_start?: string | null;
+          p_period_end?: string | null;
+        };
+        Returns: Database['public']['Tables']['subscriptions']['Row'];
       };
       check_rate_limit: {
         Args: {
@@ -2946,6 +3216,16 @@ export interface Database {
         };
         Returns: Record<string, unknown>[];
       };
+      issue_activation: {
+        Args: {
+          p_activation: string;
+          p_token_hash: string;
+          p_confirmed_by?: string | null;
+          p_note?: string | null;
+          p_valid_for?: string | null;
+        };
+        Returns: Database['public']['Tables']['subscription_activations']['Row'];
+      };
       record_account_event: {
         Args: {
           p_action: string;
@@ -2964,6 +3244,12 @@ export interface Database {
         };
         Returns: undefined;
       };
+      redeem_activation: {
+        Args: {
+          p_token: string;
+        };
+        Returns: Database['public']['Tables']['subscriptions']['Row'];
+      };
       redeem_recovery_code: {
         Args: {
           p_hash: string;
@@ -2975,6 +3261,13 @@ export interface Database {
           p_hashes: string[];
         };
         Returns: undefined;
+      };
+      request_subscription: {
+        Args: {
+          p_plan: string;
+          p_term_months?: number | null;
+        };
+        Returns: Database['public']['Tables']['subscription_activations']['Row'];
       };
     };
     Enums: Enums;
@@ -2989,3 +3282,6 @@ export type InsertRow<T extends keyof Database['public']['Tables']> =
   Database['public']['Tables'][T]['Insert'];
 export type UpdateRow<T extends keyof Database['public']['Tables']> =
   Database['public']['Tables'][T]['Update'];
+/** Views are read-only, so they have a Row and nothing else. */
+export type ViewRow<T extends keyof Database['public']['Views']> =
+  Database['public']['Views'][T]['Row'];

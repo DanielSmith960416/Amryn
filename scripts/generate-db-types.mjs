@@ -52,9 +52,21 @@ const columns = query(`
   join pg_attribute a on a.attrelid = c.oid
   join pg_type t on t.oid = a.atttypid
   left join pg_attrdef d on d.adrelid = c.oid and d.adnum = a.attnum
-  where n.nspname = 'public' and c.relkind = 'r' and a.attnum > 0 and not a.attisdropped
+  where n.nspname = 'public' and c.relkind in ('r', 'v')
+    and a.attnum > 0 and not a.attisdropped
   order by c.relname, a.attnum
 `);
+
+// Views come back from the same query and have to be told apart, because they
+// are emitted into a different block and have no Insert or Update shape.
+const viewNames = new Set(
+  query(`
+    select c.relname as name
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind = 'v'
+     order by c.relname
+  `).map((v) => v.name),
+);
 
 const relationships = query(`
   select
@@ -116,9 +128,11 @@ function scalar(base, sql) {
 }
 
 const byTable = new Map();
+const byView = new Map();
 for (const col of columns) {
-  if (!byTable.has(col.table_name)) byTable.set(col.table_name, []);
-  byTable.get(col.table_name).push(col);
+  const into = viewNames.has(col.table_name) ? byView : byTable;
+  if (!into.has(col.table_name)) into.set(col.table_name, []);
+  into.get(col.table_name).push(col);
 }
 
 const out = [];
@@ -174,11 +188,29 @@ for (const [table, cols] of [...byTable.entries()].sort()) {
 }
 
 out.push('    };');
-out.push("    Views: { [_ in never]: never };");
-// Introspected, not listed. This block was hand-written while the rest of the
-// file was generated, which is the drift this tool exists to prevent — and it
-// duly drifted: a function added by a migration was simply absent, and calling
-// it did not typecheck.
+
+// Introspected, not listed. Both this block and Functions were once written by
+// hand while the rest of the file was generated, which is the drift this tool
+// exists to prevent — and both duly drifted: a function added by a migration
+// was simply absent, and a view added by another was typed as `never`, so
+// selecting from either did not typecheck.
+out.push('    Views: {');
+if (byView.size === 0) {
+  out.push('      [_ in never]: never;');
+}
+for (const [view, cols] of [...byView.entries()].sort()) {
+  out.push(`      ${view}: {`);
+  out.push('        Row: {');
+  for (const c of cols) {
+    // A view column is nullable as far as the planner is concerned whatever
+    // the underlying column says, and PostgREST makes no stronger promise.
+    out.push(`          ${c.column_name}: ${tsType(c)} | null;`);
+  }
+  out.push('        };');
+  out.push('        Relationships: [];');
+  out.push('      };');
+}
+out.push('    };');
 const routines = query(`
   select p.proname                                     as name,
          pg_get_function_arguments(p.oid)              as args,
@@ -189,7 +221,12 @@ const routines = query(`
     join pg_type t on t.oid = p.prorettype
    where n.nspname = 'public'
      and p.prokind = 'f'
-     and has_function_privilege('authenticated', p.oid, 'execute')
+     -- Either role's API surface. authenticated covers what a customer's
+     -- session can call; service_role covers what an operator tool calls
+     -- through the admin client, which is a real part of this schema's API and
+     -- was missing from the types entirely: calling one did not typecheck.
+     and (has_function_privilege('authenticated', p.oid, 'execute')
+       or has_function_privilege('service_role', p.oid, 'execute'))
      -- citext and pgcrypto are created in public, so every one of their
      -- functions is visible here. They are not part of this schema's API, and
      -- their overloads collide on name — which is invalid TypeScript, not
@@ -236,12 +273,21 @@ for (const routine of routines) {
   // through scalar() produced `string` — a type that compiles and is wrong,
   // since supabase-js hands back an array of rows. Left unnarrowed, so the
   // caller has to say what the shape is rather than trusting a guess.
+  // A function returning `setof record` is a table-valued function whose
+  // shape lives in its OUT parameters, which are not introspected here.
+  //
+  // A function declared `returns public.subscriptions` has a return type whose
+  // name is that table's — PostgreSQL gives every table a composite type of
+  // the same name — so it is emitted as that table's Row rather than falling
+  // through scalar() and being typed `string`, which is what it was.
   const returns =
     routine.return_base === 'void'
       ? 'undefined'
       : routine.return_base === 'record'
         ? 'Record<string, unknown>[]'
-        : scalar(routine.return_base, routine.return_base);
+        : byTable.has(routine.return_base)
+          ? `Database['public']['Tables']['${routine.return_base}']['Row']`
+          : scalar(routine.return_base, routine.return_base);
   out.push(`        Returns: ${returns};`);
   out.push('      };');
 }
@@ -258,6 +304,9 @@ out.push("export type InsertRow<T extends keyof Database['public']['Tables']> ="
 out.push("  Database['public']['Tables'][T]['Insert'];");
 out.push("export type UpdateRow<T extends keyof Database['public']['Tables']> =");
 out.push("  Database['public']['Tables'][T]['Update'];");
+out.push("/** Views are read-only, so they have a Row and nothing else. */");
+out.push("export type ViewRow<T extends keyof Database['public']['Views']> =");
+out.push("  Database['public']['Views'][T]['Row'];");
 out.push('');
 
 process.stdout.write(out.join('\n'));

@@ -142,7 +142,7 @@ end $$;
 -- future edit moved the restore, or dropped it, the tables would ship
 -- writable by their owner and nothing else would say so.
 --
--- Two deliberate exceptions, and the same reason for both: their only writers
+-- Three deliberate exceptions, and the same reason for each: their only writers
 -- are SECURITY DEFINER functions, which run as the table's owner. Forcing row
 -- level security refuses the owner as well, and neither table has an insert
 -- policy — so forcing it would break every function that writes to them.
@@ -151,30 +151,33 @@ end $$;
 --     recorders. Forcing it stopped organisation creation outright.
 --   · mfa_recovery_codes (migration 15) — codes are minted and spent by
 --     replace_recovery_codes() and redeem_recovery_code().
+--   · subscription_activations (migration 16) — a payment is confirmed by
+--     issue_activation() and redeemed by redeem_activation(), and neither may
+--     be reachable by a customer writing the row directly.
 --
 -- Protection for both comes from the revoked grant instead, which is stronger
 -- than a policy and unaffected by FORCE either way. Asserted in tests 16 and
 -- 18 respectively.
 --
--- Named rather than counted, so that a third table quietly losing FORCE is a
+-- Named rather than counted, so that a fourth table quietly losing FORCE is a
 -- failure rather than an adjustment to a number.
 select pg_temp.check(
   (select coalesce(array_agg(c.relname::text order by c.relname), array[]::text[])
      from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r' and not c.relforcerowsecurity)
-    = array['audit_logs', 'mfa_recovery_codes']::text[],
+    = array['audit_logs', 'mfa_recovery_codes', 'subscription_activations']::text[],
   'row level security is forced on every table but the one documented exception');
 
 select pg_temp.check(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity) = 49,
-  'all 49 tables have RLS enabled');
+    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity) = 53,
+  'all 53 tables have RLS enabled');
 
 select pg_temp.check(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r'
-      and c.relrowsecurity and c.relforcerowsecurity) = 47,
-  'and 47 of them force it against the owner as well');
+      and c.relrowsecurity and c.relforcerowsecurity) = 50,
+  'and 50 of them force it against the owner as well');
 
 reset role;
 rollback;

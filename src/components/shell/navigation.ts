@@ -1,4 +1,5 @@
 import type { Permission } from '@/lib/auth/permissions';
+import type { Entitlement, Entitlements } from '@/lib/billing/access';
 
 /**
  * The information architecture, as data.
@@ -29,6 +30,10 @@ export interface NavItem {
   trademark?: '®' | '™';
   /** One line, shown in the mobile drawer where there is room to explain. */
   hint?: string;
+  /** What the plan has to include. Omitted means every plan carries it. */
+  entitlement?: Entitlement;
+  /** Set by visibleGroups(): in the plan's reach, but not bought. */
+  locked?: boolean;
 }
 
 export interface NavGroup {
@@ -74,6 +79,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'OpportunityRadar',
         href: '/opportunity-radar',
         permission: 'view_opportunities',
+        entitlement: 'opportunity_pipeline',
         trademark: '®',
         hint: 'Scored growth openings',
       },
@@ -81,12 +87,14 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Risk Radar',
         href: '/risk-radar',
         permission: 'view_risks',
+        entitlement: 'risk_radar',
         hint: 'Register and exposure',
       },
       {
         label: 'Market & Competitors',
         href: '/market',
         permission: 'view_market_intelligence',
+        entitlement: 'market_intelligence',
         hint: 'The view outside',
       },
       {
@@ -99,6 +107,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Assistant',
         href: '/assistant',
         permission: 'view_intelligence',
+        entitlement: 'ai_assistant',
         hint: 'Ask about your own numbers',
       },
     ],
@@ -110,6 +119,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Financial Intelligence',
         href: '/financial',
         permission: 'view_financial_data',
+        entitlement: 'financial_intelligence',
         hint: 'Month by month',
       },
       {
@@ -179,6 +189,7 @@ export const PRIMARY_NAV: NavItem[] = [
     label: 'OpportunityRadar',
     href: '/opportunity-radar',
     permission: 'view_opportunities',
+    entitlement: 'opportunity_pipeline',
     trademark: '®',
   },
   { label: 'Inventory', href: '/inventory', permission: 'view_operations_data' },
@@ -195,14 +206,36 @@ export function isActive(href: string, pathname: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Drops anything the reader cannot open, and any group left empty. */
-export function visibleGroups(permissions: ReadonlySet<Permission>): NavGroup[] {
+/**
+ * Drops anything the reader cannot open, marks anything the plan has not
+ * bought, and drops any group left empty.
+ *
+ * `entitlements` is optional so that a caller which has not resolved them —
+ * or a deployment where the catalogue could not be read — gets the old
+ * behaviour rather than a navigation where every entry looks locked.
+ */
+export function visibleGroups(
+  permissions: ReadonlySet<Permission>,
+  entitlements?: Entitlements,
+): NavGroup[] {
   return NAV_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => !item.permission || permissions.has(item.permission)),
+    items: group.items
+      .filter((item) => !item.permission || permissions.has(item.permission))
+      .map((item) => ({ ...item, locked: isLocked(item, entitlements) })),
   })).filter((group) => group.items.length > 0);
 }
 
-export function visiblePrimary(permissions: ReadonlySet<Permission>): NavItem[] {
-  return PRIMARY_NAV.filter((item) => !item.permission || permissions.has(item.permission));
+export function visiblePrimary(
+  permissions: ReadonlySet<Permission>,
+  entitlements?: Entitlements,
+): NavItem[] {
+  return PRIMARY_NAV.filter((item) => !item.permission || permissions.has(item.permission)).map(
+    (item) => ({ ...item, locked: isLocked(item, entitlements) }),
+  );
+}
+
+function isLocked(item: NavItem, entitlements?: Entitlements): boolean {
+  if (!item.entitlement || !entitlements) return false;
+  return !entitlements.has(item.entitlement);
 }

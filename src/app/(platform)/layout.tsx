@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/shell/app-shell';
 import { visibleGroups, visiblePrimary } from '@/components/shell/navigation';
-import { requireWorkspace } from '@/lib/auth/session';
+import { can, requireWorkspace } from '@/lib/auth/session';
+import { AccountNotice } from '@/features/billing/account-notice';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
 import { createClient } from '@/lib/supabase/server';
 
@@ -33,8 +34,8 @@ export default async function PlatformLayout({ children }: { children: React.Rea
 
   return (
     <AppShell
-      primary={visiblePrimary(workspace.permissions)}
-      groups={visibleGroups(workspace.permissions)}
+      primary={visiblePrimary(workspace.permissions, workspace.entitlements)}
+      groups={visibleGroups(workspace.permissions, workspace.entitlements)}
       organisations={workspace.organisations}
       activeOrganisationId={workspace.organisation.id}
       userName={name}
@@ -44,6 +45,10 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       roleLabel={ROLE_LABELS[workspace.role] ?? workspace.role}
       unreadCount={count ?? 0}
     >
+      <AccountNotice
+        access={workspace.access}
+        canManageBilling={can(workspace, 'manage_billing')}
+      />
       {children}
     </AppShell>
   );

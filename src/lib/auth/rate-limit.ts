@@ -49,6 +49,11 @@ export const LIMITS = {
   // Deliberately tighter. A recovery code is the way past the second factor,
   // and unlike a six-digit code there is no expiry racing the attacker.
   mfaRecovery: { max: 5, window: '1 hour' },
+  // Asking to buy something should not be rationed tightly — a customer who
+  // changes their mind twice about a plan is a customer, not an attack — but
+  // each request supersedes the last and writes an audit entry, so it is not
+  // free either.
+  subscriptionRequest: { max: 20, window: '1 hour' },
 } as const satisfies Record<string, Limit>;
 
 function hash(value: string): string {

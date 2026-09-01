@@ -16,6 +16,14 @@ import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
 import { isPermission, PermissionError, type Permission } from './permissions';
 import { mfaChallengeOutstanding } from './mfa';
+import {
+  loadEntitlements,
+  subscriptionAccess,
+  EntitlementError,
+  type Entitlement,
+  type Entitlements,
+  type SubscriptionAccess,
+} from '@/lib/billing/entitlements';
 import type { Enums, Row } from '@/types/database';
 
 export const ACTIVE_ORG_COOKIE = 'amryn.org';
@@ -28,6 +36,14 @@ export interface Workspace {
   role: Enums['org_role'];
   scope: { kind: Enums['scope_kind']; ids: string[]; label: string };
   permissions: ReadonlySet<Permission>;
+  /** The subscription this organisation is on. Absent only if the record is
+   *  broken: create_organisation() opens one with every organisation. */
+  subscription: Row<'subscriptions'> | null;
+  /** What the plan includes. Resolved here so no page has to ask the plan's
+   *  name and decide for itself what that means. */
+  entitlements: Entitlements;
+  /** Whether the subscription is paid, and what to say if it is not. */
+  access: SubscriptionAccess;
   /** Every organisation the user belongs to, for the switcher. */
   organisations: { id: string; name: string; slug: string; role: Enums['org_role'] }[];
 }
@@ -125,10 +141,22 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
     memberships.find((m) => m.organisation_id === preferred) ?? memberships[0];
   if (!membership) return null;
 
-  const [{ data: organisation }, { data: existingProfile }, permissions] = await Promise.all([
+  const [
+    { data: organisation },
+    { data: existingProfile },
+    permissions,
+    { data: subscription },
+    entitlements,
+  ] = await Promise.all([
     supabase.from('organisations').select('*').eq('id', membership.organisation_id).single(),
     supabase.from('user_profiles').select('*').eq('id', user.id).maybeSingle(),
     resolvePermissions(membership.organisation_id, membership.id, membership.role),
+    supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('organisation_id', membership.organisation_id)
+      .maybeSingle(),
+    loadEntitlements(membership.organisation_id),
   ]);
 
   if (!organisation) return null;
@@ -168,6 +196,9 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
       label: await describeScope(membership),
     },
     permissions,
+    subscription: subscription ?? null,
+    entitlements,
+    access: subscriptionAccess(subscription ?? null),
     organisations: available,
   };
 });
@@ -264,3 +295,52 @@ export async function requirePermission(permission: Permission): Promise<Workspa
   if (!can(workspace, permission)) redirect('/command-centre?denied=' + permission);
   return workspace;
 }
+
+/* ── what the plan includes ────────────────────────────────────────────── */
+
+export function includes(workspace: Workspace, entitlement: Entitlement): boolean {
+  return workspace.entitlements.has(entitlement);
+}
+
+/** Throws rather than redirecting: use inside server actions. */
+export function assertEntitlement(workspace: Workspace, entitlement: Entitlement): void {
+  workspace.entitlements.assert(entitlement);
+}
+
+/**
+ * The top of a page that a tier may not have bought.
+ *
+ * Sends the customer to the billing page rather than to a dead end, because
+ * unlike a missing permission — which only an administrator can resolve — a
+ * missing entitlement is something the person looking at the screen can
+ * usually fix themselves.
+ */
+export async function requireEntitlement(entitlement: Entitlement): Promise<Workspace> {
+  const workspace = await requireWorkspace();
+  if (!includes(workspace, entitlement)) {
+    redirect('/settings/billing?upgrade=' + entitlement);
+  }
+  return workspace;
+}
+
+/**
+ * A server action that changes business records.
+ *
+ * The database refuses the write anyway — that is what actually protects the
+ * boundary — but a refusal surfacing as a constraint violation is a poor way
+ * to tell somebody their payment has not arrived.
+ */
+export function assertWritable(workspace: Workspace): void {
+  if (workspace.access.state !== 'open') {
+    throw new SubscriptionLapsedError(workspace.access.reason);
+  }
+}
+
+export class SubscriptionLapsedError extends Error {
+  constructor(reason: string) {
+    super(reason || 'This account is on hold until the subscription is settled.');
+    this.name = 'SubscriptionLapsedError';
+  }
+}
+
+export { EntitlementError };

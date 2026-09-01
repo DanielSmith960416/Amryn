@@ -7,6 +7,7 @@ import { RevenueChart } from '@/components/intelligence/revenue-chart';
 import { isReported } from '@/lib/intelligence/finance';
 import { compactMoney, count, money, percent } from '@/lib/format';
 import { loadWorkspace } from '@/lib/workspace';
+import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Financial Intelligence' };
 
@@ -18,7 +19,11 @@ export const metadata: Metadata = { title: 'Financial Intelligence' };
  * year is visible: eight reported months out of twelve is itself information,
  * and a table that silently stops at August looks like a table that broke.
  */
-export default function FinancialPage() {
+export default async function FinancialPage() {
+  // Sends the reader to billing with the feature named, rather than to an
+  // empty page or a refusal they cannot act on.
+  await requireEntitlement('financial_intelligence');
+
   const w = loadWorkspace();
   const currency = w.profile.currency;
 

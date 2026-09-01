@@ -34,7 +34,10 @@ export type SecurityEvent =
   | 'organisation.settings_changed'
   | 'invitation.created'
   | 'invitation.withdrawn'
-  | 'invitation.accepted';
+  | 'invitation.accepted'
+  | 'subscription.requested'
+  | 'subscription.request_withdrawn'
+  | 'subscription.activated';
 
 /**
  * Records something that happened to an organisation.
