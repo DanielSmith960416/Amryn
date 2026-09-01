@@ -43,7 +43,12 @@ export async function switchOrganisation(organisationId: string): Promise<void> 
   });
 
   revalidatePath('/', 'layout');
-  redirect('/command-centre');
+
+  // Straight into the questions rather than to an empty Command Centre. The
+  // organisation exists; what it does not yet have is anything to say about
+  // itself, and arriving at a blank dashboard is what teaches somebody the
+  // product has nothing in it.
+  redirect('/onboarding/identity');
 }
 
 /* ── sector scope ──────────────────────────────────────────────────────── */
@@ -212,7 +217,12 @@ export async function createOrganisation(
   });
 
   revalidatePath('/', 'layout');
-  redirect('/command-centre');
+
+  // Straight into the questions rather than to an empty Command Centre. The
+  // organisation exists; what it does not yet have is anything to say about
+  // itself, and arriving at a blank dashboard is what teaches somebody the
+  // product has nothing in it.
+  redirect('/onboarding/identity');
 }
 
 /** A URL-safe slug, with a short suffix so two "Acme Trading"s can coexist. */

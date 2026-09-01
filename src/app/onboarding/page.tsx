@@ -4,6 +4,8 @@ import Image from 'next/image';
 import { OnboardingForm } from '@/features/organisation/onboarding-form';
 import { LegalFooter } from '@/components/legal/legal-footer';
 import { getWorkspace, requireVerifiedUser } from '@/lib/auth/session';
+import { createClient } from '@/lib/supabase/server';
+import { resumeAt } from '@/features/onboarding/steps';
 import { isSupabaseConfigured } from '@/lib/env';
 
 export const metadata: Metadata = { title: 'Set up your organisation' };
@@ -25,7 +27,24 @@ export default async function OnboardingPage() {
   // invite a long-standing member to create a new one.
   await requireVerifiedUser();
   const workspace = await getWorkspace();
-  if (workspace) redirect('/command-centre');
+
+  // The organisation already exists, so this page has nothing left to do —
+  // but the seven questions after it may not have been answered. Sending
+  // somebody who is halfway through to the Command Centre instead of back to
+  // where they stopped is how a half-set-up account stays half set up.
+  if (workspace) {
+    const supabase = await createClient();
+    const { data: progress } = await supabase
+      .from('onboarding_progress')
+      .select('completed_steps, skipped_steps, completed_at')
+      .eq('organisation_id', workspace.organisation.id)
+      .maybeSingle();
+
+    if (progress?.completed_at) redirect('/command-centre');
+    redirect(
+      `/onboarding/${resumeAt(progress?.completed_steps ?? [], progress?.skipped_steps ?? [])}`,
+    );
+  }
 
   return (
     <div className="flex min-h-dvh items-center justify-center px-5 py-12">
@@ -48,8 +67,9 @@ export default async function OnboardingPage() {
           Set up your organisation
         </h1>
         <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
-          This creates your workspace and makes you its administrator. You can invite colleagues and
-          connect data sources once it exists.
+          This creates your workspace and makes you its administrator. Seven short questions
+          follow, and you can leave and come back to them at any point — nothing is lost between
+          sittings.
         </p>
 
         <div className="mt-7">

@@ -1808,6 +1808,53 @@ export interface Database {
           },
         ];
       };
+      onboarding_progress: {
+        Row: {
+          organisation_id: string;
+          current_step: string;
+          completed_steps: string[];
+          skipped_steps: string[];
+          answers: Json;
+          started_at: string;
+          completed_at: string | null;
+          initialised_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          organisation_id: string;
+          current_step?: string;
+          completed_steps?: string[];
+          skipped_steps?: string[];
+          answers?: Json;
+          started_at?: string;
+          completed_at?: string | null;
+          initialised_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          organisation_id?: string;
+          current_step?: string;
+          completed_steps?: string[];
+          skipped_steps?: string[];
+          answers?: Json;
+          started_at?: string;
+          completed_at?: string | null;
+          initialised_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'onboarding_progress_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: true;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       operational_records: {
         Row: {
           id: string;
@@ -3196,6 +3243,12 @@ export interface Database {
         };
         Returns: boolean;
       };
+      complete_onboarding: {
+        Args: {
+          p_organisation: string;
+        };
+        Returns: Database['public']['Tables']['onboarding_progress']['Row'];
+      };
       create_organisation: {
         Args: {
           p_name: string;
@@ -3205,6 +3258,12 @@ export interface Database {
           p_currency_code?: string | null;
         };
         Returns: string;
+      };
+      ensure_onboarding: {
+        Args: {
+          p_organisation: string;
+        };
+        Returns: Database['public']['Tables']['onboarding_progress']['Row'];
       };
       ensure_user_profile: {
         Args: Record<string, never>;

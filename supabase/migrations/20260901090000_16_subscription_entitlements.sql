@@ -494,22 +494,23 @@ comment on function amryn.refuse_lapsed_write is
 -- Everything owned by an organisation, except:
 --   billing              a customer who cannot pay cannot recover, and the
 --                        activation that ends the lapse is itself a write
---   legal and rights     POPIA s23/s24 do not lapse with a card
 --   audit                the record of what happened must not have a gap
 --   membership           removing a person's access must always be possible
 --
--- Consent is not listed because it is not a table: it is columns on
--- user_profiles and organisations, neither of which carries an
--- organisation_id, so the loop below never reaches them and withdrawal keeps
--- working for the same reason reads do.
+-- The POPIA machinery is absent from the list for a better reason than
+-- exemption: none of it is organisation-scoped. A data request belongs to the
+-- person who made it and consent is columns on user_profiles and
+-- organisations, so the loop below — which selects on organisation_id — never
+-- reaches any of them. The right of access keeps working for the same reason
+-- reads do, not because somebody remembered to name it here.
 do $$
 declare
   t text;
   exempt constant text[] := array[
     'subscriptions', 'billing_records', 'subscription_activations',
-    'audit_logs', 'data_requests',
+    'audit_logs',
     'organisation_members', 'member_permission_overrides',
-    'organisation_invitations', 'rate_limits'
+    'organisation_invitations'
   ];
 begin
   for t in

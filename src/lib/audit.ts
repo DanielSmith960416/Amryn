@@ -37,7 +37,8 @@ export type SecurityEvent =
   | 'invitation.accepted'
   | 'subscription.requested'
   | 'subscription.request_withdrawn'
-  | 'subscription.activated';
+  | 'subscription.activated'
+  | 'onboarding.completed';
 
 /**
  * Records something that happened to an organisation.

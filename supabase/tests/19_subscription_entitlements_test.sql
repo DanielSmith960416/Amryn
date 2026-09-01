@@ -36,13 +36,34 @@ begin
 end $$;
 
 -- Did a statement fail, and with a message that says why?
+--
+-- The needle matters as much as the failure. Without it a statement that broke
+-- for an unrelated reason — a column that does not exist, say — reads as
+-- "refused", and an assertion written as `not refused(...)` reads as
+-- "succeeded" when in fact nothing ran at all. That is not hypothetical: the
+-- data-rights assertion below passed that way until this comment was written.
 create or replace function pg_temp.refused(stmt text, needle text) returns boolean
 language plpgsql as $$
 begin
   execute stmt;
   return false;
 exception when others then
-  return position(lower(needle) in lower(sqlerrm)) > 0;
+  if position(lower(needle) in lower(sqlerrm)) > 0 then return true; end if;
+  -- Failed, but not for the reason under test. Silence here is what let a
+  -- broken statement masquerade as a successful one.
+  raise exception 'statement failed for an unrelated reason: %', sqlerrm;
+end $$;
+
+-- Did it actually run? The opposite of refused(), and not the same as
+-- `not refused(...)`.
+create or replace function pg_temp.succeeds(stmt text) returns boolean
+language plpgsql as $$
+begin
+  execute stmt;
+  return true;
+exception when others then
+  raise notice 'statement failed: %', sqlerrm;
+  return false;
 end $$;
 
 insert into auth.users (id, email) values
@@ -252,22 +273,25 @@ select pg_temp.check(
     where id = current_setting('amryn_test.lapsed')::uuid) = 1,
   'and its own organisation');
 
+-- A data request is not organisation-scoped at all: it belongs to the person
+-- who made it, which is what POPIA s23 is about. So the guard never sees it,
+-- and this asserts that the right survives the lapse rather than that somebody
+-- remembered to add a table name to an exemption list.
 select pg_temp.check(
-  not pg_temp.refused($$
-    insert into public.data_requests (organisation_id, subject_id, kind)
-    values (current_setting('amryn_test.lapsed')::uuid,
-            'f2222222-2222-4222-8222-222222222222', 'export')
-  $$, 'subscription is not active'),
+  pg_temp.succeeds($$
+    insert into public.data_requests (user_id, kind)
+    values ('f2222222-2222-4222-8222-222222222222', 'export')
+  $$),
   'and may still ask for its data — a right that does not lapse with a payment');
 
 -- A paid organisation is untouched by any of this.
 select pg_temp.act_as('f1111111-1111-4111-8111-111111111111');
 select pg_temp.check(
-  not pg_temp.refused($$
+  pg_temp.succeeds($$
     insert into public.financial_records
       (organisation_id, occurred_on, category, amount_cents, direction)
     values (current_setting('amryn_test.paid')::uuid, current_date, 'Sale', 250000, 'income')
-  $$, 'subscription is not active'),
+  $$),
   'a paid organisation writes exactly as before');
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -376,11 +400,11 @@ select pg_temp.check(
   'and the twelve months running from the moment the link was opened');
 
 select pg_temp.check(
-  not pg_temp.refused($$
+  pg_temp.succeeds($$
     insert into public.financial_records
       (organisation_id, occurred_on, category, amount_cents, direction)
     values (current_setting('amryn_test.lapsed')::uuid, current_date, 'Back in business', 1, 'income')
-  $$, 'subscription is not active'),
+  $$),
   'and the organisation can write again');
 
 select pg_temp.check(
@@ -393,6 +417,54 @@ select pg_temp.check(
       and action in ('subscription.requested', 'subscription.payment_confirmed',
                      'subscription.activated', 'subscription.plan_applied')) = 4,
   'and every step of it is in the audit log');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Every table is either guarded or deliberately exempt
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- The guard is attached by iterating the catalogue at the moment migration 16
+-- runs. That is a snapshot: a table added afterwards carries no trigger, and
+-- nothing about writing that migration would tell its author so. Two tables
+-- have already arrived that way and one of them is meant to be exempt.
+--
+-- So the list is asserted rather than remembered. A new table with an
+-- organisation_id fails here until somebody has decided, in writing, which
+-- side of the line it belongs on — which is the decision that would otherwise
+-- be made silently and wrongly.
+select pg_temp.check(
+  (select coalesce(array_agg(c.relname::text order by c.relname), array[]::text[])
+     from pg_class c
+     join pg_namespace n on n.oid = c.relnamespace
+     join pg_attribute a on a.attrelid = c.oid and a.attname = 'organisation_id'
+    where n.nspname = 'public' and c.relkind = 'r' and not a.attisdropped
+      and not exists (
+        select 1 from pg_trigger t
+         where t.tgrelid = c.oid and not t.tgisinternal
+           and t.tgfoid = 'amryn.refuse_lapsed_write'::regproc))
+  = array[
+      -- Alphabetical, because that is the order the query returns and a list
+      -- kept in reading order would drift out of it. What each is doing here:
+      --
+      --   audit_logs                   the record must not have a gap
+      --   billing_records              a customer who cannot pay cannot recover
+      --   member_permission_overrides  withdrawing access must always work
+      --   onboarding_progress          setting up is how a trial becomes a
+      --                                customer (migration 17)
+      --   organisation_invitations     as above: withdrawing access
+      --   organisation_members         as above
+      --   subscription_activations     the activation that ends the lapse is
+      --                                itself a write
+      --   subscriptions                as above
+      'audit_logs',
+      'billing_records',
+      'member_permission_overrides',
+      'onboarding_progress',
+      'organisation_invitations',
+      'organisation_members',
+      'subscription_activations',
+      'subscriptions'
+    ]::text[],
+  'every table with an organisation_id is guarded, or exempt on purpose');
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- The resolved view stays inside the tenant
