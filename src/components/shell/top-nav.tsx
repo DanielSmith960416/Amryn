@@ -24,6 +24,7 @@ export function TopNav({
   activeOrganisationId,
   userName,
   userEmail,
+  organisationName,
   unreadCount,
   onOpenSidebar,
 }: {
@@ -32,6 +33,8 @@ export function TopNav({
   activeOrganisationId: string;
   userName: string;
   userEmail: string;
+  /** The organisation being acted in, shown under the name in the menu. */
+  organisationName: string;
   unreadCount: number;
   onOpenSidebar: () => void;
 }) {
@@ -132,7 +135,7 @@ export function TopNav({
             <ThemeToggle />
           </div>
 
-          <UserMenu name={userName} email={userEmail} />
+          <UserMenu name={userName} email={userEmail} company={organisationName} />
         </div>
       </div>
     </header>

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { EXEMPT_PATHS, OPERATOR_VOCABULARY } from './vocabulary';
 
@@ -140,6 +140,10 @@ describe('customer-facing copy', () => {
     const offenders: string[] = [];
 
     for (const path of files) {
+      // A path git lists but the working tree no longer has — a file deleted
+      // and not yet staged. Normal mid-edit state, and there is no text to
+      // scan, so it is skipped rather than failing every assertion at once.
+      if (!existsSync(path)) continue;
       for (const text of readableText(readFileSync(path, 'utf8'))) {
         if (pattern.test(text)) offenders.push(`${path}: ${text.slice(0, 120)}`);
       }

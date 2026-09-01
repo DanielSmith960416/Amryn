@@ -1,0 +1,76 @@
+# Action majors are pinned deliberately. GitHub forces actions targeting
+# Node 20 onto Node 24 and warns; when Node 20 support is removed outright,
+# a workflow left on the old majors stops running rather than warning.
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck, lint and test
+        run: npm run check
+
+      # The build runs with no database, no mail service and no API keys —
+      # which is the point. If it needs anything beyond a session secret to
+      # compile, something has crept back in.
+      # No environment at all: a static export that needed one would not be
+      # deployable from a plain Pages workflow, so this is worth asserting.
+      - name: Build
+        run: npm run build
+
+      # The static marketing site has no build step and no other tests, and
+      # under the current deployment shape it is the front door to sign-in.
+      # Its one piece of behaviour — revealing the platform links once APP_URL
+      # is set — is exactly the kind of thing that breaks silently.
+      # A cheap guard against the retired stack returning by way of a
+      # copy-pasted snippet or a stray dependency.
+      #
+      # It matches imports and dependency entries, not prose: several comments
+      # in src/ name Supabase to explain what was replaced and why, and those
+      # are worth keeping. A grep that fired on them would teach people to
+      # delete the explanation rather than the dependency.
+      - name: Confirm the retired stack has not returned
+        run: |
+          RETIRED='@supabase/|@anthropic-ai/|\bnodemailer\b|\brecharts\b|\bpg\b|\bframer-motion\b'
+
+          if grep -rnE "(from|require\(|import\()[[:space:]]*['\"][^'\"]*($RETIRED)" src/; then
+            echo "::error::A retired dependency is imported again in src/. See docs-internal/MIGRATION.md."
+            exit 1
+          fi
+
+          if node -e "
+            const pkg = require('./package.json');
+            const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
+            const back = deps.filter((d) => /^(@supabase\/|@anthropic-ai\/|supabase\$|nodemailer\$|recharts\$|pg\$|framer-motion\$|smtp-server\$|mailparser\$)/.test(d));
+            if (back.length) { console.error(back.join(', ')); process.exit(1); }
+          "; then
+            echo "Clean — no retired dependencies imported or declared."
+          else
+            echo "::error::A retired dependency is back in package.json. See docs-internal/MIGRATION.md."
+            exit 1
+          fi

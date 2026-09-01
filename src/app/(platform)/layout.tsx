@@ -39,6 +39,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       activeOrganisationId={workspace.organisation.id}
       userName={name}
       userEmail={workspace.user.email ?? ''}
+      organisationName={workspace.organisation.name}
       scopeLabel={workspace.scope.label}
       roleLabel={ROLE_LABELS[workspace.role] ?? workspace.role}
       unreadCount={count ?? 0}

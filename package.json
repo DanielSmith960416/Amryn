@@ -1,6 +1,6 @@
 {
   "name": "amryn-platform",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Amryn\u2122 AIGrowthIntelligence\u00ae Software \u2014 multi-tenant AI business intelligence platform",
   "engines": {

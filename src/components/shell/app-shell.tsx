@@ -21,6 +21,7 @@ export function AppShell({
   activeOrganisationId,
   userName,
   userEmail,
+  organisationName,
   scopeLabel,
   roleLabel,
   unreadCount,
@@ -32,6 +33,7 @@ export function AppShell({
   activeOrganisationId: string;
   userName: string;
   userEmail: string;
+  organisationName: string;
   scopeLabel: string;
   roleLabel: string;
   unreadCount: number;
@@ -54,6 +56,7 @@ export function AppShell({
         activeOrganisationId={activeOrganisationId}
         userName={userName}
         userEmail={userEmail}
+        organisationName={organisationName}
         unreadCount={unreadCount}
         onOpenSidebar={() => setSidebarOpen(true)}
       />
