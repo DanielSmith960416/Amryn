@@ -64,8 +64,36 @@ export interface ResolvedUrl {
   note?: string;
 }
 
+/**
+ * The project URL with any path removed.
+ *
+ * The Supabase client is given an origin and appends its own path — `/rest/v1`
+ * for PostgREST, `/auth/v1` for auth. Handed the REST endpoint instead, which
+ * is what the dashboard shows beside the keys and the obvious thing to copy,
+ * it builds `…supabase.co/rest/v1/rest/v1/…` and every query returns 404.
+ *
+ * Nothing else catches this. `projectRefFromUrl` reads only the hostname, so
+ * the ref still matches the key and no correction fires; the schema only asks
+ * whether it parses as a URL, and it does. Diagnostics reports the project URL
+ * as fine. Every check passes and every request fails — so the path is dropped
+ * here, and said out loud rather than done quietly.
+ */
+function withoutPath(url: string): { url: string; discarded: string | null } {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/\/+$/, '');
+    return { url: parsed.origin, discarded: path.length > 0 ? path : null };
+  } catch {
+    // Not a URL at all. Leave it be — the schema reports that far better than
+    // a helper that quietly returns something else.
+    return { url, discarded: null };
+  }
+}
+
 export function resolveSupabaseUrl(): ResolvedUrl {
-  const configured = present(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const raw = present(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const trimmed = raw ? withoutPath(raw) : undefined;
+  const configured = trimmed?.url;
   const key = anonKey();
   const ref = key ? inspectKey(key).ref : null;
   const fromKey = ref ? `https://${ref}.supabase.co` : undefined;
@@ -89,6 +117,18 @@ export function resolveSupabaseUrl(): ResolvedUrl {
         `NEXT_PUBLIC_SUPABASE_URL names project “${configuredRef}”, but the anon key was ` +
         `issued for “${ref}”. A key cannot authenticate against another project, so the ` +
         `key’s project is being used. Correct the URL to match, or clear it — it is optional.`,
+    };
+  }
+
+  if (trimmed?.discarded) {
+    return {
+      url: configured,
+      source: 'corrected',
+      note:
+        `NEXT_PUBLIC_SUPABASE_URL carried the path “${trimmed.discarded}”, which has been ` +
+        `dropped. The client appends its own — given the REST endpoint it would request ` +
+        `${trimmed.discarded}${trimmed.discarded} and every query would return 404. Set it to ` +
+        `the project URL alone.`,
     };
   }
 
