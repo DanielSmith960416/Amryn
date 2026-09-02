@@ -1,0 +1,67 @@
+# Action majors are pinned deliberately. GitHub forces actions targeting
+# Node 20 onto Node 24 and warns; when Node 20 support is removed outright,
+# a workflow left on the old majors stops running rather than warning.
+name: Marketing site
+
+on:
+  push:
+    branches: [main]
+    # Only when the site itself changes. The application shares this
+    # repository and does not deploy here — see the note below.
+    paths:
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+# ── what this does and does not deploy ────────────────────────────────────
+#
+# `docs/` only: the static marketing site, including its Command Centre demo,
+# which renders three illustrative businesses from a JavaScript object.
+#
+# Not the platform. A predecessor of this workflow built the whole application
+# with `output: 'export'` and pushed that to Pages, and it is worth writing
+# down why that cannot come back. Pages serves files; there is no server. No
+# server means no server actions, no reading a cookie during a request, and so
+# no session anybody can rely on — and this product holds one company's
+# financial records and must not show them to another. That guarantee is made
+# by PostgreSQL row level security keyed to a verified session, and there is no
+# session without a server.
+#
+# So the marketing site lives here, free, and the application lives on a host
+# that runs Node. See docs-internal/DEPLOYMENT.md.
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      # Pages serves this repository under /Amryn, and Jekyll would otherwise
+      # discard any directory beginning with an underscore. docs/.nojekyll is
+      # committed, and this asserts it survived rather than trusting it.
+      - name: Confirm Jekyll is switched off
+        run: test -f docs/.nojekyll || (echo "::error::docs/.nojekyll is missing" && exit 1)
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./docs
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

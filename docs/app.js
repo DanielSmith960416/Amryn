@@ -11,10 +11,16 @@
      "Sign in" button that 404s is worse than one without.
 
      The application is a Node server on Railway behind Cloudflare;
-     this site is the static half, on www. Two hostnames on purpose:
-     this page must load fast for a stranger and be indexable, and
-     the application must never be either.                      */
-  var APP_URL = 'https://app.amryn.ai';
+     this site is the static half. Two hostnames on purpose: this
+     page must load fast for a stranger and be indexable, and the
+     application must never be either.
+
+     Empty until the application answers somewhere. It was briefly
+     set to app.amryn.ai, which is not registered — so every Sign in
+     button on a live page led to a DNS failure, which is precisely
+     the thing the paragraph above says not to do. Set it to the
+     Railway hostname, or the real domain, once one exists.     */
+  var APP_URL = '';
 
   (function wireAppLinks() {
     var links = document.querySelectorAll('[data-app-link]');
