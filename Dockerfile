@@ -5,21 +5,26 @@
 # Runs on Railway, behind Cloudflare. Three stages, for one reason each:
 # install with the lockfile, build with the whole source, run with neither.
 #
-# ── the part that surprises people ────────────────────────────────────────
-# NEXT_PUBLIC_* values are inlined into the browser bundle at BUILD time, not
-# read at run time. Setting NEXT_PUBLIC_SUPABASE_URL only in the service's
-# runtime environment produces an image whose JavaScript carries `undefined`
-# where the URL should be, and the first symptom is "Invalid API key" on the
-# sign-in page — a message about a key, caused by a missing URL.
+# ── the build arguments are optional, and that is deliberate ──────────────
+# Next inlines NEXT_PUBLIC_* into the browser bundle at build time. Taken
+# literally that means an image is only correct for the deployment it was built
+# for, and a build that ran without the variables emits a bundle carrying
+# `undefined` whose only symptom is "Invalid API key" on the sign-in page — a
+# message about a key, caused by a missing URL, in a deployment where both
+# settings are plainly present in the dashboard. Whether service variables
+# reach a Docker build differs by host, which turned a one-line setting into a
+# question about a platform's build semantics.
 #
-# So they are build arguments as well as environment variables. Railway passes
-# service variables to the build automatically; anywhere else, pass them with
-# --build-arg or the image will be wrong in a way nothing in it can report.
+# So the server also writes them into the document per request, and the browser
+# prefers what it finds there — see src/components/shell/runtime-env.tsx. An
+# image built with none of them set works when they are set on the service, and
+# changing one is a restart rather than a rebuild.
 #
-# Nothing secret is a build argument. The two that appear here are public by
-# design — they are in the browser bundle either way — and the service role
-# key, the SMTP password and the AI key are read at run time only, so they
-# never enter an image layer.
+# They remain build arguments because supplying them still costs nothing and
+# suits a deployment that prefers everything fixed in the image. Nothing secret
+# is one: both are public by design and reach the browser either way. The
+# service role key, the SMTP password and the AI key are read at run time only,
+# so they never enter an image layer.
 
 # ── dependencies ──────────────────────────────────────────────────────────
 FROM node:22-alpine AS deps
