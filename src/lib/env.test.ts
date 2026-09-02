@@ -195,6 +195,36 @@ describe('resolveSupabaseUrl', () => {
     expect(resolved.note).toContain(KEY_REF);
   });
 
+  it('drops the REST endpoint path, which is the URL beside the keys', () => {
+    // The dashboard shows https://<ref>.supabase.co/rest/v1/ next to the keys,
+    // so it is the obvious thing to copy. The client appends its own /rest/v1,
+    // making …/rest/v1/rest/v1/… and 404ing every query — and nothing else
+    // notices: the hostname still carries the right ref, so no correction
+    // fires, and the schema only asks whether it parses as a URL.
+    process.env.NEXT_PUBLIC_SUPABASE_URL = `https://${KEY_REF}.supabase.co/rest/v1/`;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKeyFor(KEY_REF);
+    const resolved = resolveSupabaseUrl();
+    expect(resolved.url).toBe(`https://${KEY_REF}.supabase.co`);
+    expect(resolved.source).toBe('corrected');
+    expect(resolved.note).toContain('/rest/v1');
+  });
+
+  it('drops any other appended path too, not just the REST one', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = `https://${KEY_REF}.supabase.co/auth/v1`;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKeyFor(KEY_REF);
+    expect(resolveSupabaseUrl().url).toBe(`https://${KEY_REF}.supabase.co`);
+  });
+
+  it('treats a bare trailing slash as no path, so it is not reported as corrected', () => {
+    // Copying the project URL with the slash Supabase shows is not a mistake
+    // and must not be announced as one.
+    process.env.NEXT_PUBLIC_SUPABASE_URL = `https://${KEY_REF}.supabase.co/`;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKeyFor(KEY_REF);
+    const resolved = resolveSupabaseUrl();
+    expect(resolved.url).toBe(`https://${KEY_REF}.supabase.co`);
+    expect(resolved.source).toBe('configured');
+  });
+
   it('does not touch a custom domain, which has no project ref to compare', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://db.example.com';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKeyFor(KEY_REF);
