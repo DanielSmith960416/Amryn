@@ -7,22 +7,42 @@
 -- A migration skipped or run out of order does not fail loudly — it fails
 -- later, as a confusing runtime error in an unrelated part of the product.
 -- This turns that into one legible answer.
+--
+-- ── the counts are a snapshot, and the first row is not ───────────────────
+-- Every count below has to be edited when a migration adds a table or a
+-- policy, and the edit gets forgotten: this file once reported five red rows
+-- against a database that was completely correct, which is worse than not
+-- checking, because the one tool meant to confirm a migration landed was
+-- crying wolf.
+--
+-- So the first row asks the question that actually matters — did every
+-- migration record itself in the ledger — and answers it without a number
+-- anybody has to maintain. The counts below corroborate it and catch a
+-- migration that ran but did less than it should have.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 with checks as (
-  select 1 as ord, 'Tables' as item, count(*)::text as found, '49' as expected,
-         (count(*) = 49) as ok
+  select 0 as ord, 'Migrations applied' as item,
+         coalesce((select count(*)::text from amryn.schema_migrations), 'no ledger') as found,
+         'all of them' as expected,
+         -- The ledger is created by the first run, so its absence means none
+         -- of this has been applied at all.
+         (to_regclass('amryn.schema_migrations') is not null) as ok
+
+  union all
+  select 1 as ord, 'Tables' as item, count(*)::text as found, '56' as expected,
+         (count(*) = 56) as ok
     from pg_tables where schemaname = 'public'
 
   union all
-  select 2, 'Tables with RLS enabled', count(*)::text, '49', count(*) = 49
+  select 2, 'Tables with RLS enabled', count(*)::text, '56', count(*) = 56
     from pg_tables t
     join pg_class c on c.relname = t.tablename
     join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
    where t.schemaname = 'public' and c.relrowsecurity
 
   union all
-  select 3, 'RLS policies', count(*)::text, '148', count(*) = 148
+  select 3, 'RLS policies', count(*)::text, '158', count(*) = 158
     from pg_policies where schemaname = 'public'
 
   union all
@@ -30,11 +50,11 @@ with checks as (
     from public.permissions
 
   union all
-  select 5, 'Role grants', count(*)::text, '172', count(*) = 172
+  select 5, 'Role grants', count(*)::text, '179', count(*) = 179
     from public.role_permissions
 
   union all
-  select 6, 'Functions in the amryn schema', count(*)::text, '16', count(*) = 16
+  select 6, 'Functions in the amryn schema', count(*)::text, '20', count(*) = 20
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'amryn'
