@@ -60,13 +60,16 @@ both would compromise each.
    holding `INTERNAL_ACCESS_TOKEN`: a monitoring URL ends up in third-party
    dashboards, and a list of your internals should not go with it.
 
-> **The one that catches people out.** `NEXT_PUBLIC_*` values are compiled
-> into the browser bundle when the image is built, not read when the server
-> starts. Railway passes service variables to the Docker build, so setting
-> them on the service is enough there — but if you build the image anywhere
-> else, pass them with `--build-arg` or the bundle will carry `undefined`.
-> The symptom is "Invalid API key" on the sign-in page: a message about a key,
-> caused by a missing URL.
+> **This used to catch everybody, and no longer does.** Next inlines
+> `NEXT_PUBLIC_*` into the browser bundle at build time, so an image built
+> without them carried `undefined` and reported "Invalid API key" on the
+> sign-in page — a message about a key, caused by a missing URL, in a
+> deployment where both settings were visible in the dashboard.
+>
+> The server now writes them into the document on every request and the browser
+> prefers what it finds, so **setting them on the service and restarting is
+> enough**, on any host, and changing one later is a restart rather than a
+> rebuild. Passing them as `--build-arg` still works and is no longer required.
 
 ## 3. Cloudflare
 
@@ -108,15 +111,15 @@ order you will need it.
 
 | Setting | Where | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Build **and** run time | Public. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Build **and** run time | Public by design. What it can reach is decided by Row Level Security, not by possession. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Run time (build time optional) | Public. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Run time (build time optional) | Public by design. What it can reach is decided by Row Level Security, not by possession. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Run time | **Secret.** Bypasses Row Level Security. Never in a browser, never in an image layer, never in a log. |
 
 ### Strongly recommended
 
 | Setting | Where | Without it |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | Build time | Links in emails point at the Railway hostname rather than `app.amryn.ai`. |
+| `NEXT_PUBLIC_SITE_URL` | Run time | Links in emails point at the Railway hostname rather than `app.amryn.ai`. |
 | `SUPABASE_DB_URL` | Run time | Migrations have to be pasted into a SQL editor by hand. **Secret.** |
 | `INTERNAL_ACCESS_TOKEN` | Run time | Operator pages are reachable only by a signed-in administrator — which is no help on the day nobody can sign in. **Secret.** |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` `SMTP_FROM` | Run time | Invitation and activation links are shown on screen to be passed on by hand instead of emailed. |
@@ -165,7 +168,7 @@ every signed-in role.
 - [ ] Supabase project created, schema applied, `/setup` reports every check green
 - [ ] Authentication URLs point at `https://app.amryn.ai`
 - [ ] Railway service deployed, `/api/health/live` returns 200, and `/api/health` reaches 200 once Supabase is configured
-- [ ] `NEXT_PUBLIC_*` set **before** the image was built (check the sign-in page loads without an API-key error)
+- [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)
 - [ ] `www.amryn.ai` serves the marketing site
 - [ ] A test account can sign up, create an organisation, and finish the seven setup steps

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { ThemeScript } from '@/components/shell/theme-script';
+import { RuntimeEnv } from '@/components/shell/runtime-env';
 import { withBasePath } from '@/lib/base-path';
 import './globals.css';
 
@@ -33,6 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* The theme has to be applied before first paint, so this runs blocking. */}
         <ThemeScript />
+        {/* Before any client component asks for a Supabase client, which is why
+            it is here and not deferred. */}
+        <RuntimeEnv />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

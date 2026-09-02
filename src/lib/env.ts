@@ -111,14 +111,32 @@ const publicSchema = z.object({
 export type PublicEnv = z.infer<typeof publicSchema>;
 
 /**
+ * What the server wrote into the document for this request, if anything.
+ *
+ * See src/components/shell/runtime-env.tsx for why this exists. In short: a
+ * value inlined at build time cannot differ between two runs of the same
+ * image, and a build that ran without it emits a bundle carrying `undefined`
+ * whose only symptom is a sign-in page complaining about a key.
+ */
+function injected(): Partial<Record<keyof PublicEnv, string>> {
+  if (typeof window === 'undefined') return {};
+  const values = (window as { __AMRYN_ENV__?: Record<string, string> }).__AMRYN_ENV__;
+  return values ?? {};
+}
+
+/**
  * Next.js inlines `process.env.NEXT_PUBLIC_*` at build time only when the
- * property is written out in full, so these cannot be read dynamically.
+ * property is written out in full, so these cannot be read dynamically — which
+ * is why the runtime values are preferred where the server supplied them.
  */
 export function publicEnv(): PublicEnv {
+  const runtime = injected();
+
   const parsed = publicSchema.safeParse({
-    NEXT_PUBLIC_SUPABASE_URL: resolveSupabaseUrl().url,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey(),
-    NEXT_PUBLIC_SITE_URL: present(process.env.NEXT_PUBLIC_SITE_URL),
+    NEXT_PUBLIC_SUPABASE_URL: runtime.NEXT_PUBLIC_SUPABASE_URL || resolveSupabaseUrl().url,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: runtime.NEXT_PUBLIC_SUPABASE_ANON_KEY || anonKey(),
+    NEXT_PUBLIC_SITE_URL:
+      present(runtime.NEXT_PUBLIC_SITE_URL) ?? present(process.env.NEXT_PUBLIC_SITE_URL),
   });
 
   if (!parsed.success) {

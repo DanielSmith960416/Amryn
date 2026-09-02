@@ -17,11 +17,19 @@ export function NoDataYet({
   what,
   organisationName,
   detail,
+  action,
 }: {
   /** The thing this screen would show, in the customer's words. */
   what: string;
   organisationName?: string;
   detail?: string;
+  /**
+   * Where the fix actually is, when it is not the data-sources page. An empty
+   * state that sends somebody to the wrong screen is worse than one with no
+   * button: they follow it, find nothing to do, and conclude the product is
+   * broken rather than empty.
+   */
+  action?: { href: string; label: string };
 }) {
   return (
     <Card>
@@ -35,10 +43,10 @@ export function NoDataYet({
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
           <Link
-            href="/data"
+            href={action?.href ?? '/data'}
             className="inline-flex h-9 items-center rounded-[var(--radius-field)] bg-[var(--brand)] px-4 text-[0.8125rem] font-medium text-[var(--on-brand)]"
           >
-            Connect your data
+            {action?.label ?? 'Connect your data'}
           </Link>
           <Link
             href="/onboarding/identity"

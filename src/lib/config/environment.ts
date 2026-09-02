@@ -19,7 +19,11 @@
  */
 
 export type Stage =
-  /** Inlined into the browser bundle at build time. Also needed at run time. */
+  /**
+   * Reaches the browser. Read at run time and written into the document, so
+   * setting it on the service is enough; it may also be inlined at build time,
+   * which is optional and no longer the thing that catches people out.
+   */
   | 'build'
   /** Read by the running server. */
   | 'runtime'

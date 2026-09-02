@@ -152,6 +152,12 @@ export const NAV_GROUPS: NavGroup[] = [
         hint: 'Compliance, audit log and stock intelligence',
       },
       {
+        label: 'Import a stocktake',
+        href: '/inventory/import',
+        permission: 'manage_inventory',
+        hint: 'Turn a counted spreadsheet into a stocktake',
+      },
+      {
         label: 'Data Sources',
         href: '/data',
         permission: 'view_data_sources',

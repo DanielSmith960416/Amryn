@@ -28,6 +28,8 @@ export interface Enums {
   risk_status: 'open' | 'mitigating' | 'monitoring' | 'closed' | 'accepted';
   scope_kind: 'organisation' | 'region' | 'branch' | 'department';
   signal_kind: 'market' | 'industry' | 'competitor' | 'company_news' | 'demand' | 'trend' | 'risk';
+  stock_action: 'pending_review' | 'left_on_shelf' | 'removed_from_shelf' | 'returned_to_supplier' | 'marked_down' | 'destroyed';
+  stock_audit_status: 'draft' | 'in_progress' | 'complete';
   subscription_plan: 'starter' | 'growth' | 'professional' | 'enterprise';
   subscription_status: 'trialing' | 'active' | 'past_due' | 'cancelled';
   trend_direction: 'up' | 'down' | 'flat';
@@ -2826,6 +2828,163 @@ export interface Database {
           },
           {
             foreignKeyName: 'sales_records_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      stock_audits: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          branch_id: string | null;
+          site_name: string;
+          auditor_name: string;
+          responsible_name: string;
+          shift: string;
+          compliance_profile_id: string;
+          audit_date: string;
+          status: Enums['stock_audit_status'];
+          created_by: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          branch_id?: string | null;
+          site_name: string;
+          auditor_name?: string;
+          responsible_name?: string;
+          shift?: string;
+          compliance_profile_id?: string;
+          audit_date?: string;
+          status?: Enums['stock_audit_status'];
+          created_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          branch_id?: string | null;
+          site_name?: string;
+          auditor_name?: string;
+          responsible_name?: string;
+          shift?: string;
+          compliance_profile_id?: string;
+          audit_date?: string;
+          status?: Enums['stock_audit_status'];
+          created_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'stock_audits_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stock_audits_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stock_audits_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      stock_items: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          audit_id: string;
+          product_name: string;
+          sku: string;
+          batch_number: string;
+          department: string;
+          location: string;
+          qty: number;
+          expiry_date: string;
+          action: Enums['stock_action'];
+          actioned_by: string;
+          actioned_on: string | null;
+          notes: string;
+          verified: boolean;
+          unit_cost_cents: number | null;
+          has_movement: boolean | null;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          audit_id: string;
+          product_name: string;
+          sku?: string;
+          batch_number?: string;
+          department?: string;
+          location?: string;
+          qty?: number;
+          expiry_date: string;
+          action?: Enums['stock_action'];
+          actioned_by?: string;
+          actioned_on?: string | null;
+          notes?: string;
+          verified?: boolean;
+          unit_cost_cents?: number | null;
+          has_movement?: boolean | null;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          audit_id?: string;
+          product_name?: string;
+          sku?: string;
+          batch_number?: string;
+          department?: string;
+          location?: string;
+          qty?: number;
+          expiry_date?: string;
+          action?: Enums['stock_action'];
+          actioned_by?: string;
+          actioned_on?: string | null;
+          notes?: string;
+          verified?: boolean;
+          unit_cost_cents?: number | null;
+          has_movement?: boolean | null;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'stock_items_audit_id_fkey';
+            columns: ['audit_id'];
+            isOneToOne: false;
+            referencedRelation: 'stock_audits';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stock_items_organisation_id_fkey';
             columns: ['organisation_id'];
             isOneToOne: false;
             referencedRelation: 'organisations';

@@ -21,22 +21,24 @@ export const metadata: Metadata = { title: 'Audit Log' };
  */
 export default async function AuditLogPage() {
   const state = await currentWorkspace();
-  // Advanced Inventory Control has no table behind it: it was built
-  // against the second Excel prototype and reads a fixed dataset, and
-  // nothing in the schema stores a stock line or an expiry date. So a
-  // real organisation gets this whether or not its financials have
-  // landed — the module is not connected, which is a fact, rather than
-  // the demonstration pharmacy's stock, which is not theirs.
-  if (state.kind !== 'demo') {
+  if (state.kind === 'empty') {
+    return <NoDataYet what="The audit trail of every stock action" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
+
+  // Reachable, and nothing counted yet. Worth saying explicitly: an
+  // empty compliance dashboard and a fully compliant one look identical
+  // when every count is zero, and the second is the one an owner wants
+  // to believe.
+  if (!w.inventory.recorded) {
     return (
       <NoDataYet
         what="The audit trail of every stock action"
-        organisationName={state.kind === 'empty' ? state.organisationName : undefined}
-        detail="Stock control is not connected to this account yet. Talk to us and we will set it up against your own system."
+        detail="No stocktake has been recorded yet. Import one from a spreadsheet and this fills in."
+        action={{ href: '/inventory/import', label: 'Import a stocktake' }}
       />
     );
   }
-  const w = state.workspace;
   const { items, summary: s, settings, profile } = w.inventory;
 
   return (

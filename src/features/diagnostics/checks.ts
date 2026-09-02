@@ -26,6 +26,7 @@ import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } fr
 import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
 import { databaseUrl, readPending } from '@/lib/db/setup';
+import { PERMISSIONS } from '@/lib/auth/permissions';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped';
 
@@ -430,15 +431,20 @@ function checkSchema(): Promise<Check> {
       };
     }
     const found = count ?? 0;
+    // Counted from the mirrored vocabulary rather than typed here. The number
+    // was written out three times — this check, one schema test and
+    // verify-remote.sql — so adding a permission meant finding all three, and
+    // the one that got missed reported a healthy database as degraded.
+    const expected = PERMISSIONS.length;
     return {
       name: 'Database schema',
-      status: found === 30 ? 'ok' : 'warn',
+      status: found === expected ? 'ok' : 'warn',
       detail:
-        found === 30
-          ? 'All 30 permissions are present, so the migrations applied.'
-          : `Found ${found} permissions, expected 30.`,
+        found === expected
+          ? `All ${expected} permissions are present, so the migrations applied.`
+          : `Found ${found} permissions, expected ${expected}.`,
       remedy:
-        found === 30
+        found === expected
           ? undefined
           : 'A migration was skipped or applied out of order. Run supabase/tests/verify-remote.sql for the full picture.',
     };

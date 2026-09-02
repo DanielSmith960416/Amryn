@@ -28,6 +28,7 @@ export const PERMISSIONS = [
   'manage_alerts',
   'view_data_sources',
   'import_data',
+  'manage_inventory',
   'manage_integrations',
   'manage_metrics',
   'manage_competitors',

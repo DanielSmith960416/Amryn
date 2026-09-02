@@ -38,7 +38,8 @@ export type SecurityEvent =
   | 'subscription.requested'
   | 'subscription.request_withdrawn'
   | 'subscription.activated'
-  | 'onboarding.completed';
+  | 'onboarding.completed'
+  | 'stocktake.imported';
 
 /**
  * Records something that happened to an organisation.

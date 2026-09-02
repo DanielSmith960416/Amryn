@@ -80,6 +80,14 @@ import type {
  */
 
 export interface InventoryView {
+  /**
+   * Whether these figures come from a stocktake somebody recorded.
+   *
+   * False means the module is reachable and nothing has been counted yet —
+   * which the screens have to say, because an empty compliance dashboard and
+   * a compliant one look identical when every count is zero.
+   */
+  recorded: boolean;
   settings: DemoAuditSettings;
   profile: ComplianceProfile;
   auditDate: string;
@@ -159,6 +167,7 @@ function buildInventory(asOf: Date): InventoryView {
   const summary = complianceSummary(items);
 
   return {
+    recorded: true,
     settings,
     profile,
     auditDate: demoAuditDate(asOf),
