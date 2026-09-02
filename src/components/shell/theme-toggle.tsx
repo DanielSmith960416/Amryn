@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { THEME_STORAGE_KEY } from './theme';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -19,7 +20,9 @@ const THEMES = [
 
 type Theme = (typeof THEMES)[number]['id'];
 
-export const THEME_STORAGE_KEY = 'amryn-theme';
+// Re-exported so existing importers keep working; defined in ./theme,
+// which is not a client module — see the note there.
+export { THEME_STORAGE_KEY } from './theme';
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme | null>(null);
