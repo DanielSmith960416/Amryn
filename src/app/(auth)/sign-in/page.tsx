@@ -2,9 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SignInForm } from '@/features/auth/sign-in-form';
 import { isSupabaseConfigured } from '@/lib/env';
-import { internalAccess } from '@/lib/auth/internal-access';
-import { SetupNotice } from '@/features/setup/setup-notice';
-import { Card } from '@/components/ui/card';
+import { NotAvailable } from '@/features/setup/not-available';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
@@ -17,7 +15,7 @@ export default async function SignInPage({
 }) {
   const params = await searchParams;
 
-  if (!isSupabaseConfigured()) return <NotAvailable internalKey={params.key} />;
+  if (!isSupabaseConfigured()) return <NotAvailable action="Signing in" internalKey={params.key} />;
   const providerName = params.provider ? PROVIDER_NAMES[params.provider] : undefined;
 
   return (
@@ -68,36 +66,5 @@ export default async function SignInPage({
         </Link>
       </p>
     </>
-  );
-}
-
-/**
- * What the sign-in page says when the deployment cannot reach its database.
- *
- * Two readers, and the wrong one used to be served. This page listed the
- * missing variables, told you to redeploy and pointed at the setup checks —
- * genuinely the fastest way to fix it, and read by a customer as a product
- * that ships with its own error console.
- *
- * So the customer gets a sentence saying it is temporary and not theirs to
- * fix, and the setup detail lives in `SetupNotice`, shown only to somebody who
- * can act on it: an administrator, or a caller holding the internal token. The
- * token matters here more than anywhere else — this is the page that says
- * nobody can sign in, so a check that requires signing in would never pass on
- * it.
- */
-async function NotAvailable({ internalKey }: { internalKey?: string }) {
-  if ((await internalAccess(internalKey)) !== 'denied') return <SetupNotice />;
-
-  return (
-    <Card className="p-6">
-      <h2 className="text-[1.125rem] font-semibold text-[var(--text-primary)]">
-        Amryn is not available right now
-      </h2>
-      <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
-        Signing in is temporarily unavailable. This is a fault on our side, not anything you have
-        done — please try again shortly.
-      </p>
-    </Card>
   );
 }
