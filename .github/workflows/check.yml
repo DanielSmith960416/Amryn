@@ -43,6 +43,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The build above runs with no NEXT_PUBLIC_* set, exactly as the
+      # Dockerfile permits. That is what makes this check meaningful: a page
+      # prerendered under those conditions writes no settings into the
+      # document and ships with the build's inlined `undefined` behind it,
+      # which surfaces only on somebody's deployment, as an invalid-key
+      # message naming a setting that is plainly present in the dashboard.
+      - name: Confirm the auth pages read settings at run time
+        run: npm run check:runtime
+
       # check:site drives a real browser, because the behaviour it checks is
       # browser behaviour: the platform links reveal themselves from script
       # once APP_URL is set. The script prefers a Chromium already on the
