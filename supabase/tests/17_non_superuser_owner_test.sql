@@ -156,7 +156,7 @@ end $$;
 
 -- ── the catalogue seed, which failed the same way once ───────────────────
 select pg_temp.check(
-  (select count(*) from public.permissions) = 30,
+  (select count(*) from public.permissions) = 31,
   'the permission catalogue seeded under a non-superuser owner');
 
 select pg_temp.check(

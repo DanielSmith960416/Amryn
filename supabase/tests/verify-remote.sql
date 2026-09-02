@@ -26,7 +26,7 @@ with checks as (
     from pg_policies where schemaname = 'public'
 
   union all
-  select 4, 'Permission catalogue', count(*)::text, '30', count(*) = 30
+  select 4, 'Permission catalogue', count(*)::text, '31', count(*) = 31
     from public.permissions
 
   union all
