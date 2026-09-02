@@ -5,7 +5,8 @@ import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { count, date, percent } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'Action Centre' };
 
@@ -23,8 +24,12 @@ const STATUS_TONE = {
  * to RSK-002 or OPP-004 can be closed by asking whether that risk or
  * opportunity moved, which an action with no provenance cannot.
  */
-export default function ActionCentrePage() {
-  const w = loadWorkspace();
+export default async function ActionCentrePage() {
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="The actions the platform recommends, each with an owner," organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
   const s = w.actionSummary;
 
   return (

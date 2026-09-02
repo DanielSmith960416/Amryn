@@ -331,12 +331,17 @@ const DEFAULT_MODEL: Record<'openai' | 'anthropic', string> = {
 export function aiConfig(): AiConfig {
   const apiKey = process.env.AI_API_KEY?.trim() || null;
   const requested = process.env.AI_PROVIDER?.trim().toLowerCase();
+  // Anthropic is the default where a key is set and no provider is named.
+  // It was OpenAI, from when that was the only key to hand; the deployment
+  // now runs on a Claude account, and a default that quietly points a
+  // Claude key at OpenAI's endpoint fails with an authentication error that
+  // says nothing about the cause.
   const provider: AiConfig['provider'] =
     !apiKey || requested === 'none'
       ? 'none'
-      : requested === 'anthropic'
-        ? 'anthropic'
-        : 'openai';
+      : requested === 'openai'
+        ? 'openai'
+        : 'anthropic';
 
   const effort = process.env.AI_EFFORT?.trim().toLowerCase();
 
@@ -348,7 +353,7 @@ export function aiConfig(): AiConfig {
   const modelIsSecret = looksLikeSecret(requestedModel);
   const model =
     (modelIsSecret ? undefined : requestedModel) ||
-    (provider === 'none' ? DEFAULT_MODEL.openai : DEFAULT_MODEL[provider]);
+    (provider === 'none' ? DEFAULT_MODEL.anthropic : DEFAULT_MODEL[provider]);
 
   return {
     provider,

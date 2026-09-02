@@ -6,7 +6,8 @@ import { EmptyRow, Table, TableWrap, Td, Th, TotalRow } from '@/components/ui/ta
 import { RevenueChart } from '@/components/intelligence/revenue-chart';
 import { isReported } from '@/lib/intelligence/finance';
 import { compactMoney, count, money, percent } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Financial Intelligence' };
@@ -24,7 +25,11 @@ export default async function FinancialPage() {
   // empty page or a refusal they cannot act on.
   await requireEntitlement('financial_intelligence');
 
-  const w = loadWorkspace();
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="Revenue, margin and cash, month by month," organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
   const currency = w.profile.currency;
 
   return (

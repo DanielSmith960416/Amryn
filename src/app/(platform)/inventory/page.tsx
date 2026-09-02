@@ -8,7 +8,8 @@ import { EmptyRow, Table, TableWrap, Td, Th, TotalRow } from '@/components/ui/ta
 import { DepartmentMatrix } from '@/components/inventory/department-matrix';
 import { STATUS_GUIDANCE, STATUS_LABEL, type ExpiryStatus } from '@/lib/intelligence/inventory';
 import { count, date, money, percent } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'Advanced Inventory Control' };
 
@@ -21,8 +22,24 @@ export const metadata: Metadata = { title: 'Advanced Inventory Control' };
  * reproduces the workbook exactly, but nothing on this page is written for a
  * pharmacy.
  */
-export default function InventoryPage() {
-  const w = loadWorkspace();
+export default async function InventoryPage() {
+  const state = await currentWorkspace();
+  // Advanced Inventory Control has no table behind it: it was built
+  // against the second Excel prototype and reads a fixed dataset, and
+  // nothing in the schema stores a stock line or an expiry date. So a
+  // real organisation gets this whether or not its financials have
+  // landed — the module is not connected, which is a fact, rather than
+  // the demonstration pharmacy's stock, which is not theirs.
+  if (state.kind !== 'demo') {
+    return (
+      <NoDataYet
+        what="Stock compliance, expiry tracking and department cover"
+        organisationName={state.kind === 'empty' ? state.organisationName : undefined}
+        detail="Stock control is not connected to this account yet. Talk to us and we will set it up against your own system."
+      />
+    );
+  }
+  const w = state.workspace;
   const { summary: s, profile, settings, departments, items } = w.inventory;
   const currency = w.profile.currency;
 

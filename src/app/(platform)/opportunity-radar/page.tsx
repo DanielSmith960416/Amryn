@@ -7,7 +7,8 @@ import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { OpportunityDial } from '@/components/intelligence/opportunity-dial';
 import { VALUE_ONLY_CEILING, opportunityFactors } from '@/lib/intelligence/opportunity';
 import { count, date, money, percent, score } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'OpportunityRadar®' };
@@ -25,7 +26,11 @@ export default async function OpportunityRadarPage() {
   // empty page or a refusal they cannot act on.
   await requireEntitlement('opportunity_pipeline');
 
-  const w = loadWorkspace();
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="Opportunities, scored and ranked," organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
   const currency = w.profile.currency;
 
   return (

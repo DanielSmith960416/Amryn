@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { date } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'Decision Log' };
 
@@ -14,8 +15,12 @@ export const metadata: Metadata = { title: 'Decision Log' };
  * decision. Squeezing them into a cell is how a decision log becomes a list
  * nobody fills in.
  */
-export default function DecisionLogPage() {
-  const w = loadWorkspace();
+export default async function DecisionLogPage() {
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="The record of decisions taken" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
 
   return (
     <>

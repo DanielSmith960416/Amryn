@@ -5,7 +5,8 @@ import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { count, date, daysLabel, percent } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'Audit Log' };
 
@@ -18,8 +19,24 @@ export const metadata: Metadata = { title: 'Audit Log' };
  * a summary of a compliance record, which is a different and much less useful
  * document. It scrolls instead.
  */
-export default function AuditLogPage() {
-  const w = loadWorkspace();
+export default async function AuditLogPage() {
+  const state = await currentWorkspace();
+  // Advanced Inventory Control has no table behind it: it was built
+  // against the second Excel prototype and reads a fixed dataset, and
+  // nothing in the schema stores a stock line or an expiry date. So a
+  // real organisation gets this whether or not its financials have
+  // landed — the module is not connected, which is a fact, rather than
+  // the demonstration pharmacy's stock, which is not theirs.
+  if (state.kind !== 'demo') {
+    return (
+      <NoDataYet
+        what="The audit trail of every stock action"
+        organisationName={state.kind === 'empty' ? state.organisationName : undefined}
+        detail="Stock control is not connected to this account yet. Talk to us and we will set it up against your own system."
+      />
+    );
+  }
+  const w = state.workspace;
   const { items, summary: s, settings, profile } = w.inventory;
 
   return (

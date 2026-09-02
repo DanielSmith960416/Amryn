@@ -282,16 +282,16 @@ describe('aiConfig refuses to use a key as a model name', () => {
     process.env.AI_MODEL = KEY;
     const config = aiConfig();
     expect(config.modelIsSecret).toBe(true);
-    expect(config.model).toBe('gpt-4.1-mini');
+    expect(config.model).toBe('claude-opus-5');
     // Sending it as a model name would put the credential in a request body
     // and the provider's logs.
     expect(config.model).not.toContain('sk-');
   });
 
   it('leaves a genuine model name alone', () => {
-    process.env.AI_MODEL = 'gpt-4.1';
+    process.env.AI_MODEL = 'claude-opus-5';
     const config = aiConfig();
     expect(config.modelIsSecret).toBe(false);
-    expect(config.model).toBe('gpt-4.1');
+    expect(config.model).toBe('claude-opus-5');
   });
 });

@@ -4,7 +4,8 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import type { ImpactLevel, SignalDirection } from '@/lib/intelligence/types';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Market & Competitor Intelligence' };
@@ -33,7 +34,11 @@ export default async function MarketPage() {
   // empty page or a refusal they cannot act on.
   await requireEntitlement('market_intelligence');
 
-  const w = loadWorkspace();
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="Your market and the competitors you named" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
 
   return (
     <>

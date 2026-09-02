@@ -4,7 +4,8 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import type { WeeklyBrief } from '@/lib/intelligence/briefing';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'Weekly & Monthly Briefs' };
 
@@ -16,8 +17,12 @@ export const metadata: Metadata = { title: 'Weekly & Monthly Briefs' };
  * That is the point of the workspace seam: the page and the PDF cannot
  * disagree, because there is one computation and two renderings of it.
  */
-export default function ReportsPage() {
-  const w = loadWorkspace();
+export default async function ReportsPage() {
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="Your weekly and monthly briefs" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
 
   return (
     <>

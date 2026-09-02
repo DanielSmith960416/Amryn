@@ -31,25 +31,32 @@ describe('aiConfig', () => {
     expect(withEnv({ AI_API_KEY: '   ' }).provider).toBe('none');
   });
 
-  it('defaults to OpenAI when a key is set and nothing else is said', () => {
-    const config = withEnv({ AI_API_KEY: 'sk-test' });
-    expect(config.provider).toBe('openai');
-    expect(config.model).toBe('gpt-4.1-mini');
-  });
-
-  it('uses Claude when asked, with a Claude model', () => {
-    const config = withEnv({ AI_API_KEY: 'sk-test', AI_PROVIDER: 'anthropic' });
+  // The default changed. It was OpenAI, from when that was the only key to
+  // hand; the deployment runs on a Claude account now, and a default that
+  // quietly points a Claude key at OpenAI's endpoint fails with an
+  // authentication error saying nothing about the cause.
+  it('defaults to Claude when a key is set and nothing else is said', () => {
+    const config = withEnv({ AI_API_KEY: 'sk-ant-test' });
     expect(config.provider).toBe('anthropic');
     expect(config.model).toBe('claude-opus-5');
   });
 
+  it('uses OpenAI when asked, with an OpenAI model', () => {
+    const config = withEnv({ AI_API_KEY: 'sk-test', AI_PROVIDER: 'openai' });
+    expect(config.provider).toBe('openai');
+    expect(config.model).toBe('gpt-4.1-mini');
+  });
+
   it('never hands one provider the other’s default model', () => {
-    expect(withEnv({ AI_API_KEY: 'k' }).model).not.toMatch(/^claude/);
-    expect(withEnv({ AI_API_KEY: 'k', AI_PROVIDER: 'anthropic' }).model).not.toMatch(/^gpt/);
+    expect(withEnv({ AI_API_KEY: 'k' }).model).not.toMatch(/^gpt/);
+    expect(withEnv({ AI_API_KEY: 'k', AI_PROVIDER: 'openai' }).model).not.toMatch(/^claude/);
   });
 
   it('honours an explicit model over the default', () => {
-    expect(withEnv({ AI_API_KEY: 'k', AI_MODEL: 'gpt-4.1' }).model).toBe('gpt-4.1');
+    expect(withEnv({ AI_API_KEY: 'k', AI_MODEL: 'claude-sonnet-5' }).model).toBe('claude-sonnet-5');
+    expect(withEnv({ AI_API_KEY: 'k', AI_PROVIDER: 'openai', AI_MODEL: 'gpt-4.1' }).model).toBe(
+      'gpt-4.1',
+    );
   });
 
   it('can be switched off even with a key present', () => {

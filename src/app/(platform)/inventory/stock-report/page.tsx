@@ -7,7 +7,8 @@ import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { DepartmentMatrix } from '@/components/inventory/department-matrix';
 import { DORMANCY_DEFINITIONS, type DormancyClass } from '@/lib/intelligence/inventory';
 import { count, date, daysLabel, money, percent } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'Stock Intelligence Report' };
 
@@ -23,8 +24,24 @@ const DORMANCY_ORDER: DormancyClass[] = ['WRITE-OFF', 'AT-RISK', 'SLOW-MOVING', 
  * inflates stated inventory value, and only clear stock should be reported at
  * full cost.
  */
-export default function StockReportPage() {
-  const w = loadWorkspace();
+export default async function StockReportPage() {
+  const state = await currentWorkspace();
+  // Advanced Inventory Control has no table behind it: it was built
+  // against the second Excel prototype and reads a fixed dataset, and
+  // nothing in the schema stores a stock line or an expiry date. So a
+  // real organisation gets this whether or not its financials have
+  // landed — the module is not connected, which is a fact, rather than
+  // the demonstration pharmacy's stock, which is not theirs.
+  if (state.kind !== 'demo') {
+    return (
+      <NoDataYet
+        what="The stock report, by section,"
+        organisationName={state.kind === 'empty' ? state.organisationName : undefined}
+        detail="Stock control is not connected to this account yet. Talk to us and we will set it up against your own system."
+      />
+    );
+  }
+  const w = state.workspace;
   const { summary: s, sections, departments, settings, profile, recommendations } = w.inventory;
   const currency = w.profile.currency;
 

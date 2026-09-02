@@ -7,7 +7,8 @@ import { Stat, StatGrid } from '@/components/ui/stat';
 import { HealthDial } from '@/components/intelligence/health-dial';
 import { branchStatus } from '@/lib/intelligence/finance';
 import { compactMoney, count, date, money, percent, score } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { SetupPrompt } from '@/features/onboarding/setup-prompt';
 
 export const metadata: Metadata = { title: 'Executive Command Centre' };
@@ -24,7 +25,11 @@ export const metadata: Metadata = { title: 'Executive Command Centre' };
  * "AI-SIMULATED" label stays honest as the data changes.
  */
 export default async function CommandCentrePage() {
-  const w = loadWorkspace();
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="The week in one view — health, opportunities, risks and what to do about them —" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
   const currency = w.profile.currency;
 
   return (

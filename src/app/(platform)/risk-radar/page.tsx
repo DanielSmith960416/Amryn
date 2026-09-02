@@ -5,7 +5,8 @@ import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { count, date } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Risk Radar' };
@@ -23,7 +24,11 @@ export default async function RiskRadarPage() {
   // empty page or a refusal they cannot act on.
   await requireEntitlement('risk_radar');
 
-  const w = loadWorkspace();
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="Your risk register, scored and ranked," organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
 
   return (
     <>
