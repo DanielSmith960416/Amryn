@@ -175,8 +175,37 @@ every signed-in role.
 - [ ] An invitation email arrives
 - [ ] A subscription request produces a reference; confirming it at `/activations` produces a working link
 - [ ] `INTERNAL_ACCESS_TOKEN` set, and `/diagnostics` is a 404 without it
+- [ ] The Vercel GitHub integration is disconnected (see below)
 - [ ] The exposed OpenAI key from the earlier deployment has been revoked
 - [ ] The `[BRACKETED]` placeholders in `src/lib/legal/documents.ts` are filled in and an Information Officer is registered with the Information Regulator
+
+## Disconnecting Vercel
+
+The platform was briefly deployed on Vercel and nothing in this repository
+refers to it any more — no configuration, no environment reads, and it is gone
+from the POPIA operator register in the privacy policy. What survives is the
+connection itself, which lives in the Vercel account and in the Vercel GitHub
+App rather than in the repository, so it cannot be removed by a commit.
+
+While it stays connected, every push builds a deployment of this application
+with none of its settings, at a public `*.vercel.app` address — an unconfigured
+copy of a product that holds financial records, on a hostname nobody is
+watching. Worth thirty seconds.
+
+1. **vercel.com** → the `amryn` project → **Settings** → **Git** → **Disconnect**.
+   Or delete the project outright, which is cleaner if nothing else uses it.
+2. Optionally **GitHub** → Settings → Applications → Installed GitHub Apps →
+   **Vercel** → Configure → remove `Amryn` from the repository list. Step 1 is
+   enough to stop the builds; this stops the app seeing the repository at all.
+
+Both are account-level actions. Neither can be done from the repository, and
+neither can be done by anyone without access to those accounts.
+
+If you want to stop the builds without touching either account, Vercel reads
+`git.deploymentEnabled` from a `vercel.json` in the repository. That is a
+workaround rather than a disconnection — it leaves a Vercel configuration file
+in a project that deliberately has none — and it is not committed here because
+there is no way to test it from this side. The two steps above are the answer.
 
 ## Rolling back
 
