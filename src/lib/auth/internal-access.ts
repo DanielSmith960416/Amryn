@@ -21,9 +21,21 @@ import 'server-only';
  *     For the case the first cannot cover: nobody can sign in, and the page
  *     that explains why is behind signing in.
  *
- * With no token configured, only the first applies. There is no default value
- * and no fallback that lets anyone in — an escape hatch with a guessable key
- * is just an open door.
+ * With no token configured, only the first applies on a deployment. There is
+ * no default value and no fallback that lets anyone in — an escape hatch with
+ * a guessable key is just an open door.
+ *
+ * The third way in is `next dev`, and only that. A developer starting the
+ * platform for the first time gets the customer's sentence — "a fault on our
+ * side, please try again shortly" — with nothing in the terminal either, so
+ * the one thing they need to be told, which variable is missing, is the one
+ * thing the page is careful not to say. The token cannot cover it: they have
+ * not set that either, and would have no reason to.
+ *
+ * `NODE_ENV` is `development` under `next dev` and nothing else — `next build`
+ * and `next start` both set `production`, and Next does not let it be
+ * overridden — so this cannot be reached by a deployment, however it is
+ * configured.
  */
 import { timingSafeEqual } from 'node:crypto';
 import { headers } from 'next/headers';
@@ -37,13 +49,17 @@ function matches(given: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-export type AccessReason = 'administrator' | 'token' | 'denied';
+export type AccessReason = 'administrator' | 'token' | 'development' | 'denied';
 
 /**
  * `key` comes from the query string, which the caller passes in — reading
  * searchParams is the page's job, not this module's.
  */
 export async function internalAccess(key?: string): Promise<AccessReason> {
+  // Checked first: the developer's own machine, where the questions these
+  // pages answer are the only questions being asked.
+  if (process.env.NODE_ENV === 'development') return 'development';
+
   const expected = process.env.INTERNAL_ACCESS_TOKEN?.trim();
 
   if (expected && expected.length > 0) {
