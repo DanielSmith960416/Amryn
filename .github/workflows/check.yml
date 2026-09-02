@@ -35,42 +35,60 @@ jobs:
       - name: Typecheck, lint and test
         run: npm run check
 
-      # The build runs with no database, no mail service and no API keys —
-      # which is the point. If it needs anything beyond a session secret to
-      # compile, something has crept back in.
-      # No environment at all: a static export that needed one would not be
-      # deployable from a plain Pages workflow, so this is worth asserting.
+      # No database, no mail service, no API keys — which is the point. A
+      # deployment gets a URL before anybody has configured anything, and the
+      # sign-in page explains what is still missing rather than erroring. If
+      # the build starts needing a secret to compile, that promise is broken
+      # and this is where it should be caught.
       - name: Build
         run: npm run build
 
-      # The static marketing site has no build step and no other tests, and
-      # under the current deployment shape it is the front door to sign-in.
-      # Its one piece of behaviour — revealing the platform links once APP_URL
-      # is set — is exactly the kind of thing that breaks silently.
-      # A cheap guard against the retired stack returning by way of a
-      # copy-pasted snippet or a stray dependency.
-      #
-      # It matches imports and dependency entries, not prose: several comments
-      # in src/ name Supabase to explain what was replaced and why, and those
-      # are worth keeping. A grep that fired on them would teach people to
-      # delete the explanation rather than the dependency.
-      - name: Confirm the retired stack has not returned
-        run: |
-          RETIRED='@supabase/|@anthropic-ai/|\bnodemailer\b|\brecharts\b|\bpg\b|\bframer-motion\b'
+      # The marketing site has no build step and no other tests, and it is the
+      # front door to sign-in. Its one piece of behaviour — revealing the
+      # platform links once APP_URL is set — is exactly the kind of thing that
+      # breaks silently.
+      - name: Check the marketing site
+        run: npm run check:site
 
-          if grep -rnE "(from|require\(|import\()[[:space:]]*['\"][^'\"]*($RETIRED)" src/; then
-            echo "::error::A retired dependency is imported again in src/. See docs-internal/MIGRATION.md."
-            exit 1
-          fi
+  # ── the half that never ran in CI ────────────────────────────────────────
+  #
+  # 187 assertions about row level security, tenancy, the two-factor guard and
+  # the subscription trigger ran only on whichever machine last thought to run
+  # them. They are the assertions that matter most — every guarantee this
+  # product makes about one company not seeing another's data is made by a
+  # policy, and a policy is not exercised by a typecheck.
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Without this the suite starts against a container that has accepted
+        # the port but not yet finished initialising, and fails in a way that
+        # looks like a schema error.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
 
-          if node -e "
-            const pkg = require('./package.json');
-            const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
-            const back = deps.filter((d) => /^(@supabase\/|@anthropic-ai\/|supabase\$|nodemailer\$|recharts\$|pg\$|framer-motion\$|smtp-server\$|mailparser\$)/.test(d));
-            if (back.length) { console.error(back.join(', ')); process.exit(1); }
-          "; then
-            echo "Clean — no retired dependencies imported or declared."
-          else
-            echo "::error::A retired dependency is back in package.json. See docs-internal/MIGRATION.md."
-            exit 1
-          fi
+      - name: Install the PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      # run.sh builds the database from nothing, applies every migration in
+      # filename order, then runs the suite — the same script a developer runs,
+      # so the two cannot drift.
+      - name: Apply the migrations and run the schema tests
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: amryn_ci
+        run: bash supabase/tests/run.sh

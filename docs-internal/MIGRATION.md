@@ -1,8 +1,21 @@
 # Migration notes — retiring the Supabase build
 
-**Status: complete.** Nothing in the running application depends on Supabase,
-Vercel Postgres, or any hosted database. This document records what was removed,
-what was kept, and what has to happen outside the repository.
+> **Status: REVERSED. This document is history, not instruction.**
+>
+> The rebuild described below removed the platform in favour of a static site
+> served from GitHub Pages. That decision has since been reversed: the brief
+> that followed asked for the full multi-tenant product on Cloudflare, Railway
+> and Supabase, and the application has been restored and built on. Everything
+> this document says was "retired" is back and is load-bearing.
+>
+> It is kept because the reasoning is worth having on record — and because a
+> `check.yml` step written to enforce it was still failing the build long after
+> the decision changed, which is what a stale guard rail does. For how the
+> product is actually deployed, see
+> [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
+This document records what that rebuild removed, what it kept, and what had to
+happen outside the repository.
 
 ---
 
