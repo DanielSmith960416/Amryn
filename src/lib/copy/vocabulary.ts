@@ -70,6 +70,14 @@ export const EXEMPT_PATHS: readonly string[] = [
   'src/lib/legal/',
   'src/app/legal/',
   'src/lib/copy/',
+  // The inventory of settings. Its whole readership is whoever configures a
+  // deployment, and it exists to say things like "falls back to localhost" and
+  // "used to apply migrations" — the sentences this guard is written to keep
+  // away from a customer are the ones it is written to provide.
+  'src/lib/config/',
+  // The operator's activation queue, closed by internalAccess() the same way
+  // /diagnostics is.
+  'src/app/activations/',
   // Prompts and provider plumbing. The reader there is a model, and asking one
   // for JSON matching a schema is the only way to say it.
   'src/lib/ai/prompts.ts',

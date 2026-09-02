@@ -2,14 +2,17 @@
 
 Two things live in this repository:
 
-| | What it is | Where |
-|---|---|---|
-| **Marketing site** | Static HTML, CSS and JS. No build step. Deployed to GitHub Pages. | `docs/` |
-| **Platform** | The Amryn™ software: Next.js, TypeScript, Supabase, multi-tenant. | repository root |
+| | What it is | Where | Deployed to |
+|---|---|---|---|
+| **Marketing site** | Static HTML, CSS and JS. No build step. | `docs/` | Cloudflare Pages, `www.amryn.ai` |
+| **Platform** | The Amryn™ software: Next.js, TypeScript, Supabase, multi-tenant. | repository root | Railway behind Cloudflare, `app.amryn.ai` |
 
 They are deployed separately and neither depends on the other at build time.
 The marketing site links to the platform once you tell it where the platform
 lives — see [Linking the two](#linking-the-two).
+
+Full deployment instructions, including DNS and the complete list of settings,
+are in [`docs-internal/DEPLOYMENT.md`](docs-internal/DEPLOYMENT.md).
 
 ---
 
@@ -245,16 +248,33 @@ reason for them not to ask.
 
 ### Deploying
 
-Vercel, root directory. `/api/health` answers `200` when nothing is failing
-and `503` when something is, for an uptime monitor; `/diagnostics` answers the
-same question in prose, for a person.
+Railway builds `Dockerfile` and runs the image; Cloudflare sits in front for
+DNS, TLS and the CDN. The full procedure is in
+[`docs-internal/DEPLOYMENT.md`](docs-internal/DEPLOYMENT.md) — what follows is
+only the shape of it.
 
-Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
-`NEXT_PUBLIC_SITE_URL`; add `AI_API_KEY` when you want conversational answers
-and cross-cutting recommendations.
+Three settings are required: `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`. Everything
+else degrades honestly — without a mail service, invitation links are shown on
+screen to be passed on; without a model key, the analytical engines run and the
+assistant says it is unavailable.
 
-`NEXT_PUBLIC_SUPABASE_URL` is optional — it is derived from the anon key, which
-names its own project in a public claim. Set it only for a custom domain.
+The two `NEXT_PUBLIC_` values are compiled into the browser bundle **when the
+image is built**, not read when the server starts. Railway passes service
+variables to the build, so setting them on the service is enough there; build
+the image anywhere else and they must be `--build-arg`s, or the bundle carries
+`undefined` and the sign-in page reports an invalid key — a message about a
+key, caused by a missing URL.
+
+`src/lib/config/environment.ts` is the authoritative list of every setting, and
+a test holds it to both the source and `.env.example`, so neither can drift
+from the other quietly.
+
+Two health endpoints, answering different questions: `/api/health/live` says
+the server started and is what the deploy gate watches; `/api/health` asks the
+database, mail and model provider whether they are well, and is what an uptime
+monitor should watch. `/diagnostics` answers the second question in prose, for
+a person.
 
 ### Supabase configuration
 
@@ -279,13 +299,14 @@ that; the file still earns its place for local development.
 Two values must change before any push, and are marked in the file:
 
 ```toml
-site_url = "https://your-project.vercel.app"
-additional_redirect_urls = ["https://your-project.vercel.app/auth/callback"]
+site_url = "https://app.amryn.ai"
+additional_redirect_urls = ["https://app.amryn.ai/auth/callback"]
 ```
 
-Vercel gives preview deployments a new hostname per commit, so allow the pattern
-`https://your-project-*.vercel.app/auth/callback` rather than adding them
-individually.
+Railway gives each environment its own hostname. Allow the production domain
+and, if you use one, the staging environment's — a callback URL that is not on
+the list fails *after* the person has left your page, so it reads as the
+identity provider's fault rather than yours.
 
 Google and Microsoft sign-in are already wired into the sign-in page. Enable a
 provider in the file, supply its credentials through the environment variables
@@ -299,89 +320,46 @@ The marketing site's "Sign in" and "Open the platform" links are driven by one
 constant near the top of `docs/app.js`:
 
 ```js
-var APP_URL = 'https://your-project.vercel.app';
+var APP_URL = 'https://app.amryn.ai';
 ```
 
-**It is currently empty, so those links are hidden.** The platform has not been
-deployed yet; `https://amryn.vercel.app` was tried and returns 404. Deploy
-first, then set this to whatever Vercel gives you — a marketing site with a
-Sign in button that 404s is worse than one without.
+**While it is empty, those links are hidden** — a marketing site with a Sign in
+button that 404s is worse than one without. Set it once the platform answers on
+its domain.
 
 `npm run check:site` exercises both states and reports what the committed value
 resolves to, so you can confirm the links before pushing.
 
-#### Deploying the platform to Vercel
+#### Deploying the platform
 
-Vercel's Git integration handles this: connect the repository once, and every
-push to `main` deploys automatically, with a preview deployment per pull
-request. No secrets are stored in GitHub and there is no workflow to maintain.
+The whole procedure, with DNS records and a cutover checklist, is in
+[`docs-internal/DEPLOYMENT.md`](docs-internal/DEPLOYMENT.md). In outline:
 
-1. **Import the repository** at [vercel.com/new](https://vercel.com/new). Leave
-   the root directory as the repository root — the platform lives there, and
-   Next.js is detected automatically. `docs/` is ignored by Vercel and keeps
-   deploying to GitHub Pages independently.
+1. **Supabase.** Create the project, take the URL and the two keys, and apply
+   `supabase/migrations/` — either `SUPABASE_DB_URL=... node scripts/migrate.mjs`
+   or `/setup` on the deployed application. Both use the same ledger, so
+   running one after the other is safe and neither repeats a migration that is
+   already in place.
 
-   The first build **succeeds with no environment variables set**, so you get a
-   deployment URL before configuring anything. The app runs, and the sign-in
-   page explains what is still missing rather than erroring.
+2. **Railway.** Deploy from the repository; `railway.json` points it at
+   `Dockerfile` and there is nothing else to configure about the build. Set the
+   settings, and add `app.amryn.ai` as a custom domain.
 
-2. **Add the environment variables** under Project → Settings → Environment
-   Variables, from `.env.example`: `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
-   `NEXT_PUBLIC_SITE_URL` set to the deployment's own URL. Redeploy to pick
-   them up.
+3. **Allow the auth redirect.** Site URL `https://app.amryn.ai`, and
+   `https://app.amryn.ai/auth/callback` on the redirect list. Skipping this is
+   the easiest mistake to make and the slowest to diagnose: password sign-in
+   keeps working while magic links and Google or Microsoft sign-in fail after
+   the user has already left your page.
 
-   `NEXT_PUBLIC_SUPABASE_URL` is not in that list on purpose. It is worked out
-   from the anon key, so there is no second value to get wrong — requiring two
-   settings that must agree is what produced a live deployment answering
-   "Invalid API key" while both settings looked plausible.
+4. **Cloudflare.** `app` and `www` as proxied CNAMEs, SSL **Full (strict)**,
+   Rocket Loader off — it reorders script execution and breaks hydration.
 
-   Keep the `NEXT_PUBLIC_` prefix on the ones you do set. They are meant to reach the
-   browser — the anon key grants nothing on its own, since Row Level Security
-   decides every row it can read. `SUPABASE_SERVICE_ROLE_KEY` is the one that
-   must never be public, and it is deliberately unprefixed.
+5. **Point the marketing site at it.** Set `APP_URL` in `docs/app.js`, run
+   `npm run check:site` to confirm, and push.
 
-   For the intelligence layer, add `AI_API_KEY` with an OpenAI key. No prefix —
-   it is a server-side secret and must not reach the browser.
-
-3. **Apply the migrations.** Run everything in `supabase/migrations/` against
-   your Supabase project in filename order. Optionally `supabase/seed/seed.sql`
-   for a worked demo organisation.
-
-   With the CLI, from a machine that can reach Supabase:
-
-   ```bash
-   npx supabase login                 # opens a browser
-   npx supabase link                  # project ref is already in config.toml
-   npx supabase db push               # applies migrations/ in order
-   ```
-
-   Or paste each file into the SQL editor in filename order — seven files, and
-   they are ordinary SQL with no CLI-specific syntax.
-
-   **Then check it landed.** Run `supabase/tests/verify-remote.sql` in the SQL
-   editor. A migration skipped or applied out of order does not fail loudly; it
-   fails later as a confusing runtime error somewhere unrelated. The query
-   returns ten rows, all of which should read `OK`.
-
-4. **Allow the auth redirect.** Set the Site URL to the deployment and add
-   `https://<deployment>/auth/callback` to the redirect allow-list — either in
-   the [dashboard](https://supabase.com/dashboard/project/tnkmrrfxzsrbfndpkonh/auth/url-configuration)
-   under **Authentication → URL Configuration**, or from
-   `supabase/config.toml` (see [Supabase configuration](#supabase-configuration)
-   below).
-
-   Skipping this is the easiest mistake to make and the slowest to diagnose:
-   password sign-in keeps working, while magic links and Google or Microsoft
-   sign-in fail *after* the user has already left your page, so it looks like
-   the provider's fault.
-
-5. **Point the marketing site at it.** Set `APP_URL` in `docs/app.js` to the
-   deployment URL, run `npm run check:site` to confirm, and push. That reveals
-   the Sign in and Open the platform links.
-
-If you plan to put a custom domain on the deployment, do that before step 5 and
-use the custom domain — it survives a project rename or a move off Vercel, and
-saves changing this twice.
+Use the custom domain from the start rather than the platform hostname: it
+survives a project rename or a move to another host, and saves changing every
+reference twice.
 
 ---
 
@@ -395,8 +373,10 @@ docs/                → everything GitHub Pages serves
   styles.css         → design system + layout
   app.js             → workspace data, Command Centre behaviour, APP_URL
   brand/             → supplied brand artwork (see BRAND-USAGE.txt)
-  .nojekyll          → tells Pages to serve the folder as-is
-.github/workflows/deploy.yml
+  .nojekyll          → a leftover from the GitHub Pages era; harmless
+.github/workflows/  → check.yml (typecheck, lint, test, build), image.yml
+Dockerfile          → the application image Railway builds
+railway.json        → what Railway does with it
 ```
 
 For orientation, the platform beside it:
@@ -408,14 +388,20 @@ src/features/        → auth, organisation, intelligence, opportunities, assist
 src/lib/             → engines (pure), ai, supabase, auth, utils
 src/types/           → database.ts (generated), intelligence.ts
 supabase/            → migrations, seed, tests
-scripts/             → type generation, marketing-site check
+scripts/             → type generation, migrations, marketing-site check
 docs-internal/       → architecture notes
 ```
 
 ### Deploying the site
 
-Pages is already enabled with **Source: GitHub Actions**. Every push to `main`
-redeploys; the site lands at `https://danielsmith960416.github.io/Amryn/`.
+Cloudflare Pages, serving `docs/` as-is. There is no build step and nothing to
+configure beyond the output directory: the site is HTML, CSS and one script.
+
+It used to deploy to GitHub Pages from a workflow in this repository. That
+workflow has been removed — it built the platform with `output: 'export'`, and
+a static export has no server, so it has no sessions and therefore no
+authentication anybody could rely on. See the note at the top of
+`next.config.ts`.
 
 ### The Command Centre demo
 

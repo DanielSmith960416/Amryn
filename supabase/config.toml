@@ -75,12 +75,13 @@ enabled = true
 # and every magic link will break.
 #
 # The callback path must match src/app/auth/callback/route.ts.
-site_url = "https://amryn.vercel.app"
+site_url = "https://app.amryn.ai"
 additional_redirect_urls = [
-  "https://amryn.vercel.app/auth/callback",
-  # Vercel gives preview deployments a new hostname per commit, so allow the
-  # pattern rather than adding them one at a time.
-  "https://amryn-*.vercel.app/auth/callback",
+  "https://app.amryn.ai/auth/callback",
+  # Railway gives each environment its own hostname. Add a staging one here if
+  # you run one — a callback URL that is not on this list fails *after* the
+  # person has left your page, so it reads as the identity provider's fault.
+  # "https://amryn-staging.up.railway.app/auth/callback",
   # Local development.
   "http://127.0.0.1:3000/auth/callback",
   "http://localhost:3000/auth/callback",
@@ -114,7 +115,8 @@ otp_expiry = 3600
 # internally and sends them itself, so this cannot be done from the
 # application: these are the only emails the platform does not control.
 #
-# The same credentials as SMTP_* in Vercel. Both mail paths through one
+# The same credentials as the SMTP_* settings on the application service.
+# Both mail paths through one
 # provider means one domain to verify, one reputation to keep, and one place to
 # look when something stops arriving.
 #
