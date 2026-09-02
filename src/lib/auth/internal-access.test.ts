@@ -36,6 +36,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.INTERNAL_ACCESS_TOKEN;
+  vi.unstubAllEnvs();
 });
 
 describe('internalAccess', () => {
@@ -92,6 +93,30 @@ describe('internalAccess', () => {
     // it is needed.
     workspace.throws = true;
     await expect(internalAccess(TOKEN)).resolves.toBe('token');
+    await expect(internalAccess()).resolves.toBe('denied');
+  });
+
+  it('admits the developer running next dev', async () => {
+    // Otherwise the first local start says "a fault on our side, try again
+    // shortly" and the terminal says nothing, so the one fact the developer
+    // needs — which variable is missing — is the one fact withheld.
+    vi.stubEnv('NODE_ENV', 'development');
+    delete process.env.INTERNAL_ACCESS_TOKEN;
+    await expect(internalAccess()).resolves.toBe('development');
+  });
+
+  it('admits nobody in production, whatever else is set', async () => {
+    // The reason the check above is safe. `next build` and `next start` both
+    // set production, so a deployment cannot reach the development branch.
+    vi.stubEnv('NODE_ENV', 'production');
+    await expect(internalAccess()).resolves.toBe('denied');
+    await expect(internalAccess('wrong')).resolves.toBe('denied');
+  });
+
+  it('does not admit the test runner, which would void every case above', async () => {
+    // Vitest sets NODE_ENV=test. If that counted as development, every
+    // 'denied' assertion in this file would pass without testing anything.
+    expect(process.env.NODE_ENV).toBe('test');
     await expect(internalAccess()).resolves.toBe('denied');
   });
 });

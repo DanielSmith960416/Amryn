@@ -1,4 +1,4 @@
-import { THEME_STORAGE_KEY } from './theme-toggle';
+import { THEME_STORAGE_KEY, THEMES } from './theme';
 
 /**
  * Applies the stored theme before the first paint.
@@ -11,12 +11,20 @@ import { THEME_STORAGE_KEY } from './theme-toggle';
  *
  * The storage read is wrapped because `localStorage` throws outright in some
  * privacy configurations — an exception here would leave the page unstyled.
+ *
+ * ── the key and the theme names come from ./theme, not from the toggle ────
+ * This is a server component. A server component importing a plain constant
+ * from a `'use client'` module gets `undefined`, because Next replaces that
+ * module with a client reference at the boundary — so this rendered
+ * `localStorage.getItem(undefined)` for as long as the constant lived beside
+ * the toggle, and the theme was never restored. theme-script.test.ts asserts
+ * the import stays on the right side of that boundary.
  */
 export function ThemeScript() {
   const script = `
 try {
   var t = localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
-  if (t === 'light' || t === 'medium' || t === 'dark') {
+  if (${THEMES.map((theme) => `t === ${JSON.stringify(theme)}`).join(' || ')}) {
     document.documentElement.dataset.theme = t;
   }
 } catch (e) {}
