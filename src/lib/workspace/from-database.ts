@@ -51,7 +51,7 @@ import type {
 } from '@/lib/intelligence/types';
 import type { Row } from '@/types/database';
 import type { Workspace } from './demo';
-import { emptyInventory } from './inventory';
+import { emptyInventory, inventoryFromAudit } from './inventory';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -312,6 +312,36 @@ function toDecisions(rows: Row<'goals'>[]): Decision[] {
   }));
 }
 
+/**
+ * The most recently completed stocktake, evaluated.
+ *
+ * Completed, not merely started: a session somebody is halfway through would
+ * report shelves as unchecked that simply have not been reached yet, and the
+ * compliance figures would read as a finding rather than as progress.
+ */
+async function latestInventory(organisationId: string, asOf: Date) {
+  const supabase = await createClient();
+
+  const { data: audit } = await supabase
+    .from('stock_audits')
+    .select('*')
+    .eq('organisation_id', organisationId)
+    .eq('status', 'complete')
+    .order('audit_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!audit) return emptyInventory(asOf);
+
+  const { data: rows } = await supabase
+    .from('stock_items')
+    .select('*')
+    .eq('audit_id', audit.id)
+    .order('position');
+
+  return inventoryFromAudit(audit, rows ?? [], asOf);
+}
+
 /* ── the loader ────────────────────────────────────────────────────────── */
 
 export const organisationWorkspace = cache(
@@ -382,7 +412,12 @@ export const organisationWorkspace = cache(
     const actions = rankActions(toActions(recommendationRows ?? []));
     const actions_ = actionSummary(actions);
     const branches = toBranches(branchRows ?? [], records, health.overall);
-    const inventory = emptyInventory(asOf);
+
+    // The most recent stocktake, or none. Deliberately the latest rather than
+    // a merge of all of them: a stocktake is a statement about the shelves on
+    // one day, and combining two of them would produce a shelf that never
+    // existed.
+    const inventory = await latestInventory(organisationId, asOf);
 
     // Only the ones there is a real figure for. A KPI whose current value is
     // an assumption is worse than a KPI that is absent: the centre exists to

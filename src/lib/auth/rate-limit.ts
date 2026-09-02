@@ -54,6 +54,10 @@ export const LIMITS = {
   // each request supersedes the last and writes an audit entry, so it is not
   // free either.
   subscriptionRequest: { max: 20, window: '1 hour' },
+  // A stocktake is a deliberate act that happens weekly at most, and each one
+  // writes hundreds of rows. Generous enough for a bad first attempt and a
+  // retry, tight enough that the import endpoint is not a way to fill a table.
+  stockImport: { max: 10, window: '1 hour' },
 } as const satisfies Record<string, Limit>;
 
 function hash(value: string): string {
