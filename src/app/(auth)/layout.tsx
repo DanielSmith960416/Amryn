@@ -3,6 +3,32 @@ import Link from 'next/link';
 import { LegalFooter } from '@/components/legal/legal-footer';
 
 /**
+ * Rendered per request, so these pages carry the settings the server holds now.
+ *
+ * `RuntimeEnv` in the root layout writes the public settings into the document
+ * so an image built without them still works — set the variable, restart,
+ * done. A prerendered page defeats that silently: it runs at build time, when
+ * the values are absent, so it writes nothing, and the page ships with only
+ * the build's inlined `undefined` to fall back on.
+ *
+ * /sign-in was already dynamic and so already correct. /sign-up,
+ * /forgot-password and /reset-password were prerendered — verified against a
+ * standalone server built with the variables unset and run with them set:
+ * window.__AMRYN_ENV__ was present on /sign-in and absent on the other three.
+ *
+ * Nothing reads it there yet, because browser-side Supabase is unused today
+ * and auth goes through server actions. This is not a fix for a current
+ * outage; it is closing the gap before the first client component to call
+ * createClient() on one of these pages fails in production only, on an image
+ * built without build arguments, with an invalid-key message naming a setting
+ * that is plainly present in the dashboard.
+ *
+ * The cost is four small uncached forms rendering per request, which is what
+ * the sign-in page already does.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
  * Sign-in chrome: the dark navy intelligence environment on the left, the form
  * on a clean surface on the right. The claim is made before the credentials
  * are asked for.
