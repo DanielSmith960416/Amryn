@@ -1,3 +1,4 @@
+import type { Enums } from '@/types/database';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentPropsWithoutRef } from 'react';
 import { cn } from '@/lib/utils/cn';
@@ -92,3 +93,24 @@ export const BRANCH_TONE: Readonly<Record<'HEALTHY' | 'STABLE' | 'ATTENTION', To
   STABLE: 'info',
   ATTENTION: 'warning',
 };
+
+/**
+ * Severity as the database records it.
+ *
+ * Distinct from PRIORITY_TONE above, and deliberately so. That one maps
+ * `ActionPriority` — HIGH/MEDIUM/LOW — which the v2 screens use for data they
+ * hold in the browser. This one maps `priority_level`, the PostgreSQL enum,
+ * which has a fourth value: critical. They will converge when those screens
+ * read from the database, and until then conflating them would silently drop
+ * every critical row into the "high" bucket.
+ */
+export const DB_PRIORITY_TONE: Readonly<Record<Enums['priority_level'], Tone>> = {
+  critical: 'negative',
+  high: 'warning',
+  medium: 'info',
+  low: 'neutral',
+};
+
+export function PriorityBadge({ priority }: { priority: Enums['priority_level'] }) {
+  return <Badge tone={DB_PRIORITY_TONE[priority]}>{priority}</Badge>;
+}

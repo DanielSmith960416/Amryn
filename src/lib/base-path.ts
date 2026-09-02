@@ -1,20 +1,20 @@
 /**
- * The subpath this site is served from.
+ * The subpath the site is served from, if any.
  *
- * GitHub Pages serves a project repository under its own name —
- * `danielsmith960416.github.io/Amryn` — so every absolute URL the site emits
- * needs that prefix. Next applies it to `next/link` and to its own `_next/`
- * assets automatically.
+ * Normally empty, and therefore normally a no-op: on its own domain the
+ * application is served from the root. It exists because the value is not
+ * always empty — a preview served under a repository name, or the application
+ * mounted beneath a path on a shared host, both need every hand-written URL
+ * prefixed, and Next only does that for `next/link` and its own `_next/`
+ * assets. An unoptimised `next/image` renders as a plain `<img>` with the src
+ * written through untouched, so `/brand/mark.png` stays `/brand/mark.png` and
+ * breaks on every page.
  *
- * It does **not** apply it to the `src` of an unoptimised `next/image`, which
- * is what a static export uses: those render as a plain `<img>` with the src
- * written through untouched, and a `/brand/mark.png` that should have been
- * `/Amryn/brand/mark.png` is a broken image on every page. Hence this helper,
- * and hence its use on every image and icon the site declares.
- *
- * The value is inlined at build time by `env` in `next.config.ts`, so it is the
- * same string on the server and in the browser, and a custom domain serving
- * from the root can set `AMRYN_BASE_PATH=""` and have everything follow.
+ * Keeping the helper rather than deleting it with the static build is
+ * deliberate: it costs one function call, and reintroducing it correctly
+ * across every image in the application would be a day's work done under
+ * pressure. Set `AMRYN_BASE_PATH` and the corresponding `basePath` in
+ * `next.config.ts` together, or neither.
  */
 export const BASE_PATH = process.env.AMRYN_BASE_PATH ?? '';
 

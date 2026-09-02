@@ -1,0 +1,15 @@
+# Everything the build does not read, so an edit to a test or a document does
+# not invalidate the dependency layer and rebuild the world.
+node_modules
+.next
+out
+.git
+.github
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+*.tsbuildinfo
+docs
+docs-internal
+supabase/tests

@@ -1,0 +1,19 @@
+{
+  "20260829090000_01_foundation.sql": "to_regclass('public.audit_logs') is not null",
+  "20260829090100_02_intelligence.sql": "to_regclass('public.business_insights') is not null",
+  "20260829090200_03_market_and_decisions.sql": "to_regclass('public.opportunities') is not null",
+  "20260829090300_04_security_rls.sql": "to_regproc('amryn.has_permission') is not null",
+  "20260829090400_05_domain_rls.sql": "exists (select 1 from pg_policy p join pg_class c on c.oid = p.polrelid where c.relname = 'opportunities')",
+  "20260829090500_06_permissions_and_triggers.sql": "(select count(*) from public.permissions) >= 30",
+  "20260830080000_07_sector_policy.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'organisations' and column_name = 'sector_scope')",
+  "20260830190000_08_organisation_bootstrap_rpc.sql": "exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'create_organisation' and p.proargtypes::text like '%25%25')",
+  "20260830200000_09_default_privileges.sql": "exists (select 1 from pg_default_acl d join pg_namespace n on n.oid = d.defaclnamespace where n.nspname = 'public')",
+  "20260830210000_10_profile_without_auth_trigger.sql": "to_regproc('public.ensure_user_profile') is not null",
+  "20260831090000_11_invitations.sql": "to_regclass('public.organisation_invitations') is not null",
+  "20260831120000_12_rate_limits.sql": "to_regproc('public.check_rate_limit') is not null",
+  "20260831140000_13_consent_and_data_rights.sql": "to_regclass('public.data_requests') is not null",
+  "20260831160000_14_security_events.sql": "to_regproc('public.record_account_event') is not null",
+  "20260831180000_15_two_factor.sql": "to_regproc('amryn.mfa_satisfied') is not null",
+  "20260901090000_16_subscription_entitlements.sql": "to_regclass('public.subscription_plans') is not null",
+  "20260901120000_17_onboarding.sql": "to_regclass('public.onboarding_progress') is not null"
+}

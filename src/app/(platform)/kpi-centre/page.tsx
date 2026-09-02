@@ -5,7 +5,8 @@ import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { byFormat, count, signedPercent } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'KPI Centre' };
 
@@ -17,8 +18,12 @@ export const metadata: Metadata = { title: 'KPI Centre' };
  * zero read as ON TARGET no matter how many are open. Metrics where lower is
  * the better outcome are marked, and the comparison is inverted for them.
  */
-export default function KpiCentrePage() {
-  const w = loadWorkspace();
+export default async function KpiCentrePage() {
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="Your KPIs, measured against the targets you set," organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
   const currency = w.profile.currency;
 
   const onTarget = w.kpis.filter((k) => k.status === 'ON TARGET').length;

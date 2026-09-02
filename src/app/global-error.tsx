@@ -65,18 +65,12 @@ export default function GlobalError({
                 color: '#8BA3C7',
               }}
             >
-              Digest {error.digest}
+              Reference {error.digest}
               <br />
-              Search your host&rsquo;s runtime logs for this to find the cause.
+              Quote this if you report the problem — it identifies exactly what failed.
             </p>
           ) : null}
 
-          <p style={{ margin: '1.25rem 0 0', color: '#8BA3C7', fontSize: '0.875rem' }}>
-            <a href="/diagnostics" style={{ color: '#3E7BD6' }}>
-              Open diagnostics
-            </a>{' '}
-            to see what is and is not configured.
-          </p>
 
           <button
             type="button"

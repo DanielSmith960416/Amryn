@@ -3,7 +3,8 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Table, TableWrap, Td, Th, TotalRow } from '@/components/ui/table';
 import { compactMoney, money, signedPercent } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'Forecast' };
 
@@ -16,8 +17,12 @@ export const metadata: Metadata = { title: 'Forecast' };
  * that looks like the actuals table is exactly how a projection gets quoted as
  * a commitment.
  */
-export default function ForecastPage() {
-  const w = loadWorkspace();
+export default async function ForecastPage() {
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="A projection from your own trend" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
   const currency = w.profile.currency;
 
   const totals = w.forecast.reduce(

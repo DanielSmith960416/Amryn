@@ -8,7 +8,8 @@ import { HealthBreakdown, HealthDial } from '@/components/intelligence/health-di
 import { RevenueChart } from '@/components/intelligence/revenue-chart';
 import { branchStatus } from '@/lib/intelligence/finance';
 import { compactMoney, count, money, percent, score } from '@/lib/format';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
 
 export const metadata: Metadata = { title: 'DigitalTwin®' };
 
@@ -30,8 +31,12 @@ const TREND_TONE = {
  * the twin is a model of the business, and a model you have to page between is
  * not one thing.
  */
-export default function DigitalTwinPage() {
-  const w = loadWorkspace();
+export default async function DigitalTwinPage() {
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="The model of your business" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
   const currency = w.profile.currency;
 
   return (

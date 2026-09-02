@@ -4,7 +4,9 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import type { ImpactLevel, SignalDirection } from '@/lib/intelligence/types';
-import { loadWorkspace } from '@/lib/workspace';
+import { currentWorkspace } from '@/lib/workspace';
+import { NoDataYet } from '@/components/intelligence/no-data-yet';
+import { requireEntitlement } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Market & Competitor Intelligence' };
 
@@ -27,8 +29,16 @@ const DIRECTION: Readonly<Record<SignalDirection, { label: string; tone: Tone }>
  * in the same column: what management should do about it. A signal with no
  * implication is trivia, and the workbook is right to insist on the column.
  */
-export default function MarketPage() {
-  const w = loadWorkspace();
+export default async function MarketPage() {
+  // Sends the reader to billing with the feature named, rather than to an
+  // empty page or a refusal they cannot act on.
+  await requireEntitlement('market_intelligence');
+
+  const state = await currentWorkspace();
+  if (state.kind === 'empty') {
+    return <NoDataYet what="Your market and the competitors you named" organisationName={state.organisationName} />;
+  }
+  const w = state.workspace;
 
   return (
     <>

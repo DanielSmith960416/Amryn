@@ -1,0 +1,47 @@
+# Action majors are pinned deliberately. GitHub forces actions targeting
+# Node 20 onto Node 24 and warns; when Node 20 support is removed outright,
+# a workflow left on the old majors stops running rather than warning.
+name: Image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Built, not pushed. Railway builds and deploys the same Dockerfile on
+      # its own; the value here is finding out that the image does not build
+      # in a pull request rather than in a deployment.
+      #
+      # The public settings are given placeholder values on purpose. They are
+      # inlined into the browser bundle at build time, so a build without them
+      # proves the image assembles and nothing else — which is exactly what
+      # this job is for. The bundle it produces is thrown away.
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: false
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
