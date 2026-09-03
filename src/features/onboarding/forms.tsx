@@ -303,6 +303,10 @@ export function SystemsForm() {
                 id={`system-${kind.value}`}
                 name="systemName"
                 placeholder={kind.example || 'What is it called?'}
+                // Typed back in after a failed save. Without it the eight
+                // boxes come back empty beside the error, which reads as the
+                // page having discarded the answers — because it had.
+                defaultValue={state.status === 'error' ? (state.values?.[kind.value] ?? '') : ''}
               />
             </div>
           </div>

@@ -21,11 +21,26 @@ import { createClient } from '@/lib/supabase/server';
 import { recordEvent } from '@/lib/audit';
 import { ourFault } from '@/lib/errors';
 import { isStepId, nextStep, type StepId } from './steps';
+import { firstRepeatedName } from './systems';
 import type { Json } from '@/types/database';
 
-export type SaveState = { status: 'idle' } | { status: 'error'; message: string };
+/**
+ * `values` carries the submitted answers back to the form.
+ *
+ * Without it a failed save renders empty inputs, so the reader loses
+ * everything they typed and is shown an error at the same moment — which
+ * reads as the page having thrown their work away, because it has. It matters
+ * most on the systems step, where there are eight boxes to retype.
+ */
+export type SaveState =
+  | { status: 'idle' }
+  | { status: 'error'; message: string; values?: Record<string, string> };
 
-const fail = (message: string): SaveState => ({ status: 'error', message });
+const fail = (message: string, values?: Record<string, string>): SaveState => ({
+  status: 'error',
+  message,
+  ...(values ? { values } : {}),
+});
 
 /** Marks a step answered and moves the pointer on. */
 async function advance(
@@ -249,6 +264,11 @@ export async function saveSystems(_previous: SaveState, formData: FormData): Pro
     .map((category, i) => ({ category, name: names[i]?.trim() ?? '' }))
     .filter((r) => r.name.length > 0);
 
+  // Typed back into the form on every failure below, so nothing is lost.
+  const submitted = Object.fromEntries(
+    categories.map((category, i) => [category, names[i]?.trim() ?? '']),
+  );
+
   const parsed = z
     .array(
       z.object({
@@ -258,19 +278,44 @@ export async function saveSystems(_previous: SaveState, formData: FormData): Pro
     )
     .max(30)
     .safeParse(rows);
-  if (!parsed.success) return fail('Check which systems you have named.');
+  if (!parsed.success) return fail('Check which systems you have named.', submitted);
+
+  // data_sources is UNIQUE (organisation_id, name), and the category is not
+  // part of that key — so the same name under two headings is one row, not
+  // two. The insert is atomic, so a single repeat used to lose all eight
+  // answers to "23505 duplicate key", shown as "We could not save those
+  // systems": a message that named neither the system nor the fact that a
+  // name had been repeated, on a form that had just cleared itself.
+  //
+  // Compared case-insensitively, which is stricter than the constraint. A
+  // person naming "Excel" and "excel" means one system, and the alternative is
+  // two rows that read as duplicates to everyone but Postgres.
+  const repeat = firstRepeatedName(parsed.data);
+  if (repeat) {
+    return fail(
+      `“${repeat.name}” is named twice — under ${repeat.firstCategory} and under ` +
+        `${repeat.category}. Each system needs its own name, so rename one of them or ` +
+        `leave the box you do not need blank.`,
+      submitted,
+    );
+  }
 
   if (parsed.data.length > 0) {
     const supabase = await createClient();
-    const { error } = await supabase.from('data_sources').insert(
+    // Upsert, not insert: this step can be revisited, and coming back to add a
+    // ninth system should not fail on the eight already saved.
+    const { error } = await supabase.from('data_sources').upsert(
       parsed.data.map((row) => ({
         organisation_id: workspace.organisation.id,
         name: row.name,
         category: row.category,
         created_by: workspace.user.id,
       })),
+      { onConflict: 'organisation_id,name' },
     );
-    if (error) return fail(ourFault('onboarding', error, 'We could not save those systems.'));
+    if (error) {
+      return fail(ourFault('onboarding', error, 'We could not save those systems.'), submitted);
+    }
   }
 
   await advance(workspace.organisation.id, 'systems');
