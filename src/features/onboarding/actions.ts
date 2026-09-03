@@ -22,6 +22,7 @@ import { recordEvent } from '@/lib/audit';
 import { ourFault } from '@/lib/errors';
 import { isStepId, nextStep, type StepId } from './steps';
 import { firstRepeatedName } from './systems';
+import { onlyNew, reconcileByName } from './reconcile';
 import type { Json } from '@/types/database';
 
 /**
@@ -164,25 +165,41 @@ export async function saveStructure(_previous: SaveState, formData: FormData): P
   const supabase = await createClient();
 
   if (parsed.data.branches.length > 0) {
-    const { error } = await supabase.from('branches').insert(
+    // Upsert: branches is UNIQUE (organisation_id, name), so revisiting this
+    // step to correct one site's headcount used to reject every site with a
+    // 23505 nobody could act on.
+    const { error } = await supabase.from('branches').upsert(
       parsed.data.branches.map((b) => ({
         organisation_id: workspace.organisation.id,
         name: b.name,
         city: b.city ?? null,
         headcount: b.headcount ?? null,
       })),
+      { onConflict: 'organisation_id,name' },
     );
     if (error) return fail(ourFault('onboarding', error, 'We could not save those sites.'));
   }
 
   if (parsed.data.departments.length > 0) {
-    const { error } = await supabase.from('departments').insert(
-      parsed.data.departments.map((name) => ({
-        organisation_id: workspace.organisation.id,
-        name,
-      })),
-    );
-    if (error) return fail(ourFault('onboarding', error, 'We could not save those departments.'));
+    // Not an upsert. departments is UNIQUE (organisation_id, branch_id, name)
+    // and branch_id is null here, and Postgres treats nulls as distinct — so
+    // that constraint never fires and there is no conflict target to upsert
+    // on. The duplicate has to be found before the write instead.
+    const { data: already } = await supabase
+      .from('departments')
+      .select('name')
+      .eq('organisation_id', workspace.organisation.id);
+
+    const fresh = onlyNew(parsed.data.departments, (already ?? []).map((d) => d.name));
+
+    if (fresh.length > 0) {
+      const { error } = await supabase.from('departments').insert(
+        fresh.map((name) => ({ organisation_id: workspace.organisation.id, name })),
+      );
+      if (error) {
+        return fail(ourFault('onboarding', error, 'We could not save those departments.'));
+      }
+    }
   }
 
   await advance(workspace.organisation.id, 'structure');
@@ -222,19 +239,51 @@ export async function saveObjectives(_previous: SaveState, formData: FormData): 
   if (rows.length > 0) {
     const supabase = await createClient();
     const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from('goals').insert(
-      rows.map((row) => ({
-        organisation_id: workspace.organisation.id,
-        title: row.title,
-        target_value: row.target,
-        unit: row.unit,
-        status: 'active' as const,
-        starts_on: today,
-        due_on: row.dueOn,
-        owner_id: workspace.user.id,
-      })),
+
+    // goals carries no unique key, so an insert here duplicated silently. A
+    // revenue target revised from R2,000,000 to R1,200,000 left both rows
+    // active under one title, and nothing could say which figure the business
+    // was being judged against. Answering again is an edit, so it has to reach
+    // the row that is already there.
+    const { data: current } = await supabase
+      .from('goals')
+      .select('id, title')
+      .eq('organisation_id', workspace.organisation.id)
+      .eq('status', 'active');
+
+    const { update, insert } = reconcileByName(
+      rows,
+      (current ?? []).map((g) => ({ id: g.id, name: g.title })),
+      (row) => row.title,
     );
-    if (error) return fail(ourFault('onboarding', error, 'We could not save those objectives.'));
+
+    for (const { id, row } of update) {
+      const { error } = await supabase
+        .from('goals')
+        .update({ target_value: row.target, unit: row.unit, due_on: row.dueOn })
+        .eq('id', id);
+      if (error) {
+        return fail(ourFault('onboarding', error, 'We could not save those objectives.'));
+      }
+    }
+
+    if (insert.length > 0) {
+      const { error } = await supabase.from('goals').insert(
+        insert.map((row) => ({
+          organisation_id: workspace.organisation.id,
+          title: row.title,
+          target_value: row.target,
+          unit: row.unit,
+          status: 'active' as const,
+          starts_on: today,
+          due_on: row.dueOn,
+          owner_id: workspace.user.id,
+        })),
+      );
+      if (error) {
+        return fail(ourFault('onboarding', error, 'We could not save those objectives.'));
+      }
+    }
   }
 
   await advance(workspace.organisation.id, 'objectives');
@@ -405,7 +454,10 @@ export async function saveMarket(_previous: SaveState, formData: FormData): Prom
   const supabase = await createClient();
 
   if (parsed.data.length > 0) {
-    const { error } = await supabase.from('competitors').insert(
+    // Upsert for the same reason as branches: competitors is
+    // UNIQUE (organisation_id, name), so revising a threat level used to be
+    // rejected rather than applied.
+    const { error } = await supabase.from('competitors').upsert(
       parsed.data.map((row) => ({
         organisation_id: workspace.organisation.id,
         name: row.name,
@@ -413,6 +465,7 @@ export async function saveMarket(_previous: SaveState, formData: FormData): Prom
         threat_level: row.threat,
         is_tracked: true,
       })),
+      { onConflict: 'organisation_id,name' },
     );
     if (error) return fail(ourFault('onboarding', error, 'We could not save those competitors.'));
   }
