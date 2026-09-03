@@ -27,6 +27,7 @@ import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
 import { databaseUrl, readPending } from '@/lib/db/setup';
 import { PERMISSIONS } from '@/lib/auth/permissions';
+import { isKeyRejection, isPermissionDenied, isSchemaCacheMiss } from './errors';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skipped';
 
@@ -73,28 +74,8 @@ function describe(message: string | undefined | null): string {
   return text && text.length > 0 ? text : 'no reason given';
 }
 
-/**
- * True when an error is the database refusing the key rather than answering.
- *
- * Worth singling out because it invalidates every other reading: nothing
- * downstream can be attempted, so nothing downstream should be reported as a
- * finding of its own.
- */
-function isKeyRejection(message: string | undefined | null): boolean {
-  return /invalid api key|no api key|jwt|not authorized|unauthorized/i.test(message ?? '');
-}
 
-/**
- * True when PostgREST says a table is not in its schema cache.
- *
- * Worth separating from every other failure because it has two causes that
- * need opposite responses, and the message names neither: the table does not
- * exist in this project, or it does and the API has not been told. Guessing
- * between them is what produced four different remedies for one fault.
- */
-function isSchemaCacheMiss(message: string | undefined | null): boolean {
-  return /schema cache/i.test(message ?? '');
-}
+
 
 /** The one query that tells those two causes apart, run where PostgREST is not involved. */
 const SCHEMA_TRIAGE =
@@ -331,6 +312,17 @@ function checkReachable(): Promise<Check> {
     async () => {
       const supabase = await createClient();
       const { error } = await supabase.from('permissions').select('key').limit(1);
+      if (error && isPermissionDenied(error.message)) {
+        // Reached, and the key was accepted. Checked before the failure branch
+        // so a correct grant cannot be reported as an outage.
+        return {
+          name: 'Supabase reachable',
+          status: 'ok',
+          detail:
+            'Connected, and the key was accepted — the database answered by refusing the read. ' +
+            'The permission catalogue is readable only once signed in, which is the intended grant.',
+        };
+      }
       if (error) {
         const missing = error.message.toLowerCase().includes('does not exist');
         return {

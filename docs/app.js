@@ -15,12 +15,17 @@
      page must load fast for a stranger and be indexable, and the
      application must never be either.
 
-     Empty until the application answers somewhere. It was briefly
-     set to app.amryn.ai, which is not registered — so every Sign in
-     button on a live page led to a DNS failure, which is precisely
-     the thing the paragraph above says not to do. Set it to the
-     Railway hostname, or the real domain, once one exists.     */
-  var APP_URL = '';
+     It was briefly set to app.amryn.ai, which is not registered — so
+     every Sign in button on a live page led to a DNS failure, which
+     is precisely the thing the paragraph above says not to do.
+
+     Now the Railway service answers, so this is its generated
+     hostname. Verified before setting it: /api/health/live returns
+     200 and the sign-in page renders its form rather than an
+     unconfigured notice. When amryn.ai is registered and pointed at
+     the same service, change this line to the custom domain — one
+     value, one place.                                           */
+  var APP_URL = 'https://amryn-production.up.railway.app';
 
   (function wireAppLinks() {
     var links = document.querySelectorAll('[data-app-link]');
