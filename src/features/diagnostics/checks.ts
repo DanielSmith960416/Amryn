@@ -408,6 +408,38 @@ function checkPendingMigrations(allowed: boolean): Promise<Check> {
   });
 }
 
+/**
+ * The answer for a catalogue this caller is not allowed to read.
+ *
+ * `permissions` and `role_permissions` are granted to `authenticated` and
+ * `service_role`, never to `anon`. Signed out — which is how /diagnostics is
+ * usually reached, since it exists for the day nobody can sign in — the reads
+ * below cannot succeed on a correctly secured database.
+ *
+ * They were reported as failures, with remedies saying to apply the migrations
+ * and to apply migration 06. Both were already applied. Advice to re-run
+ * migrations against a live database is worse than no advice at all.
+ *
+ * This cannot be told from the message, which is why it is a shape rather than
+ * a classifier: a `head: true` count against a table the role cannot read
+ * comes back with an empty message, exactly as `describe()` above warns. So an
+ * unreadable count is reported as unanswered rather than as a finding, and the
+ * question is sent where it can actually be answered — `Pending migrations`
+ * reads the ledger over the direct connection, and /setup does the same.
+ */
+function notReadableSignedOut(name: string, what: string): Check {
+  return {
+    name,
+    status: 'skipped',
+    detail:
+      `Not readable without signing in — ${what} is granted to authenticated, not to anon. ` +
+      'This is the intended grant, not a fault.',
+    remedy:
+      'Sign in as an administrator to read it here, or see “Pending migrations”, which asks ' +
+      'the ledger directly and answers the same question.',
+  };
+}
+
 function checkSchema(): Promise<Check> {
   return attempt('Database schema', async () => {
     const supabase = await createClient();
@@ -415,6 +447,11 @@ function checkSchema(): Promise<Check> {
       .from('permissions')
       .select('key', { count: 'exact', head: true });
     if (error) {
+      // An empty message is the signature of a refused count, not of an
+      // absent table — see notReadableSignedOut above.
+      if (isPermissionDenied(error.message) || !error.message?.trim()) {
+        return notReadableSignedOut('Database schema', 'the permission catalogue');
+      }
       return {
         name: 'Database schema',
         status: 'fail',
@@ -450,6 +487,9 @@ function checkRoleGrants(): Promise<Check> {
       .from('role_permissions')
       .select('role', { count: 'exact', head: true });
     if (error) {
+      if (isPermissionDenied(error.message) || !error.message?.trim()) {
+        return notReadableSignedOut('Role grants', 'the role matrix');
+      }
       return {
         name: 'Role grants',
         status: 'fail',
