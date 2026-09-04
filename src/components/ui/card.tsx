@@ -4,14 +4,24 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 /**
  * The surface every panel in Amryn sits on.
  *
- * Specification §14: 12-16px radius, 16-24px padding, subtle elevation, a thin
- * border, a hover state that lifts a little and does not scale much. The hover
- * treatment is opt-in via `interactive`, because a card that lifts when you
- * pass over it had better do something when you click it.
+ * A frosted panel: translucent, blurred over the ground behind it, with a
+ * light edge across the top that fades to a hairline by the bottom. The depth
+ * comes from the blur rather than from a stack of shadows — see the Glass
+ * section of globals.css for why, and for where the treatment is deliberately
+ * withheld.
+ *
+ * `solid` opts a panel out. Use it for anything holding a lot of small text —
+ * a table of figures read through frosted glass is harder to read, and this
+ * product is read by people checking numbers.
+ *
+ * The hover lift stays opt-in via `interactive`, because a card that lifts
+ * when you pass over it had better do something when you click it.
  */
 export interface CardProps extends ComponentPropsWithoutRef<'div'> {
   elevated?: boolean;
   interactive?: boolean;
+  /** Opt out of the frost. For tables, forms and long documents. */
+  solid?: boolean;
   tone?: 'default' | 'positive' | 'warning' | 'negative' | 'brand';
 }
 
@@ -27,16 +37,22 @@ export function Card({
   className,
   elevated = false,
   interactive = false,
+  solid = false,
   tone = 'default',
   ...props
 }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-[var(--radius-card)] border border-[var(--border)]',
-        elevated ? 'bg-[var(--card-elevated)]' : 'bg-[var(--card)]',
-        'shadow-[var(--shadow-card)]',
+        solid
+          ? [
+              'rounded-[var(--radius-card)] border border-[var(--border)]',
+              elevated ? 'bg-[var(--card-elevated)]' : 'bg-[var(--card)]',
+              'shadow-[var(--shadow-card)]',
+            ]
+          : [elevated ? 'glass-strong' : 'glass', interactive && 'glass-lift'],
         interactive &&
+          solid &&
           'transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-lift)]',
         TONE_RING[tone],
         className,

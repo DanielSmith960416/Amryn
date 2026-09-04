@@ -101,7 +101,7 @@ export default async function CommandCentrePage() {
               <p className="mt-2 text-[0.9375rem] leading-relaxed text-[var(--text-primary)]">
                 {insight.body}
               </p>
-              <p className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[0.6875rem] tracking-wide text-[var(--text-tertiary)] uppercase">
+              <p className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 font-label text-[0.6875rem] tracking-wide text-[var(--text-tertiary)] uppercase">
                 <span className="text-[var(--brand)]">AI-simulated</span>
                 <span aria-hidden>·</span>
                 <span>Confidence: {insight.confidence}</span>

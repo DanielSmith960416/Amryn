@@ -24,7 +24,7 @@ const CONTACT_PHONE_TEL = '+27670048810';
 
 export function MarketingNav() {
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur">
+    <header className="glass-strong sticky top-0 z-30 rounded-none border-x-0 border-t-0">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2" aria-label="Amryn, home">
           <Image
@@ -32,15 +32,7 @@ export function MarketingNav() {
             alt=""
             width={553}
             height={563}
-            className="size-6 w-auto dark:hidden"
-            priority
-          />
-          <Image
-            src={withBasePath("/brand/amryn-icon-mark-white.png")}
-            alt=""
-            width={553}
-            height={563}
-            className="hidden size-6 w-auto dark:block"
+            className="size-6 w-auto"
             priority
           />
           <span className="font-display text-[0.9375rem] font-semibold tracking-tight">
@@ -78,7 +70,7 @@ export function MarketingNav() {
 
 export function MarketingFooter() {
   return (
-    <footer className="border-t border-[var(--border)] bg-[var(--surface)]">
+    <footer className="border-t border-[var(--glass-hairline)] bg-[var(--glass-inset)] backdrop-blur-[var(--glass-blur)]">
       <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
         <div className="flex flex-wrap items-start justify-between gap-8">
           <div>
@@ -89,7 +81,7 @@ export function MarketingFooter() {
               height={270}
               className="w-44"
             />
-            <p className="mt-3 font-mono text-[0.75rem] tracking-wide text-[var(--text-secondary)] uppercase">
+            <p className="mt-3 font-label text-[0.75rem] tracking-wide text-[var(--text-secondary)] uppercase">
               Business Inside + Market Outside = Intelligent Growth
             </p>
           </div>

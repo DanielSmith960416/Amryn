@@ -15,7 +15,7 @@ import { LEGAL_VERSION, hasUnfilledDetails } from '@/lib/legal/documents';
  */
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-[var(--bg)]">
+    <div className="min-h-dvh">
       <header className="border-b border-[var(--border)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
           <Link href="/" className="flex items-center gap-2.5">
@@ -24,14 +24,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
               alt=""
               width={553}
               height={563}
-              className="h-6 w-auto dark:hidden"
-            />
-            <Image
-              src="/brand/amryn-icon-mark-white.png"
-              alt=""
-              width={553}
-              height={563}
-              className="hidden h-6 w-auto dark:block"
+              className="h-6 w-auto"
             />
             <span className="font-display text-[1.0625rem] font-extrabold tracking-tight text-[var(--text-primary)]">
               Amryn<span className="tm">™</span>

@@ -28,7 +28,7 @@ export function PriorityList({
         actions={
           <Link
             href="/recommendations"
-            className="font-mono text-[0.6875rem] tracking-wide text-[var(--brand)] uppercase hover:underline"
+            className="font-label text-[0.6875rem] tracking-wide text-[var(--brand)] uppercase hover:underline"
           >
             All
           </Link>

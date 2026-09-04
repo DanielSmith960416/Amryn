@@ -63,21 +63,13 @@ export default function HomePage() {
                 alt=""
                 width={553}
                 height={563}
-                className="w-56 opacity-90 dark:hidden"
-                priority
-              />
-              <Image
-                src={withBasePath("/brand/amryn-icon-mark-white.png")}
-                alt=""
-                width={553}
-                height={563}
-                className="hidden w-56 opacity-90 dark:block"
+                className="w-56 opacity-90"
                 priority
               />
             </div>
           </div>
 
-          <p className="mt-12 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--border)] pt-6 font-mono text-[0.8125rem] tracking-wide text-[var(--text-secondary)] uppercase">
+          <p className="mt-12 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--border)] pt-6 font-label text-[0.8125rem] tracking-wide text-[var(--text-secondary)] uppercase">
             <span>Business Inside</span>
             <i className="text-[var(--brand)] not-italic">+</i>
             <span>Market Outside</span>
@@ -87,7 +79,7 @@ export default function HomePage() {
         </section>
 
         {/* ── What you get ────────────────────────────────────────────── */}
-        <section id="how" className="border-y border-[var(--border)] bg-[var(--surface)]">
+        <section id="how" className="border-y border-[var(--glass-hairline)] bg-[var(--glass-inset)] backdrop-blur-[var(--glass-blur)]">
           <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
             <p className="eyebrow">How it works</p>
             <h2 className="font-display mt-2 max-w-2xl text-[1.75rem] font-bold tracking-tight text-[var(--text-primary)] sm:text-[2.125rem]">
@@ -179,7 +171,7 @@ export default function HomePage() {
         </section>
 
         {/* ── Who it is for ───────────────────────────────────────────── */}
-        <section id="who" className="border-y border-[var(--border)] bg-[var(--surface)]">
+        <section id="who" className="border-y border-[var(--glass-hairline)] bg-[var(--glass-inset)] backdrop-blur-[var(--glass-blur)]">
           <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
             <p className="eyebrow">Who it is for</p>
             <h2 className="font-display mt-2 text-[1.75rem] font-bold tracking-tight text-[var(--text-primary)] sm:text-[2.125rem]">
@@ -211,7 +203,7 @@ export default function HomePage() {
                 ],
               ].map(([k, v]) => (
                 <article key={k}>
-                  <p className="font-mono text-[0.6875rem] font-medium tracking-wide text-[var(--brand)] uppercase">
+                  <p className="font-label text-[0.6875rem] font-medium tracking-wide text-[var(--brand)] uppercase">
                     {k}
                   </p>
                   <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
@@ -234,14 +226,7 @@ export default function HomePage() {
             alt=""
             width={553}
             height={563}
-            className="mx-auto w-14 dark:hidden"
-          />
-          <Image
-            src={withBasePath("/brand/amryn-icon-mark-white.png")}
-            alt=""
-            width={553}
-            height={563}
-            className="mx-auto hidden w-14 dark:block"
+            className="mx-auto w-14"
           />
           <h2 className="font-display mt-5 text-[1.75rem] font-bold tracking-tight text-[var(--text-primary)] sm:text-[2.125rem]">
             See it running on your own numbers.
