@@ -23,7 +23,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#081B33',
+  /* Paints the phone's browser chrome to match the ground the page sits on.
+     It was still the navy of the theme that was withdrawn, so the bar above
+     the page disagreed with the page. Medium's ground is close enough that
+     one value serves both themes. */
+  themeColor: '#DDE5F0',
   width: 'device-width',
   initialScale: 1,
 };
@@ -37,11 +41,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Before any client component asks for a Supabase client, which is why
             it is here and not deferred. */}
         <RuntimeEnv />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/* The faces are served from this origin — see the note in globals.css.
+            Both of these set the first screen and neither is discovered until
+            the stylesheet has parsed, so preloading starts them alongside it
+            rather than one round trip behind. The mono is not preloaded: it
+            sets figures, which are below the fold on most routes. */}
         <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
+          rel="preload"
+          href="/fonts/outfit-latin-var.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin=""
+        />
+        <link
+          rel="preload"
+          href="/fonts/ibm-plex-sans-latin-var.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin=""
         />
       </head>
       <body>{children}</body>

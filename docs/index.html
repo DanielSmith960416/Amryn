@@ -5,17 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Amryn™ AIGrowthIntelligence® — Executive Command Centre</title>
 <meta name="description" content="See your business. See your market. Know what to do next. Amryn combines a continuously updated Digital Twin of your operations with external Opportunity Radar intelligence, in one Executive Command Centre.">
-<meta name="theme-color" content="#081B33">
+<meta name="theme-color" content="#DDE5F0">
 
 <meta property="og:title" content="Amryn™ AIGrowthIntelligence®">
 <meta property="og:description" content="See Your Business. See Your Market. Know What To Do Next.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="brand/amryn-lockup-secondary@2x.png">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<!-- Both faces are needed to set the first screen, and neither is discovered
+     until the stylesheet has parsed. Preloading starts them in parallel with
+     it rather than one round trip behind. -->
+<link rel="preload" href="fonts/outfit-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/ibm-plex-sans-latin-var.woff2" as="font" type="font/woff2" crossorigin>
 
 <link rel="icon" type="image/png" href="brand/amryn-icon-mark.png">
 </head>
@@ -82,8 +84,8 @@
     <div class="chrome">
       <div class="chrome__id">
         <img class="iconmark chrome__mark"
-             src="brand/amryn-icon-mark-white.png"
-             srcset="brand/amryn-icon-mark-white.png 1x, brand/amryn-icon-mark-white@2x.png 2x"
+             src="brand/amryn-icon-mark.png"
+             srcset="brand/amryn-icon-mark.png 1x, brand/amryn-icon-mark@2x.png 2x"
              width="553" height="563" alt="" aria-hidden="true">
         <span class="chrome__title">Executive Command Centre</span>
       </div>
@@ -390,8 +392,8 @@
 <!-- ══════════ CTA ══════════ -->
 <section class="cta">
   <img class="iconmark"
-       src="brand/amryn-icon-mark-white.png"
-       srcset="brand/amryn-icon-mark-white.png 1x, brand/amryn-icon-mark-white@2x.png 2x"
+       src="brand/amryn-icon-mark.png"
+       srcset="brand/amryn-icon-mark.png 1x, brand/amryn-icon-mark@2x.png 2x"
        width="553" height="563" alt="" aria-hidden="true">
   <h2>See it running on your own numbers.</h2>
   <p>An Intelligence Assessment maps your internal data and external signals, and returns a

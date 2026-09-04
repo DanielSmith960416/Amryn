@@ -1,4 +1,44 @@
 /* ═══════════════════════════════════════════════
+   Typefaces, served from this origin.
+
+   They used to come from fonts.googleapis.com, which meant a render-blocking
+   stylesheet on one third-party host, then the font files themselves on a
+   second: three DNS lookups and three TLS handshakes before a single word
+   could be set. On a good connection that is invisible. On a phone on a
+   South African mobile network it is most of the wait.
+
+   Both families are variable, so one file each carries every weight the site
+   uses. `swap` means the text is readable in the fallback immediately and
+   changes face when the real one lands, rather than sitting invisible.
+
+   Licensing and provenance are in fonts/LICENSE.txt.
+   ═══════════════════════════════════════════════ */
+
+@font-face{
+  font-family:'Outfit';
+  src:url(fonts/outfit-latin-var.woff2) format('woff2-variations'),
+      url(fonts/outfit-latin-var.woff2) format('woff2');
+  font-weight:100 900;
+  font-style:normal;
+  font-display:swap;
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face{
+  font-family:'IBM Plex Sans';
+  src:url(fonts/ibm-plex-sans-latin-var.woff2) format('woff2-variations'),
+      url(fonts/ibm-plex-sans-latin-var.woff2) format('woff2');
+  font-weight:100 700;
+  font-style:normal;
+  font-display:swap;
+  unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ═══════════════════════════════════════════════
    Amryn™ AIGrowthIntelligence®
    Palette per Brand Asset Pack v1.0 (brand/BRAND-USAGE.txt):
      #004AAD  brand blue (primary)
@@ -7,6 +47,8 @@
    ═══════════════════════════════════════════════ */
 
 :root{
+  color-scheme: only light;
+
   --ink:      #000000;
   --navy:     #081B33;
   --navy-2:   #0D2646;
@@ -33,7 +75,6 @@
   --f-display: 'Outfit', system-ui, sans-serif;
   --f-label:   'Outfit', system-ui, sans-serif;
   --f-body:    'IBM Plex Sans', system-ui, sans-serif;
-  --f-mono:    'IBM Plex Mono', ui-monospace, monospace;
 }
 
 *,*::before,*::after{ box-sizing:border-box; }
@@ -322,7 +363,7 @@ button{ font:inherit; color:inherit; }
 .bars__t{ display:block; height:6px; background:var(--rule); border-radius:3px; overflow:hidden; }
 .bars__f{ display:block; height:100%; background:var(--signal); border-radius:3px;
   transition:width .9s cubic-bezier(.16,1,.3,1); }
-.bars li b{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; font-size:.8rem; text-align:right; }
+.bars li b{ font-family:var(--f-label); font-variant-numeric:tabular-nums; font-size:.8rem; text-align:right; }
 
 /* radar */
 /* align-items:start keeps the navy panel at its own height rather than
@@ -548,3 +589,57 @@ body::before{
 .rail__b.is-on{ background: var(--glass-strong); }
 .tile{ background: rgba(255,255,255,.52); border-color: var(--glass-hair); border-radius: 12px; }
 .op, .act{ border-radius: 12px; }
+
+/* ── the three navy slabs ───────────────────────────────────────────────────
+   Left over from the design this replaced, where a navy band was the contrast
+   against white paper. On a washed ground with frosted panels they read as
+   three holes cut in the page, and — the demo one especially — as a different
+   product from the platform they are advertising, whose own chrome is glass.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* The demo's title bar. This is the one that has to match: it is standing in
+   for the application's own top bar, which is frosted. */
+.chrome{
+  background: var(--glass-strong);
+  color: var(--ink);
+  border-bottom: 1px solid var(--glass-hair);
+}
+.chrome__k, .chrome__live{ color: var(--mute); }
+.field__k{ color: var(--mute); }
+/* background-color, not the `background` shorthand: the shorthand resets
+   repeat and position, and the chevron tiles across the control. */
+.field__ctl{
+  background-color: rgba(255,255,255,.72); color: var(--ink);
+  border: 1px solid var(--glass-hair);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235D6675' stroke-width='1.4'/%3E%3C/svg%3E");
+}
+.field__ctl:hover{ border-color: var(--signal); }
+
+/* The health dial. It was navy so the ring would read against white; on the
+   ground it reads against the glass instead. */
+.dial-wrap{
+  --signal: #004AAD;
+  background: var(--glass-strong);
+  color: var(--ink);
+  border: 1px solid var(--glass-hair);
+  border-radius: 18px;
+}
+.dial__key{ color: var(--mute); }
+.blip--threat{ fill:#8FA3BE; }
+.blip.is-hot{ fill: var(--signal); }
+
+/* The closing band. A section now, not a slab: a hairline above it does the
+   separating the fill used to, and the ground carries straight through. */
+.cta{
+  background: transparent;
+  color: var(--ink);
+  border-top: 1px solid var(--rule);
+}
+.cta p{ color: var(--mute); }
+.cta .btn{ background: var(--signal); color:#fff; }
+.cta .btn:hover{ background: var(--signal-d); }
+.cta .btn--line{
+  background: transparent; color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px rgba(12,42,82,.22);
+}
+.cta .btn--line:hover{ background: rgba(255,255,255,.55); }

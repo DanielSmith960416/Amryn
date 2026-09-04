@@ -13,8 +13,11 @@
  */
 import { chromium } from 'playwright';
 import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,6 +44,54 @@ function assert(condition, message) {
 }
 
 const APP_URL_ASSIGNMENT = /var APP_URL = '[^']*';/;
+
+const CONTENT_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+};
+
+/**
+ * Serves a directory over HTTP for the length of one check.
+ *
+ * This used to open the page as `file://`, which is not the environment the
+ * site is ever in. Under that scheme a document has the opaque origin `null`,
+ * so a `crossorigin` font preload — correct and necessary over HTTP, since
+ * without it the browser fetches the face twice — is refused by CORS and the
+ * check failed on a page that is fine. Serving it the way Pages does removes a
+ * whole class of false result, this one included.
+ */
+function serve(dir) {
+  const server = createServer(async (req, res) => {
+    const path = normalize(decodeURIComponent(req.url.split('?')[0]));
+    // A request cannot climb out of the directory being served.
+    const file = join(dir, path === '/' ? 'index.html' : path);
+    if (!file.startsWith(dir)) {
+      res.writeHead(403).end();
+      return;
+    }
+    try {
+      const info = await stat(file);
+      if (!info.isFile()) throw new Error('not a file');
+      res.writeHead(200, {
+        'content-type': CONTENT_TYPES[extname(file)] ?? 'application/octet-stream',
+        'content-length': info.size,
+      });
+      createReadStream(file).pipe(res);
+    } catch {
+      res.writeHead(404).end();
+    }
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () =>
+      resolve({ origin: `http://127.0.0.1:${server.address().port}`, close: () => server.close() }),
+    );
+  });
+}
 
 /**
  * Copies the site to a temp dir, forces APP_URL to the given value, and loads
@@ -70,6 +121,14 @@ async function withSite(appUrl, run) {
       text,
     );
 
+  // Everything the page needs must come from the site's own origin. This is
+  // not tidiness: the faces used to be fetched from fonts.googleapis.com,
+  // which put a render-blocking stylesheet and then the font files themselves
+  // behind two extra DNS lookups and two extra TLS handshakes. On a phone on a
+  // slow mobile network that was most of the wait before any text appeared,
+  // and nothing here would have noticed it coming back.
+  const offOrigin = [];
+
   page.on('pageerror', (error) => errors.push(String(error)));
   page.on('console', (message) => {
     if (message.type() === 'error' && !isNetworkNoise(message.text())) {
@@ -77,16 +136,29 @@ async function withSite(appUrl, run) {
     }
   });
 
-  await page.goto(`file://${join(dir, 'index.html')}`);
+  const site = await serve(dir);
+  page.on('request', (request) => {
+    const url = request.url();
+    if (!url.startsWith(site.origin) && !url.startsWith('data:')) offOrigin.push(url);
+  });
+
+  await page.goto(`${site.origin}/index.html`);
   await page.waitForTimeout(600);
 
-  await run(page, errors);
+  await run(page, errors, offOrigin);
   await page.close();
+  site.close();
 }
 
 console.log('\nAPP_URL unset — the platform links must stay hidden');
-await withSite('', async (page, errors) => {
+await withSite('', async (page, errors, offOrigin) => {
   assert(errors.length === 0, `no page errors${errors.length ? `: ${errors.join('; ')}` : ''}`);
+  assert(
+    offOrigin.length === 0,
+    `every asset is served from the site's own origin${
+      offOrigin.length ? `: ${[...new Set(offOrigin)].join(', ')}` : ''
+    }`,
+  );
   assert((await page.$$('.app__frame')).length > 0, 'the Command Centre demo renders');
 
   const links = await page.$$eval('[data-app-link]', (els) =>
