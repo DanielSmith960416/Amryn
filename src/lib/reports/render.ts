@@ -91,17 +91,17 @@ export function renderReport(workspace: Workspace, brief: WeeklyBrief): string {
     margin-inline: auto;
   }
 
-  h1, h2, h3 { font-family: Archivo, 'Segoe UI', sans-serif; letter-spacing: -0.02em; }
+  h1, h2, h3 { font-family: Outfit, 'Segoe UI', sans-serif; letter-spacing: -0.02em; }
 
   .masthead { border-bottom: 2px solid var(--brand); padding-bottom: 12px; margin-bottom: 20px; }
-  .brandline { font: 500 8pt/1 'IBM Plex Mono', monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand); }
+  .brandline { font: 500 8pt/1 Outfit, 'Segoe UI', sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand); }
   h1 { margin: 8px 0 4px; font-size: 20pt; }
   .meta { margin: 0; font-size: 9.5pt; color: var(--muted); }
   sup { font-size: 0.55em; vertical-align: 0.5em; }
 
   .indicators { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 22px; }
   .indicator { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
-  .indicator dt { font: 500 7.5pt/1.2 'IBM Plex Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .indicator dt { font: 500 7.5pt/1.2 Outfit, 'Segoe UI', sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0; }
   .indicator dd { margin: 4px 0 0; font: 600 12pt/1.1 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
 
   /* Sections must not be split across a page break — a heading orphaned at the
@@ -118,7 +118,7 @@ export function renderReport(workspace: Workspace, brief: WeeklyBrief): string {
 
   table { width: 100%; border-collapse: collapse; font-size: 9pt; }
   th { text-align: left; padding: 5px 7px; border-bottom: 1px solid var(--line); background: var(--inset);
-       font: 500 7.5pt/1.2 'IBM Plex Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+       font: 500 7.5pt/1.2 Outfit, 'Segoe UI', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
   td { padding: 5px 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
   td.num, th.num { text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
 

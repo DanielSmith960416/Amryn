@@ -39,7 +39,7 @@ export function Sidebar({
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 shrink-0 overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)]',
+          'fixed inset-y-0 left-0 z-50 w-64 shrink-0 overflow-y-auto border-y-0 border-l-0 glass-strong rounded-none',
           'transition-transform duration-200 ease-out lg:sticky lg:top-14 lg:z-0 lg:h-[calc(100dvh-3.5rem)] lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}

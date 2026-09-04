@@ -56,14 +56,7 @@ export default async function ActivationsPage({
             alt=""
             width={553}
             height={563}
-            className="h-6 w-auto dark:hidden"
-          />
-          <Image
-            src="/brand/amryn-icon-mark-white.png"
-            alt=""
-            width={553}
-            height={563}
-            className="hidden h-6 w-auto dark:block"
+            className="h-6 w-auto"
           />
           <span className="font-display text-[1.0625rem] font-extrabold tracking-tight text-[var(--text-primary)]">
             Amryn<span className="tm">™</span>

@@ -55,7 +55,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Not uppercased: the brand pack sets the solid capitalisation as
               part of the mark, so AIGrowthIntelligence® must never be
               transformed. The tracking carries the eyebrow treatment instead. */}
-          <p className="font-mono text-[0.6875rem] tracking-[0.16em] text-[#3E7BD6]">
+          <p className="font-label text-[0.6875rem] tracking-[0.16em] text-[#3E7BD6]">
             AIGrowthIntelligence<span className="tm">®</span> Software
           </p>
           <h1 className="font-display mt-4 text-[2.25rem] leading-[1.1] font-bold tracking-tight text-white">
@@ -72,7 +72,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </p>
         </div>
 
-        <p className="font-mono text-[0.6875rem] tracking-[0.08em] text-[#64799A]">
+        <p className="font-label text-[0.6875rem] tracking-[0.08em] text-[#64799A]">
           Business Inside &nbsp;+&nbsp; Market Outside &nbsp;=&nbsp; Intelligent Growth
         </p>
 

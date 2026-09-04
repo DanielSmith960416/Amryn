@@ -32,7 +32,7 @@ export function HealthRadar({
           <PolarGrid stroke="var(--chart-grid)" />
           <PolarAngleAxis
             dataKey="axis"
-            tick={{ fill: 'var(--text-tertiary)', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+            tick={{ fill: 'var(--text-tertiary)', fontSize: 10, fontFamily: 'var(--font-label)' }}
           />
           <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
           <Radar

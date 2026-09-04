@@ -82,7 +82,7 @@ export function PerformanceChart({
                 onClick={() => setWindowSize(active ? null : p.count)}
                 aria-pressed={active}
                 className={cn(
-                  'rounded-[var(--radius-pill)] px-2.5 py-1 font-mono text-[0.6875rem] tracking-wide uppercase transition-colors',
+                  'rounded-[var(--radius-pill)] px-2.5 py-1 font-label text-[0.6875rem] tracking-wide uppercase transition-colors',
                   active
                     ? 'bg-[var(--brand)] text-[var(--on-brand)]'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--card-inset)]',

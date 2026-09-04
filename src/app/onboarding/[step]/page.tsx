@@ -63,15 +63,7 @@ export default async function OnboardingStepPage({
               alt=""
               width={553}
               height={563}
-              className="h-7 w-auto dark:hidden"
-              priority
-            />
-            <Image
-              src="/brand/amryn-icon-mark-white.png"
-              alt=""
-              width={553}
-              height={563}
-              className="hidden h-7 w-auto dark:block"
+              className="h-7 w-auto"
               priority
             />
             <span className="font-display text-[1.125rem] font-extrabold tracking-tight text-[var(--text-primary)]">

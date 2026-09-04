@@ -8,22 +8,58 @@
      #081B33  dark navy       — the intelligence environment
      #3E7BD6  lifted blue     — on navy only; brand blue disappears there
 
-   Three themes ship, as the specification requires: light, medium and dark.
-   Every colour below is a token. No component hard-codes a hex value, which is
-   what makes a third theme a data change rather than a rewrite.
+   Two themes ship: light and medium. Medium is the same interface a stop
+   deeper — a slate ground rather than a paper one — for a room with the
+   blinds open, or an evening. Every colour below is a token; no component
+   hard-codes a hex value, which is what makes a theme a data change rather
+   than a rewrite.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ── type ───────────────────────────────────────────────────────────────────
+   The AMRYN mark is a geometric sans: circular bowls, pointed apexes on the A
+   and the M, one stroke weight throughout, tracked wide. Outfit shares that
+   skeleton with a taller x-height and slightly narrower proportions, so it
+   reads as a relative of the mark rather than a copy of it — which is what a
+   logo wants from the type set beside it.
+
+   Three roles, and a face for each:
+
+     display  Outfit          headings, and every label and line of fine print
+     sans     IBM Plex Sans   running prose, where a geometric face tires
+     mono     IBM Plex Mono   figures, and machine text — never a label
+
+   The mono is the one that mattered. Eyebrows, sub-headings and fine print
+   were set in it, so small type across the product was speaking in a
+   typewriter voice while the headings spoke in a grotesque and the paragraphs
+   in a humanist — three unrelated skeletons on one screen. It now earns its
+   place only where digits have to line up in a column, or where the text is
+   literally machine output: a key, a code, a filename.
+   ────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* Labels are the display face doing a smaller job. Named separately so the
+     call sites say which role they are in, and so the two can diverge later
+     without a find-and-replace across the product. */
+  --font-label: var(--font-display);
 
-  --radius-card: 14px;
-  --radius-tile: 12px;
+  /* Outfit sets tighter than the grotesque it replaced — the words in a large
+     heading start touching at the old value. `tracking-tight` is redefined
+     here rather than edited out of seventeen call sites, because the intent at
+     those call sites ("tight for this face") has not changed. */
+  --tracking-tight: -0.012em;
+
+  /* Glass reads as a thicker material than a flat card, and a tight corner
+     makes it look like cut acrylic rather than something frosted. */
+  --radius-card: 22px;
+  --radius-tile: 16px;
   --radius-pill: 999px;
 }
 
-/* ── light (default) ────────────────────────────────────────────────────── */
+/* ── light (the default) ────────────────────────────────────────────────
+   Bare `:root` selects this block, so a visitor who has never chosen a theme
+   gets light. */
 :root,
 :root[data-theme='light'] {
   color-scheme: light;
@@ -67,6 +103,26 @@
   --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
   --shadow-lift: 0 4px 12px rgb(16 24 40 / 0.08), 0 2px 4px rgb(16 24 40 / 0.04);
   --shadow-pop: 0 12px 32px rgb(16 24 40 / 0.14);
+
+  /* ── glass ──────────────────────────────────────────────────────────── */
+  --ground: #dde5f0;
+  --ground-wash-a: rgb(0 74 173 / 0.26);
+  --ground-wash-b: rgb(0 201 167 / 0.18);
+  --ground-wash-c: rgb(62 123 214 / 0.24);
+
+  --glass: rgb(255 255 255 / 0.62);
+  --glass-strong: rgb(255 255 255 / 0.80);
+  --glass-inset: rgb(255 255 255 / 0.38);
+  --glass-edge: rgb(255 255 255 / 0.90);
+  --glass-hairline: rgb(16 24 40 / 0.08);
+  --glass-blur: 20px;
+  --glass-shadow: 0 8px 32px rgb(16 24 40 / 0.10);
+  --glass-shadow-lift: 0 16px 48px rgb(16 24 40 / 0.16);
+
+  /* Teal at full strength fails contrast on a light ground. */
+  --accent-on-light: #00987f;
+  --watch: #f0a836;
+
 }
 
 /* ── medium: the daytime intelligence environment ───────────────────────── */
@@ -112,98 +168,30 @@
   --shadow-card: 0 1px 2px rgb(8 27 51 / 0.06), 0 1px 3px rgb(8 27 51 / 0.08);
   --shadow-lift: 0 4px 14px rgb(8 27 51 / 0.10), 0 2px 4px rgb(8 27 51 / 0.06);
   --shadow-pop: 0 12px 32px rgb(8 27 51 / 0.18);
-}
 
-/* ── dark ───────────────────────────────────────────────────────────────── */
-:root[data-theme='dark'] {
-  color-scheme: dark;
+  /* ── glass ────────────────────────────────────────────────────────────
+     A deeper room than light, and thinner glass in it. Both matter: with a
+     pale ground and near-opaque panels the two themes render as the same
+     screen, which is a choice not worth offering. Here the ground is a slate
+     the panels actually pick up, so a tile reads as tinted glass rather than
+     as a white card with a soft edge. */
+  --ground: #a9bfd8;
+  --ground-wash-a: rgb(0 74 173 / 0.34);
+  --ground-wash-b: rgb(0 201 167 / 0.24);
+  --ground-wash-c: rgb(62 123 214 / 0.32);
 
-  --bg: #081b33;
-  --surface: #0f243f;
-  --card: #132037;
-  --card-elevated: #1a2a45;
-  --card-inset: #0d1c31;
+  --glass: rgb(255 255 255 / 0.46);
+  --glass-strong: rgb(255 255 255 / 0.66);
+  --glass-inset: rgb(255 255 255 / 0.26);
+  --glass-edge: rgb(255 255 255 / 0.82);
+  --glass-hairline: rgb(8 27 51 / 0.10);
+  --glass-blur: 20px;
+  --glass-shadow: 0 8px 32px rgb(8 27 51 / 0.12);
+  --glass-shadow-lift: 0 16px 48px rgb(8 27 51 / 0.18);
 
-  --text-primary: #ffffff;
-  --text-secondary: #8ba3c7;
-  --text-tertiary: #64799a;
-  --text-inverse: #081b33;
+  --accent-on-light: #00876f;
+  --watch: #d98b1f;
 
-  /* Brand blue is near-invisible on navy; the pack's lifted blue takes over. */
-  --brand: #3e7bd6;
-  --brand-strong: #5a92e3;
-  --brand-soft: #12294a;
-  --on-brand: #ffffff;
-
-  --accent: #00d4aa;
-  --border: #1e3a5f;
-  --border-strong: #2b4d78;
-
-  --positive: #00d4aa;
-  --positive-soft: #0c3040;
-  --warning: #f59e0b;
-  --warning-soft: #3a2c14;
-  --negative: #ef6a6a;
-  --negative-soft: #3a1d21;
-  --info: #3b82f6;
-  --info-soft: #12294a;
-
-  --chart-1: #00c9a7;
-  --chart-2: #3b82f6;
-  --chart-3: #6366f1;
-  --chart-4: #8b5cf6;
-  --chart-5: #3e7bd6;
-  --chart-grid: #17304f;
-
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.30);
-  --shadow-lift: 0 6px 18px rgb(0 0 0 / 0.38);
-  --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.50);
-}
-
-/* Viewers who never chose a theme follow their system. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-
-    --bg: #081b33;
-    --surface: #0f243f;
-    --card: #132037;
-    --card-elevated: #1a2a45;
-    --card-inset: #0d1c31;
-
-    --text-primary: #ffffff;
-    --text-secondary: #8ba3c7;
-    --text-tertiary: #64799a;
-    --text-inverse: #081b33;
-
-    --brand: #3e7bd6;
-    --brand-strong: #5a92e3;
-    --brand-soft: #12294a;
-
-    --accent: #00d4aa;
-    --border: #1e3a5f;
-    --border-strong: #2b4d78;
-
-    --positive: #00d4aa;
-    --positive-soft: #0c3040;
-    --warning: #f59e0b;
-    --warning-soft: #3a2c14;
-    --negative: #ef6a6a;
-    --negative-soft: #3a1d21;
-    --info: #3b82f6;
-    --info-soft: #12294a;
-
-    --chart-1: #00c9a7;
-    --chart-2: #3b82f6;
-    --chart-3: #6366f1;
-    --chart-4: #8b5cf6;
-    --chart-5: #3e7bd6;
-    --chart-grid: #17304f;
-
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.30);
-    --shadow-lift: 0 6px 18px rgb(0 0 0 / 0.38);
-    --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.50);
-  }
 }
 
 /* Expose the tokens to Tailwind's utility generator. */
@@ -248,15 +236,32 @@
   }
 
   body {
-    background: var(--bg);
+    background: var(--ground);
     color: var(--text-primary);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    position: relative;
+    min-height: 100dvh;
+  }
+
+  /* Fixed rather than scrolling: the wash is the room the panels sit in, and
+     a room that slides away as you scroll stops reading as depth. Pinned
+     behind everything, and inert to the pointer. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 40rem at 12% -8%, var(--ground-wash-a), transparent 62%),
+      radial-gradient(46rem 34rem at 96% 8%, var(--ground-wash-b), transparent 58%),
+      radial-gradient(58rem 46rem at 62% 108%, var(--ground-wash-c), transparent 60%);
   }
 
   h1, h2, h3, h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.025em;
+    letter-spacing: var(--tracking-tight);
     line-height: 1.15;
   }
 
@@ -294,7 +299,7 @@
   }
 
   .eyebrow {
-    font-family: var(--font-mono);
+    font-family: var(--font-label);
     font-size: 0.6875rem;
     font-weight: 500;
     letter-spacing: 0.14em;
@@ -436,3 +441,127 @@
 }
 
 .legal tr:last-child td { border-bottom: 0; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Glass
+   ───────────────────────────────────────────────────────────────────────────
+   Depth comes from a blurred ground showing through a translucent panel,
+   rather than from a stack of shadows. Three rules make it read as material
+   instead of as a tint:
+
+     · the ground must have something in it to refract — see body::before;
+     · the top edge catches light and the body does not, so the edge is a
+       gradient border rather than a flat one;
+     · the blur is expensive, so it is spent on the shell and withheld from
+       anything with a lot of small text.
+
+   That last one is a legibility decision as much as a performance one. A
+   financial table read through frosted glass is harder to read, and this
+   product is read by people checking figures. Tables, forms and the executive
+   reports stay solid.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  .glass {
+    background: var(--glass);
+    border: 1px solid transparent;
+    border-radius: var(--radius-card);
+    box-shadow: var(--glass-shadow);
+    /* The light edge across the top, dropping to the hairline by the bottom. */
+    background-image: linear-gradient(var(--glass), var(--glass)),
+      linear-gradient(160deg, var(--glass-edge), var(--glass-hairline) 42%, var(--glass-hairline));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  /* Applied separately so a panel can opt out where the cost is not worth it,
+     and so `@supports` can withhold it from a browser that would paint an
+     opaque grey rectangle instead. */
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .glass,
+    .glass-strong {
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+      backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+    }
+  }
+
+  .glass-strong {
+    background: var(--glass-strong);
+    border: 1px solid transparent;
+    border-radius: var(--radius-card);
+    box-shadow: var(--glass-shadow);
+    background-image: linear-gradient(var(--glass-strong), var(--glass-strong)),
+      linear-gradient(160deg, var(--glass-edge), var(--glass-hairline) 42%, var(--glass-hairline));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .glass-lift {
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+
+  .glass-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--glass-shadow-lift);
+  }
+
+  /* The nav rail from the reference: one pill holding the whole set, each
+     item a pill of its own once it is the current one. */
+  .glass-rail {
+    background: var(--glass-inset);
+    border: 1px solid var(--glass-hairline);
+    border-radius: var(--radius-pill);
+  }
+
+  /* Figures are the thing being read. Lighter and larger than the old
+     600-weight tiles: at this size weight reads as shouting, and the mono
+     face — which the figures keep, because a column of them has to align —
+     already carries the authority. */
+  .figure {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+}
+
+/* ── the loading mark ───────────────────────────────────────────────────────
+   Shown while a platform page is being fetched. It is the Amryn chevron
+   drawn as two strokes that sweep, over a ring that fills — deliberately not
+   a generic spinner, because the moment a page takes long enough to need one
+   is the moment the product is either yours or anonymous. */
+
+/* Normalised to pathLength="1" on the elements themselves, so the sweep does
+   not depend on the chevron's real geometry — a dash length guessed against
+   the wrong path length leaves the stroke invisible for most of the cycle,
+   which is exactly what a loading indicator must not do. */
+@keyframes amryn-mark-sweep {
+  0%   { stroke-dashoffset: 1;    opacity: 0.2; }
+  45%  { stroke-dashoffset: 0;    opacity: 1; }
+  75%  { stroke-dashoffset: 0;    opacity: 1; }
+  100% { stroke-dashoffset: -1;   opacity: 0.2; }
+}
+
+@keyframes amryn-ring {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes amryn-lift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+.amryn-mark-stroke {
+  stroke-dasharray: 1;
+  animation: amryn-mark-sweep 2s ease-in-out infinite;
+}
+
+.amryn-ring {
+  animation: amryn-ring 2.4s linear infinite;
+  transform-origin: center;
+}
+
+.amryn-lift { animation: amryn-lift 2.4s ease-in-out infinite; }

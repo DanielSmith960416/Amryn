@@ -13,7 +13,7 @@ import type {
 
 const badge = cva(
   'inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2 py-0.5 ' +
-    'font-mono text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase',
+    'font-label text-[0.6875rem] font-medium tracking-wide whitespace-nowrap uppercase',
   {
     variants: {
       tone: {

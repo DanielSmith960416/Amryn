@@ -76,7 +76,7 @@ export default async function StockReportPage() {
           <dl className="grid gap-4 sm:grid-cols-2">
             {DORMANCY_ORDER.map((k) => (
               <div key={k}>
-                <dt className="font-mono text-[0.6875rem] font-medium tracking-wide text-[var(--text-primary)] uppercase">
+                <dt className="font-label text-[0.6875rem] font-medium tracking-wide text-[var(--text-primary)] uppercase">
                   {k}
                 </dt>
                 <dd className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">

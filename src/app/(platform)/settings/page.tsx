@@ -118,7 +118,7 @@ export default async function SettingsPage() {
           <Card className="p-5">
             <p className="eyebrow">Appearance</p>
             <p className="mb-3 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-              Three themes. Your choice is remembered on this device.
+              Light, or a stop deeper. Your choice is remembered on this device.
             </p>
             <ThemeToggle />
           </Card>

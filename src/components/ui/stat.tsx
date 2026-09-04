@@ -32,11 +32,14 @@ export function Stat({
   }[tone];
 
   return (
-    <Card className={cn('px-4 py-3.5', className)} tone={tone === 'default' ? 'default' : tone}>
+    <Card
+      className={cn('rounded-[var(--radius-tile)] px-4 py-4', className)}
+      tone={tone === 'default' ? 'default' : tone}
+    >
       <p className="eyebrow truncate">{label}</p>
-      <p className={cn('numeric mt-1.5 text-[1.375rem] font-semibold', valueTone)}>{value}</p>
+      <p className={cn('figure mt-2 text-[1.625rem]', valueTone)}>{value}</p>
       {sub ? (
-        <p className="mt-1 text-[0.75rem] leading-snug text-[var(--text-secondary)]">{sub}</p>
+        <p className="mt-1.5 text-[0.75rem] leading-snug text-[var(--text-secondary)]">{sub}</p>
       ) : null}
     </Card>
   );

@@ -57,7 +57,7 @@ export function Th({
     <th
       scope="col"
       className={cn(
-        'border-b border-[var(--border)] bg-[var(--card-inset)] px-3 py-2.5 font-mono',
+        'border-b border-[var(--border)] bg-[var(--card-inset)] px-3 py-2.5 font-label',
         'text-[0.6875rem] font-medium tracking-wide whitespace-nowrap text-[var(--text-secondary)] uppercase',
         numeric ? 'text-right' : 'text-left',
         className,

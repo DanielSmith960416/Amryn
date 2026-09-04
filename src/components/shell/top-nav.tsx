@@ -41,7 +41,10 @@ export function TopNav({
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-md">
+    // Not `.glass`: the bar spans the full width and a rounded panel across
+    // the top of a page reads as a floating box rather than as chrome. Same
+    // material, square corners, and a hairline where it meets the content.
+    <header className="glass-strong sticky top-0 z-40 rounded-none border-x-0 border-t-0">
       <div className="flex h-14 items-center gap-3 px-3 sm:px-5">
         <button
           type="button"
@@ -59,15 +62,7 @@ export function TopNav({
             alt=""
             width={553}
             height={563}
-            className="h-6 w-auto dark:hidden"
-            priority
-          />
-          <Image
-            src="/brand/amryn-icon-mark-white.png"
-            alt=""
-            width={553}
-            height={563}
-            className="hidden h-6 w-auto dark:block"
+            className="h-6 w-auto"
             priority
           />
           <span className="font-display text-[1.0625rem] font-extrabold tracking-tight text-[var(--text-primary)]">
@@ -79,7 +74,7 @@ export function TopNav({
           <OrganisationSwitcher organisations={organisations} activeId={activeOrganisationId} />
         </div>
 
-        <nav className="mx-auto hidden items-center gap-1 lg:flex" aria-label="Primary">
+        <nav className="glass-rail mx-auto hidden items-center gap-1 p-1 lg:flex" aria-label="Primary">
           {primary.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -90,8 +85,8 @@ export function TopNav({
                 className={cn(
                   'rounded-[var(--radius-pill)] px-3.5 py-1.5 text-[0.8125rem] font-medium transition-colors',
                   active
-                    ? 'bg-[var(--brand)] text-[var(--on-brand)] shadow-[0_0_0_3px_var(--brand-soft)]'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--card-inset)] hover:text-[var(--text-primary)]',
+                    ? 'bg-[var(--brand)] text-[var(--on-brand)] shadow-[var(--glass-shadow)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--glass-inset)] hover:text-[var(--text-primary)]',
                 )}
               >
                 {item.label}
