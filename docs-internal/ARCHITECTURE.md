@@ -3,6 +3,11 @@
 The design decisions behind the platform, and the reasoning for the ones that
 could reasonably have gone the other way.
 
+Its companion is [`DECISIONS.md`](DECISIONS.md), which records what is true
+*about* how the platform is built: the invariants that must hold, the failures
+that produced them, the decisions since reversed, and the questions still open.
+This file says what the system is; that one says what you must not break.
+
 ---
 
 ## 1. Shape of the system

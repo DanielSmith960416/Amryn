@@ -12,7 +12,8 @@
 > `check.yml` step written to enforce it was still failing the build long after
 > the decision changed, which is what a stale guard rail does. For how the
 > product is actually deployed, see
-> [`DEPLOYMENT.md`](DEPLOYMENT.md).
+> [`DEPLOYMENT.md`](DEPLOYMENT.md); for what that reversal taught, see
+> [`DECISIONS.md`](DECISIONS.md) §5.
 
 This document records what that rebuild removed, what it kept, and what had to
 happen outside the repository.

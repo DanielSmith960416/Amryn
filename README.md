@@ -69,6 +69,10 @@ would provide, so the migrations can be exercised against plain PostgreSQL.
 
 The design decisions, and the reasoning behind the ones that could have gone
 the other way, are in [`docs-internal/ARCHITECTURE.md`](docs-internal/ARCHITECTURE.md).
+The invariants that must not be broken, the mistakes that produced them, and the
+questions still open are in
+[`docs-internal/DECISIONS.md`](docs-internal/DECISIONS.md) — read that one
+before changing something that looks arbitrary.
 
 ### Sector scope, and Amryn's own posture
 
@@ -389,7 +393,7 @@ src/lib/             → engines (pure), ai, supabase, auth, utils
 src/types/           → database.ts (generated), intelligence.ts
 supabase/            → migrations, seed, tests
 scripts/             → type generation, migrations, marketing-site check
-docs-internal/       → architecture notes
+docs-internal/       → architecture, decisions, deployment, migration history
 ```
 
 ### Deploying the site
