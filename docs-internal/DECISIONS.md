@@ -98,6 +98,35 @@ in the ledger" over "are there exactly 143 policies".
 **The corollary:** `degraded` is deliberately a 200. A missing model key or an
 unset site URL is worth knowing and is not worth waking somebody at 3am.
 
+### A guard rail written from memory rots into blocking the thing it guards
+
+`setup.sql` closes by asserting what the schema should contain — a receipt, so
+a half-applied database cannot pass silently. The counts were written by hand
+into `scripts/build-setup-sql.mjs`, and two migrations later they said 49 tables
+and 30 permissions against a schema that had grown to 56 and 31.
+
+Because the whole file is one transaction, the assertion did not warn. It
+raised, rolled everything back, and left an empty database — so the paste-into-
+the-SQL-editor path and `/setup` both failed on a *correct* set of migrations,
+reporting a schema problem that did not exist.
+
+Three things made it invisible for two releases. The generator's own header
+promised the file "cannot drift from the migrations it is made of", which was
+true of everything except the part written by hand. `verify-remote.sql` carried
+the same four counts, was refreshed, and stayed right — so the numbers were
+maintained in one place and forgotten in the other. And CI applied the
+migrations one file at a time and never once ran `setup.sql`, so the two paths
+into a database were meant to be equivalent with nothing checking that they
+were.
+
+The counts are now derived from the migrations the generator already reads, and
+CI runs `setup.sql` against a fresh database and fails if the generated files
+are stale.
+
+**The rule:** if a check states a fact about the code, derive the fact from the
+code. A number typed into a file next to the thing it describes is a comment
+that can fail the build.
+
 ### An error that names the wrong cause sends the reader to a correct setting
 
 "Invalid API key" caused by a missing URL. "No email service configured" after

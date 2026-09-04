@@ -23,7 +23,7 @@ import 'server-only';
  *   · The connection string is never returned, logged, or put in an error.
  */
 import { Client } from 'pg';
-import { SETUP_SQL, MIGRATION_FILES } from './setup-sql';
+import { SETUP_SQL, MIGRATION_FILES, EXPECTED_SCHEMA } from './setup-sql';
 import {
   applyPending,
   ensureLedger,
@@ -44,7 +44,20 @@ export interface SchemaStatus {
   problem?: string;
 }
 
-export const EXPECTED = { tables: 49, permissions: 30, minRoleGrants: 100 } as const;
+/**
+ * What a fully applied schema contains.
+ *
+ * The two counts come from the migrations themselves, via the generated
+ * module, because they were once written here by hand and rotted: this file
+ * said 49 tables and 30 permissions against a schema that had grown to 56 and
+ * 31, so readSchemaStatus() called a correctly migrated database `partial` and
+ * /setup showed an operator "56 of 49".
+ *
+ * The grant floor stays a floor. The role matrix grows whenever a permission
+ * is added, and the question worth asking is whether it was seeded at all —
+ * an exact figure here would be one more number to forget.
+ */
+export const EXPECTED = { ...EXPECTED_SCHEMA, minRoleGrants: 100 } as const;
 
 /**
  * Server-only. The connection string carries the database password, so it must
