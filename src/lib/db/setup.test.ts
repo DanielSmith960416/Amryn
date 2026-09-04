@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -80,12 +82,44 @@ describe('looksLikePooler', () => {
 });
 
 describe('EXPECTED', () => {
-  it('matches what the migrations actually build', () => {
-    // Asserted against the same figures verify-remote.sql checks, so the two
-    // cannot drift into disagreeing about what "ready" means. It earned its
-    // place immediately: migration 11 added organisation_invitations, and this
-    // is what noticed that "ready" still meant 45.
-    expect(EXPECTED.tables).toBe(49);
-    expect(EXPECTED.permissions).toBe(30);
+  /**
+   * This test used to say `expect(EXPECTED.tables).toBe(49)`, with a comment
+   * claiming it was asserted against the same figures verify-remote.sql
+   * checks. It was not — the numbers had been copied across, so when the
+   * schema grew to 56 tables both sides were edited in neither place and the
+   * test went on passing while `ready` meant a schema two migrations old.
+   *
+   * So it reads the other file now. EXPECTED is generated from the
+   * migrations; verify-remote.sql is maintained by hand against a live
+   * database. Two independent accounts of the same schema, and the test fails
+   * if they ever disagree — which is what the comment always claimed.
+   */
+  const verifyRemote = readFileSync(
+    join(process.cwd(), 'supabase/tests/verify-remote.sql'),
+    'utf8',
+  );
+
+  function expectationFor(item: string): number {
+    const match = verifyRemote.match(
+      new RegExp(`'${item}'[^\\n]*?,\\s*'(\\d+)'`, 'i'),
+    );
+    if (!match) throw new Error(`No '${item}' row found in verify-remote.sql`);
+    return Number(match[1]);
+  }
+
+  it('agrees with verify-remote.sql about the number of tables', () => {
+    expect(EXPECTED.tables).toBe(expectationFor('Tables'));
+  });
+
+  it('agrees with verify-remote.sql about the permission catalogue', () => {
+    expect(EXPECTED.permissions).toBe(expectationFor('Permission catalogue'));
+  });
+
+  it('reads real figures out of that file, not zero from a failed match', () => {
+    // Without this the two tests above pass against a parse that silently
+    // found nothing — the failure mode of every regex written once and
+    // trusted afterwards.
+    expect(expectationFor('Tables')).toBeGreaterThan(0);
+    expect(expectationFor('Permission catalogue')).toBeGreaterThan(0);
   });
 });

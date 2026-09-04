@@ -4563,11 +4563,11 @@ begin
   select count(*) into perms_found  from public.permissions;
   select count(*) into grants_found from public.role_permissions;
 
-  if tables_found <> 49 then
-    raise exception 'expected 49 tables, found %', tables_found;
+  if tables_found <> 56 then
+    raise exception 'expected 56 tables, found %', tables_found;
   end if;
-  if perms_found <> 30 then
-    raise exception 'expected 30 permissions, found %', perms_found;
+  if perms_found <> 31 then
+    raise exception 'expected 31 permissions, found %', perms_found;
   end if;
   if grants_found < 100 then
     raise exception 'expected the role matrix to be seeded, found % grants', grants_found;

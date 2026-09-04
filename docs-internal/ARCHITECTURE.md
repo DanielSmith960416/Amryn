@@ -3,6 +3,11 @@
 The design decisions behind the platform, and the reasoning for the ones that
 could reasonably have gone the other way.
 
+Its companion is [`DECISIONS.md`](DECISIONS.md), which records what is true
+*about* how the platform is built: the invariants that must hold, the failures
+that produced them, the decisions since reversed, and the questions still open.
+This file says what the system is; that one says what you must not break.
+
 ---
 
 ## 1. Shape of the system
@@ -18,7 +23,7 @@ could reasonably have gone the other way.
                     ┌──────────────▼───────────────┐
                     │  Supabase PostgreSQL         │
                     │  · Row Level Security        │
-                    │  · 45 tables, one schema     │
+                    │  · 56 tables, one schema     │
                     └──────────────┬───────────────┘
                                    │
         ┌──────────────────────────┴──────────────────────────┐
@@ -225,7 +230,7 @@ without inventing a new role.
 |---|---|---|
 | Server Components by default | Data never crosses the client boundary just to be laid out | Interactivity needs explicit client islands |
 | RLS as the enforcement point | An application bug cannot widen access | Policy functions run per row; queries need indexes that suit them |
-| Generated database types | Hand-maintained types for 45 tables drift | Regeneration needs a live database |
+| Generated database types | Hand-maintained types for 56 tables drift | Regeneration needs a live database |
 | Deterministic engines under the AI | Testable, reproducible, honest when the model is absent | More code than prompting for everything |
 | Sparklines as hand-written SVG | A dozen per page; a chart runtime each would be absurd | No interactivity on them |
 | Pinned `en-GB` number formatting | `en-ZA` groups with spaces and decimalises with commas, which reads inconsistently beside the compact form | Not locale-adaptive |

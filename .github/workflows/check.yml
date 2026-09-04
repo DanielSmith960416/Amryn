@@ -35,6 +35,16 @@ jobs:
       - name: Typecheck, lint and test
         run: npm run check
 
+      # setup.sql and src/lib/db/setup-sql.ts are generated from the
+      # migrations, and a generated file committed to the repository is a file
+      # that can be stale. Both are rebuilt and the tree compared, so a
+      # migration added without regenerating fails here rather than on
+      # somebody's database. This job has Node; the database job does not.
+      - name: Confirm the generated setup files are current
+        run: |
+          node scripts/build-setup-sql.mjs
+          git diff --exit-code -- supabase/setup.sql src/lib/db/setup-sql.ts
+
       # No database, no mail service, no API keys — which is the point. A
       # deployment gets a URL before anybody has configured anything, and the
       # sign-in page explains what is still missing rather than erroring. If
@@ -108,3 +118,28 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: amryn_ci
         run: bash supabase/tests/run.sh
+
+      # The other way into a database, and the one nothing exercised.
+      #
+      # run.sh above applies the migrations one file at a time. setup.sql is
+      # the same schema as a single transaction, and it is what /setup runs and
+      # what DEPLOYMENT.md says to paste into the SQL editor. The two are meant
+      # to be equivalent and nothing checked that they were, so setup.sql spent
+      # two migrations closing with `expected 49 tables` against a schema that
+      # had grown to 56 — the assertion raised, the transaction rolled back,
+      # and every fresh install by that route left an empty database.
+      #
+      # A fresh database rather than the one above, because setup.sql is only
+      # ever correct against nothing: it says so itself, and running it twice
+      # fails on the first `create table`.
+      - name: Confirm setup.sql builds the same schema in one transaction
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -d postgres -q -c 'create database amryn_setup;'
+          psql -v ON_ERROR_STOP=1 -d amryn_setup -q -f supabase/tests/00_supabase_shim.sql
+          psql -v ON_ERROR_STOP=1 -d amryn_setup -q -f supabase/setup.sql

@@ -41,6 +41,34 @@ if (unsigned.length > 0) {
   process.exit(1);
 }
 
+/**
+ * What the schema should contain once every migration above has run, counted
+ * from those same migrations rather than remembered.
+ *
+ * These were once written here by hand, and they rotted: the file said 49
+ * tables and 30 permissions long after the schema had 56 and 31, so the
+ * closing assertion raised, the single transaction rolled back, and a correct
+ * setup.sql left an empty database behind. The header three lines above
+ * already promised this file could not drift from the migrations it is made
+ * of; that promise now covers the receipt at the bottom too.
+ *
+ * Keys are plain identifiers, which is what makes the permission rows safe to
+ * count by eye and by regex alike.
+ */
+const allSql = files.map((file) => readFileSync(join(dir, file), 'utf8')).join('\n');
+const expectedTables = (allSql.match(/^\s*create table\s/gim) ?? []).length;
+const expectedPermissions = (allSql.match(/insert\s+into\s+public\.permissions\b[^;]*;/gis) ?? [])
+  .reduce((total, block) => total + (block.match(/^\s*\(\s*'[a-z0-9_]+'\s*,/gm) ?? []).length, 0);
+
+if (expectedTables === 0 || expectedPermissions === 0) {
+  console.error(
+    `Counted ${expectedTables} tables and ${expectedPermissions} permissions in the migrations. ` +
+      'Both should be positive — the closing assertion is generated from them, and a zero would ' +
+      'write an assertion that can never pass.',
+  );
+  process.exit(1);
+}
+
 const parts = [
   `-- Amryn™ AIGrowthIntelligence® — complete database setup`,
   `--`,
@@ -85,11 +113,11 @@ parts.push(
   `  select count(*) into perms_found  from public.permissions;`,
   `  select count(*) into grants_found from public.role_permissions;`,
   ``,
-  `  if tables_found <> 49 then`,
-  `    raise exception 'expected 49 tables, found %', tables_found;`,
+  `  if tables_found <> ${expectedTables} then`,
+  `    raise exception 'expected ${expectedTables} tables, found %', tables_found;`,
   `  end if;`,
-  `  if perms_found <> 30 then`,
-  `    raise exception 'expected 30 permissions, found %', perms_found;`,
+  `  if perms_found <> ${expectedPermissions} then`,
+  `    raise exception 'expected ${expectedPermissions} permissions, found %', perms_found;`,
   `  end if;`,
   `  if grants_found < 100 then`,
   `    raise exception 'expected the role matrix to be seeded, found % grants', grants_found;`,
@@ -139,6 +167,17 @@ writeFileSync(
     ' * those, each in its own transaction, so applying two changes to a live',
     ' * schema cannot leave it between them.',
     ' */',
+    '/**',
+    ' * What a fully applied schema contains, counted from the migrations above.',
+    ' *',
+    ' * src/lib/db/setup.ts decides whether a database is `ready` from these, and',
+    ' * /setup shows them to an operator as "N of M". They were once typed into',
+    ' * that file by hand and went stale, so a correctly migrated database was',
+    ' * reported as partially set up — the same fault, in the place a customer',
+    ' * meets it.',
+    ' */',
+    `export const EXPECTED_SCHEMA = { tables: ${expectedTables}, permissions: ${expectedPermissions} } as const;`,
+    '',
     '/** One object each migration creates, for deciding whether it already has. */',
     `export const SIGNATURES: Record<string, string> = ${JSON.stringify(signatures, null, 2)};`,
     '',
