@@ -576,20 +576,19 @@
 }
 
 /* ── the loading mark ───────────────────────────────────────────────────────
-   Shown while a platform page is being fetched. It is the Amryn chevron
-   drawn as two strokes that sweep, over a ring that fills — deliberately not
+   Shown while a platform page is being fetched. It is the Amryn mark itself,
+   traced from the supplied artwork, turning inside a ring — deliberately not
    a generic spinner, because the moment a page takes long enough to need one
    is the moment the product is either yours or anonymous. */
 
-/* Normalised to pathLength="1" on the elements themselves, so the sweep does
-   not depend on the chevron's real geometry — a dash length guessed against
-   the wrong path length leaves the stroke invisible for most of the cycle,
-   which is exactly what a loading indicator must not do. */
-@keyframes amryn-mark-sweep {
-  0%   { stroke-dashoffset: 1;    opacity: 0.2; }
-  45%  { stroke-dashoffset: 0;    opacity: 1; }
-  75%  { stroke-dashoffset: 0;    opacity: 1; }
-  100% { stroke-dashoffset: -1;   opacity: 0.2; }
+/* The mark is a filled form, not a stroke, so it breathes rather than draws
+   itself: the two shapes fade a beat apart, which reads as alive without the
+   flicker a harder cycle would give. It never goes far enough down to look
+   like it is disappearing — a loading indicator that vanishes on every loop
+   reads as a page that has failed. */
+@keyframes amryn-mark-breathe {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
 }
 
 @keyframes amryn-ring {
@@ -602,9 +601,8 @@
   50%      { transform: translateY(-3px); }
 }
 
-.amryn-mark-stroke {
-  stroke-dasharray: 1;
-  animation: amryn-mark-sweep 2s ease-in-out infinite;
+.amryn-mark-form {
+  animation: amryn-mark-breathe 1.9s ease-in-out infinite;
 }
 
 .amryn-ring {
