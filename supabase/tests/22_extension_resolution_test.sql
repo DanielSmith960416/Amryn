@@ -191,6 +191,54 @@ begin
   end if;
 end $$;
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Who may call these at all
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- The bodies above refuse the wrong caller, and that is the guarantee that
+-- matters. This is the second lock: migrations 04 to 15 take back the EXECUTE
+-- PostgreSQL grants by default, migrations 16 and 17 forgot to, and migration
+-- 21 restored it. Asserting the grants means the next function added is a
+-- failing test rather than an open door found by a linter later.
+
+do $$
+declare
+  reachable text[];
+begin
+  select array_agg(fn order by fn) into reachable
+    from unnest(array[
+      'public.ensure_onboarding(uuid)',
+      'public.complete_onboarding(uuid)',
+      'public.request_subscription(public.subscription_plan, integer)',
+      'public.redeem_activation(text)',
+      'public.accept_invitation(text)'
+    ]) as fn
+   where has_function_privilege('anon', fn, 'EXECUTE');
+
+  if reachable is not null then
+    raise exception 'these need a session and must not be callable by anon: %',
+      array_to_string(reachable, ', ');
+  end if;
+end $$;
+
+-- The other half, which a blanket revoke would silently break: the two
+-- previews are what a signed-out person sees after following a link from an
+-- email, and must stay reachable.
+do $$
+declare
+  blocked text[];
+begin
+  select array_agg(fn order by fn) into blocked
+    from unnest(array['public.activation_preview(text)', 'public.invitation_preview(text)']) as fn
+   where not has_function_privilege('anon', fn, 'EXECUTE');
+
+  if blocked is not null then
+    raise exception
+      'a recipient who is not signed in must still be able to read the link: %',
+      array_to_string(blocked, ', ');
+  end if;
+end $$;
+
 -- And every helper in amryn, five of which carried no pin at all until
 -- migration 19. They are SECURITY INVOKER, so this is not the escalation it
 -- would be above, but a trigger that decides whether a branch belongs to your

@@ -4658,6 +4658,225 @@ alter function amryn.touch_updated_at()                  set search_path = publi
 notify pgrst, 'reload schema';
 
 -- ══════════════════════════════════════════════════════════════════════
+-- 20260905070000_20_rls_initplan.sql
+-- ══════════════════════════════════════════════════════════════════════
+do $setup$ begin raise notice 'applying 20260905070000_20_rls_initplan.sql'; end $setup$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Amryn™ AIGrowthIntelligence® Software
+-- Migration 20 — evaluate auth.uid() once per query, not once per row
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- Twelve policies name auth.uid() directly. PostgreSQL treats that as a
+-- per-row expression and calls it again for every row it examines, so reading
+-- a thousand notifications reads the JWT a thousand times. Wrapping it in a
+-- scalar subquery makes it an InitPlan: computed once, before the scan, and
+-- compared against as a constant.
+--
+--   using (user_id = auth.uid())            → one call per row
+--   using (user_id = (select auth.uid()))   → one call per query
+--
+-- The two are equivalent. auth.uid() is STABLE — by definition it cannot
+-- change within a statement — so a single evaluation is not an approximation
+-- of the per-row one, it is the same answer arrived at once. Nothing about who
+-- can see what changes here, which is the only reason this is worth doing at
+-- all: an optimisation that alters a tenancy boundary is not an optimisation.
+--
+-- Left alone deliberately: amryn.is_member(organisation_id) and
+-- amryn.has_permission(organisation_id, ...). They read auth.uid() too, but
+-- they take a column as an argument, so they genuinely do depend on the row
+-- and cannot be hoisted out of the scan. Wrapping those would change what they
+-- are asked, not when.
+--
+-- Policies are dropped and recreated rather than altered, because ALTER POLICY
+-- cannot change a policy's command or roles and restating the whole thing
+-- makes the diff readable. Each is recreated with the same command, the same
+-- roles and the same predicate, differing only in the parenthesised select.
+
+-- ── user_profiles ─────────────────────────────────────────────────────────
+
+drop policy user_profiles_read on public.user_profiles;
+create policy user_profiles_read on public.user_profiles
+  for select to authenticated
+  using (
+    id = (select auth.uid())
+    or exists (
+      select 1
+        from public.organisation_members me
+        join public.organisation_members them
+          on them.organisation_id = me.organisation_id
+       where me.user_id = (select auth.uid())
+         and me.status = 'active'
+         and them.user_id = user_profiles.id
+    )
+  );
+
+drop policy user_profiles_write on public.user_profiles;
+create policy user_profiles_write on public.user_profiles
+  for update to authenticated
+  using (id = (select auth.uid()))
+  with check (id = (select auth.uid()));
+
+drop policy user_profiles_insert on public.user_profiles;
+create policy user_profiles_insert on public.user_profiles
+  for insert to authenticated
+  with check (id = (select auth.uid()));
+
+-- ── organisation_members ──────────────────────────────────────────────────
+--
+-- The first arm is what lets somebody see their own membership row in an
+-- organisation they are not yet active in; is_member() would refuse it.
+
+drop policy members_read on public.organisation_members;
+create policy members_read on public.organisation_members
+  for select to authenticated
+  using (user_id = (select auth.uid()) or amryn.is_member(organisation_id));
+
+-- ── opportunity_assignments ───────────────────────────────────────────────
+
+drop policy opportunity_assignments_read on public.opportunity_assignments;
+create policy opportunity_assignments_read on public.opportunity_assignments
+  for select to authenticated
+  using (
+    assignee_id = (select auth.uid())
+    or amryn.has_permission(organisation_id, 'view_opportunities')
+  );
+
+-- ── notifications ─────────────────────────────────────────────────────────
+--
+-- The table this matters most on: a notification list is read constantly and
+-- is the one place a user routinely scans many of their own rows at once.
+
+drop policy notifications_read on public.notifications;
+create policy notifications_read on public.notifications
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy notifications_update on public.notifications;
+create policy notifications_update on public.notifications
+  for update to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+-- ── the assistant's own conversations ─────────────────────────────────────
+
+drop policy ai_conversations_own on public.ai_conversations;
+create policy ai_conversations_own on public.ai_conversations
+  for all to authenticated
+  using (user_id = (select auth.uid()) and amryn.is_member(organisation_id))
+  with check (user_id = (select auth.uid()) and amryn.is_member(organisation_id));
+
+drop policy ai_messages_own on public.ai_messages;
+create policy ai_messages_own on public.ai_messages
+  for all to authenticated
+  using (
+    amryn.is_member(organisation_id)
+    and exists (
+      select 1 from public.ai_conversations c
+       where c.id = ai_messages.conversation_id
+         and c.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    amryn.is_member(organisation_id)
+    and exists (
+      select 1 from public.ai_conversations c
+       where c.id = ai_messages.conversation_id
+         and c.user_id = (select auth.uid())
+    )
+  );
+
+-- ── POPIA requests and recovery codes ─────────────────────────────────────
+
+drop policy data_requests_read_own on public.data_requests;
+create policy data_requests_read_own on public.data_requests
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy data_requests_create_own on public.data_requests;
+create policy data_requests_create_own on public.data_requests
+  for insert to authenticated
+  with check (user_id = (select auth.uid()));
+
+drop policy mfa_recovery_read_own on public.mfa_recovery_codes;
+create policy mfa_recovery_read_own on public.mfa_recovery_codes
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+notify pgrst, 'reload schema';
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 20260905080000_21_revoke_unused_anon_grants.sql
+-- ══════════════════════════════════════════════════════════════════════
+do $setup$ begin raise notice 'applying 20260905080000_21_revoke_unused_anon_grants.sql'; end $setup$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Amryn™ AIGrowthIntelligence® Software
+-- Migration 21 — take back the anon grants nothing asked for
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- Every SECURITY DEFINER function from migration 04 to migration 15 ends with
+-- a line taking back what PostgreSQL grants by default:
+--
+--     revoke all on function public.accept_invitation(text) from public, anon;
+--
+-- Migrations 16 and 17 wrote nine such functions and remembered it twice.
+-- The other five are reachable by anyone holding the publishable key, over
+-- /rest/v1/rpc/, without signing in.
+--
+-- None of them is exploitable — each was probed on the live database as anon
+-- and each refuses:
+--
+--     ensure_onboarding      42501  not a member of that organisation
+--     complete_onboarding    42501  only an administrator can finish setting up
+--     request_subscription   28000  not signed in
+--     redeem_activation      requires auth.uid() to record who activated
+--
+-- So this changes no answer. It changes where the answer is decided: at the
+-- grant, rather than eleven statements into a function body that had to be
+-- read to know it was safe. Every one of these is called by the application
+-- with a session — redeem_activation() through requireUser() in
+-- features/billing/activate.ts — so nothing loses a caller it had.
+--
+-- The point is not this week's function bodies. It is that a guard added in
+-- one place is one edit away from being removed, and the convention the rest
+-- of the schema keeps means that edit cannot silently open a door.
+
+-- Revoke then grant, both halves, as migration 11 does for accept_invitation.
+-- The revoke alone would lock out the people these exist for: on a database
+-- built from these migrations `authenticated` has no grant of its own on any
+-- of the four and reaches them through the default PUBLIC one, so taking that
+-- back takes their own access with it. The SQL suite caught exactly that —
+-- test 19 could no longer buy a subscription.
+
+revoke all on function public.ensure_onboarding(uuid) from public, anon;
+grant execute on function public.ensure_onboarding(uuid) to authenticated;
+
+revoke all on function public.complete_onboarding(uuid) from public, anon;
+grant execute on function public.complete_onboarding(uuid) to authenticated;
+
+revoke all on function public.request_subscription(public.subscription_plan, integer) from public, anon;
+grant execute on function public.request_subscription(public.subscription_plan, integer) to authenticated;
+
+revoke all on function public.redeem_activation(text) from public, anon;
+grant execute on function public.redeem_activation(text) to authenticated;
+
+-- ── the one that stays open, and why ──────────────────────────────────────
+--
+-- activation_preview() answers the page somebody lands on from the email
+-- before they have signed in — "Amryn (Pty) Ltd, Professional, ready" — and
+-- must keep answering it. Possession of the link is the whole authorisation,
+-- which is why the function returns the organisation, the plan and the state
+-- and not the amount, the reference, or who paid.
+--
+-- Revoked from PUBLIC and granted to anon deliberately, exactly as
+-- invitation_preview() is: the two are the same shape and the same decision.
+revoke all on function public.activation_preview(text) from public;
+grant execute on function public.activation_preview(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ══════════════════════════════════════════════════════════════════════
 -- Did it work?
 -- ══════════════════════════════════════════════════════════════════════
 do $setup$
