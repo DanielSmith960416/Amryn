@@ -10,6 +10,7 @@ import { UserMenu } from './user-menu';
 import { cn } from '@/lib/utils/cn';
 import type { NavItem } from './navigation';
 import type { Enums } from '@/types/database';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * Sticky top navigation (specification §15).
@@ -58,7 +59,7 @@ export function TopNav({
         <Link href="/command-centre" className="flex shrink-0 items-center gap-2" aria-label="Amryn, Command Centre">
           {/* Supplied artwork only — never recoloured, stretched or outlined. */}
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}

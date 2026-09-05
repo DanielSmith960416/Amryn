@@ -9,6 +9,7 @@
  */
 import { z } from 'zod';
 import { cleanKey, inspectKey, projectRefFromUrl } from '@/lib/supabase/key-info';
+import { BASE_PATH } from './base-path';
 
 /**
  * An unset variable and one set to an empty string are the same intent, and
@@ -251,10 +252,17 @@ export function siteUrl(): string {
   if (fromHost) {
     // Some report a bare hostname, others a full URL. Normalising here means
     // the caller never has to care which.
-    return /^https?:\/\//i.test(fromHost) ? fromHost : `https://${fromHost}`;
+    const origin = /^https?:\/\//i.test(fromHost) ? fromHost : `https://${fromHost}`;
+    // A host reports where the server is, never where the application is
+    // mounted beneath it. Callers append to this — `${siteUrl()}/invite/…` —
+    // so without the prefix every invitation, activation and confirmation link
+    // generated from the fallback points one level above the application and
+    // 404s. The configured value carries the prefix already; this is the path
+    // that would otherwise lose it silently.
+    return `${origin}${BASE_PATH}`;
   }
 
-  return `http://localhost:${present(process.env.PORT) ?? '3000'}`;
+  return `http://localhost:${present(process.env.PORT) ?? '3000'}${BASE_PATH}`;
 }
 
 /**

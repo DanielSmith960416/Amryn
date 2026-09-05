@@ -9,6 +9,7 @@ import {
   siteUrl,
   supabaseConfigError,
 } from '@/lib/env';
+import { BASE_PATH } from './base-path';
 
 /**
  * An empty environment variable is what a hosting dashboard produces when a
@@ -109,7 +110,7 @@ describe('siteUrl', () => {
   it('never returns an empty string when the variable is empty', () => {
     withEnv({ NEXT_PUBLIC_SITE_URL: '' });
     expect(siteUrl()).not.toBe('');
-    expect(siteUrl()).toBe('http://localhost:3000');
+    expect(siteUrl()).toBe(`http://localhost:3000${BASE_PATH}`);
   });
 
   it('uses the configured value when it is real', () => {
@@ -121,14 +122,14 @@ describe('siteUrl', () => {
     // A preview deployment gets a URL nobody configured. Reading the host's
     // own answer is what makes sign-in links work there without ceremony.
     withEnv({ RAILWAY_PUBLIC_DOMAIN: 'amryn-production.up.railway.app' });
-    expect(siteUrl()).toBe('https://amryn-production.up.railway.app');
+    expect(siteUrl()).toBe(`https://amryn-production.up.railway.app${BASE_PATH}`);
   });
 
   it('accepts a host that reports a full URL rather than a hostname', () => {
     // Railway gives a bare domain, Cloudflare Pages gives a URL. Normalising
     // in one place means no caller has to know which host it is on.
     withEnv({ CF_PAGES_URL: 'https://amryn.pages.dev' });
-    expect(siteUrl()).toBe('https://amryn.pages.dev');
+    expect(siteUrl()).toBe(`https://amryn.pages.dev${BASE_PATH}`);
   });
 
   it('prefers the configured value over anything the host says', () => {
@@ -141,7 +142,7 @@ describe('siteUrl', () => {
 
   it('follows PORT locally, so a second dev server still gets working links', () => {
     withEnv({ PORT: '4000' });
-    expect(siteUrl()).toBe('http://localhost:4000');
+    expect(siteUrl()).toBe(`http://localhost:4000${BASE_PATH}`);
   });
 });
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { LEGAL_VERSION, hasUnfilledDetails } from '@/lib/legal/documents';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * The frame every legal page shares.
@@ -20,7 +21,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
         <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
           <Link href="/" className="flex items-center gap-2.5">
             <Image
-              src="/brand/amryn-icon-mark.png"
+              src={withBasePath("/brand/amryn-icon-mark.png")}
               alt=""
               width={553}
               height={563}

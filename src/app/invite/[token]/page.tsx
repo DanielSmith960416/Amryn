@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth/session';
 import { isSupabaseConfigured } from '@/lib/env';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
 import { AcceptForm } from '@/features/invitations/accept-form';
+import { withBasePath } from '@/lib/base-path';
 
 export const metadata: Metadata = { title: 'Invitation', robots: { index: false } };
 
@@ -142,7 +143,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
       <main className="w-full max-w-md">
         <div className="mb-8 flex items-center gap-2.5">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}

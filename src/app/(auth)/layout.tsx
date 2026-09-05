@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { LegalFooter } from '@/components/legal/legal-footer';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * Rendered per request, so these pages carry the settings the server holds now.
@@ -39,7 +40,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="relative hidden flex-col justify-between overflow-hidden bg-[#081B33] p-10 lg:flex">
         <Link href="/" className="flex items-center gap-2.5">
           <Image
-            src="/brand/amryn-icon-mark-white.png"
+            src={withBasePath("/brand/amryn-icon-mark-white.png")}
             alt=""
             width={553}
             height={563}
