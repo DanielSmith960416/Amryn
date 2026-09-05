@@ -16,5 +16,6 @@
   "20260831180000_15_two_factor.sql": "to_regproc('amryn.mfa_satisfied') is not null",
   "20260901090000_16_subscription_entitlements.sql": "to_regclass('public.subscription_plans') is not null",
   "20260901120000_17_onboarding.sql": "to_regclass('public.onboarding_progress') is not null",
-  "20260902130000_18_stock_control.sql": "to_regclass('public.stock_items') is not null"
+  "20260902130000_18_stock_control.sql": "to_regclass('public.stock_items') is not null",
+  "20260905060000_19_extension_schema_resolution.sql": "exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'redeem_activation' and array_to_string(p.proconfig, ',') like '%extensions%')"
 }
