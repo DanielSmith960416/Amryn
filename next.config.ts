@@ -28,14 +28,21 @@ import type { NextConfig } from 'next';
  * Node behind it for the application. Static assets are cached at the edge by
  * Cloudflare regardless of where they originate.
  *
- * ── no basePath ───────────────────────────────────────────────────────────
- * The subpath prefix existed because GitHub Pages serves a repository from
- * `/Amryn`. On its own domain the application is served from the root, and a
- * stray prefix would break every link. `withBasePath` remains and resolves to
- * the identity, so nothing that calls it needs changing.
+ * ── basePath ──────────────────────────────────────────────────────────────
+ * The platform is served at amryn.ai/app, with the marketing site holding the
+ * root of the domain and Cloudflare routing /app/* here. Next needs to know
+ * that prefix so it emits `_next/` asset URLs and `next/link` hrefs beneath
+ * it; `withBasePath` covers the hand-written URLs Next does not touch.
+ *
+ * Both read BASE_PATH from base-path.mjs. Two literals that must agree is a
+ * bug waiting to happen, and the symptom — pages that render with every image
+ * missing — does not point at its cause.
  */
+import { BASE_PATH } from './base-path.mjs';
+
 const nextConfig: NextConfig = {
   output: 'standalone',
+  basePath: BASE_PATH,
 
   reactStrictMode: true,
   poweredByHeader: false,

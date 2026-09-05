@@ -48,14 +48,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             sets figures, which are below the fold on most routes. */}
         <link
           rel="preload"
-          href="/fonts/outfit-latin-var.woff2"
+          href={withBasePath("/fonts/outfit-latin-var.woff2")}
           as="font"
           type="font/woff2"
           crossOrigin=""
         />
         <link
           rel="preload"
-          href="/fonts/ibm-plex-sans-latin-var.woff2"
+          href={withBasePath("/fonts/ibm-plex-sans-latin-var.woff2")}
           as="font"
           type="font/woff2"
           crossOrigin=""

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { runDiagnostics, type CheckStatus } from '@/features/diagnostics/checks';
 import { internalAccess } from '@/lib/auth/internal-access';
+import { withBasePath } from '@/lib/base-path';
 
 export const metadata: Metadata = {
   title: 'Diagnostics',
@@ -43,7 +44,7 @@ export default async function DiagnosticsPage({
       <main className="mx-auto max-w-3xl">
         <div className="mb-8 flex items-center gap-2.5">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}

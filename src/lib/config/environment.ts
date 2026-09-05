@@ -138,15 +138,6 @@ export const SETTINGS: readonly Setting[] = [
   { name: 'AI_EFFORT', stage: 'runtime', required: false, secret: false, purpose: 'How hard the model works; read by Anthropic models only.', withoutIt: 'Defaults to high.' },
 
   {
-    name: 'AMRYN_BASE_PATH',
-    stage: 'build',
-    required: false,
-    secret: false,
-    purpose:
-      'A subpath prefix, for serving the application somewhere other than the root of a domain.',
-    withoutIt: 'Served from the root, which is what a custom domain wants.',
-  },
-  {
     name: 'AMRYN_ENABLE_EXTERNAL_RADAR',
     stage: 'runtime',
     required: false,

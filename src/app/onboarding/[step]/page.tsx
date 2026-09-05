@@ -17,6 +17,7 @@ import {
 } from '@/features/onboarding/forms';
 import { skipStep } from '@/features/onboarding/actions';
 import { isStepId, previousStep, step as findStep } from '@/features/onboarding/steps';
+import { withBasePath } from '@/lib/base-path';
 
 export const metadata: Metadata = { title: 'Set up' };
 
@@ -59,7 +60,7 @@ export default async function OnboardingStepPage({
         <div className="mb-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <Image
-              src="/brand/amryn-icon-mark.png"
+              src={withBasePath("/brand/amryn-icon-mark.png")}
               alt=""
               width={553}
               height={563}

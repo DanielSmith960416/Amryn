@@ -10,6 +10,7 @@ import {
   EXPECTED,
 } from '@/lib/db/setup';
 import { SetupForm } from '@/features/setup/setup-form';
+import { withBasePath } from '@/lib/base-path';
 
 export const metadata: Metadata = {
   title: 'Set up the database',
@@ -50,7 +51,7 @@ export default async function SetupPage({
       <main className="mx-auto max-w-2xl">
         <div className="mb-8 flex items-center gap-2.5">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}

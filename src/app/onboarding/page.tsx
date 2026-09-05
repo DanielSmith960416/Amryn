@@ -7,6 +7,7 @@ import { getWorkspace, requireVerifiedUser } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { resumeAt } from '@/features/onboarding/steps';
 import { isSupabaseConfigured } from '@/lib/env';
+import { withBasePath } from '@/lib/base-path';
 
 export const metadata: Metadata = { title: 'Set up your organisation' };
 
@@ -51,7 +52,7 @@ export default async function OnboardingPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center gap-2.5">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}

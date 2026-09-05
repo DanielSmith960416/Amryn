@@ -5,6 +5,7 @@ import { internalAccess } from '@/lib/auth/internal-access';
 import { createAdminClient } from '@/lib/supabase/server';
 import { formatDate, formatMoney } from '@/lib/utils/format';
 import { ConfirmPaymentForm } from '@/features/billing/confirm-form';
+import { withBasePath } from '@/lib/base-path';
 
 export const metadata: Metadata = {
   title: 'Activations',
@@ -52,7 +53,7 @@ export default async function ActivationsPage({
       <main className="mx-auto max-w-4xl">
         <div className="mb-8 flex items-center gap-2.5">
           <Image
-            src="/brand/amryn-icon-mark.png"
+            src={withBasePath("/brand/amryn-icon-mark.png")}
             alt=""
             width={553}
             height={563}

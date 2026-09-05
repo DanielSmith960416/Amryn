@@ -25,7 +25,15 @@
      unconfigured notice. When amryn.ai is registered and pointed at
      the same service, change this line to the custom domain — one
      value, one place.                                           */
-  var APP_URL = 'https://amryn-production.up.railway.app';
+  // The application moved to a subpath: it is served at /app, with the
+  // marketing site holding the root of the domain.
+  //
+  // Still the Railway host rather than https://amryn.ai/app, because that
+  // address needs Cloudflare to route /app/* to Railway and everything else to
+  // Pages, and that routing does not exist yet. Pointing at it early would
+  // ship a button that goes nowhere; this one works today and becomes a
+  // one-line change the moment the route is live.
+  var APP_URL = 'https://amryn-production.up.railway.app/app';
 
   (function wireAppLinks() {
     var links = document.querySelectorAll('[data-app-link]');

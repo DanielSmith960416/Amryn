@@ -1,22 +1,24 @@
 /**
- * The subpath the site is served from, if any.
+ * The subpath the application is served from.
  *
- * Normally empty, and therefore normally a no-op: on its own domain the
- * application is served from the root. It exists because the value is not
- * always empty — a preview served under a repository name, or the application
- * mounted beneath a path on a shared host, both need every hand-written URL
- * prefixed, and Next only does that for `next/link` and its own `_next/`
- * assets. An unoptimised `next/image` renders as a plain `<img>` with the src
- * written through untouched, so `/brand/mark.png` stays `/brand/mark.png` and
- * breaks on every page.
+ * `/app`, because the platform lives at amryn.ai/app: the marketing site holds
+ * the root of the domain and Cloudflare routes /app/* to this server.
  *
- * Keeping the helper rather than deleting it with the static build is
- * deliberate: it costs one function call, and reintroducing it correctly
- * across every image in the application would be a day's work done under
- * pressure. Set `AMRYN_BASE_PATH` and the corresponding `basePath` in
- * `next.config.ts` together, or neither.
+ * The helper exists because Next only applies the prefix to `next/link` and
+ * its own `_next/` assets. An unoptimised `next/image` renders as a plain
+ * `<img>` with the src written through untouched, so `/brand/mark.png` would
+ * stay `/brand/mark.png` and break on every page. Every hand-written
+ * root-relative URL goes through here instead.
+ *
+ * The value itself lives in base-path.mjs, which next.config.ts reads for
+ * `basePath` as well, so the two cannot drift apart — and it is a committed
+ * constant rather than an environment variable because basePath is fixed when
+ * the bundle is built, and a build that missed the variable would emit an
+ * image whose every asset URL is wrong with no runtime setting able to correct
+ * it. See base-path.mjs for the full reasoning.
  */
-export const BASE_PATH = process.env.AMRYN_BASE_PATH ?? '';
+export { BASE_PATH } from '../../base-path.mjs';
+import { BASE_PATH } from '../../base-path.mjs';
 
 /**
  * Prefixes a root-relative path with the base path.
