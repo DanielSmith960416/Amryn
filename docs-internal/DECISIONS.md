@@ -231,6 +231,51 @@ Recorded because each looks like it could be simplified, and each cannot.
 
 ---
 
+## 4a. An advisor warning we measured and did not act on
+
+Supabase's performance advisor reports `multiple_permissive_policies` on eleven
+tables: a `_read` policy and a `_manage` policy that are both permissive for
+`SELECT`, so PostgreSQL evaluates both and takes the union. The remedy it
+implies is to narrow `_manage` from `FOR ALL` to the write commands, leaving
+`_read` alone to answer reads.
+
+That would be wrong on seven of the eleven, and pointless on the other four.
+
+**Seven are not redundant — the `_manage` arm grants access `_read` withholds.**
+`branches`, `departments` and `regions` all read with `... AND deleted_at IS
+NULL`, while `_manage` has no such condition. An administrator can therefore
+see a soft-deleted branch today, and would stop being able to. Measured rather
+than reasoned about:
+
+```
+admin sees the soft-deleted branch today: true
+the read policy alone would allow it:     false
+```
+
+`market_sources`, `opportunity_assignments`, `stock_items` and `stock_audits`
+differ another way: the two policies name *different permissions*
+(`manage_radar` vs `view_market_intelligence`, `manage_inventory` vs
+`view_operations_data`). Anyone holding the write permission without the read
+one loses access — and whether that combination exists is a question about the
+role matrix and per-member overrides, not about these two policies.
+
+**Four are genuinely redundant, and not worth changing.** On
+`onboarding_progress`, `subscriptions`, `organisation_members` and
+`member_permission_overrides` the read policy is `is_member(organisation_id)`,
+and `has_permission()` requires an active membership row — so it is a strict
+subset and the union is just `is_member`. But those tables hold one row per
+organisation, or a handful. The saving is one function call per row on tables
+with single-digit row counts per tenant, against the risk of hand-editing four
+tenancy policies.
+
+**So the warning stays.** It is describing the mechanism accurately and the
+remedy is not safe here. If somebody reads the advisor later and reaches for
+the obvious fix, this is why not — and the test that would catch the damage is
+`10_rls_isolation_test.sql`, not the advisor.
+
+The sibling finding in the same scan, `unindexed_foreign_keys`, was acted on in
+full: see migration 22 and test 23.
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.

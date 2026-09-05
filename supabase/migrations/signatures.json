@@ -19,5 +19,6 @@
   "20260902130000_18_stock_control.sql": "to_regclass('public.stock_items') is not null",
   "20260905060000_19_extension_schema_resolution.sql": "exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'redeem_activation' and array_to_string(p.proconfig, ',') like '%extensions%')",
   "20260905070000_20_rls_initplan.sql": "exists (select 1 from pg_policy p join pg_class c on c.oid = p.polrelid where c.relname = 'notifications' and p.polname = 'notifications_read' and pg_get_expr(p.polqual, p.polrelid) like '%( SELECT auth.uid()%')",
-  "20260905080000_21_revoke_unused_anon_grants.sql": "not has_function_privilege('anon', 'public.request_subscription(public.subscription_plan, integer)', 'EXECUTE')"
+  "20260905080000_21_revoke_unused_anon_grants.sql": "not has_function_privilege('anon', 'public.request_subscription(public.subscription_plan, integer)', 'EXECUTE')",
+  "20260905190000_22_foreign_key_indexes.sql": "to_regclass('public.notifications_org_idx') is not null"
 }
