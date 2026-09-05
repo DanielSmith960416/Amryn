@@ -136,6 +136,24 @@ export const SETTINGS: readonly Setting[] = [
   { name: 'AI_MODEL', stage: 'runtime', required: false, secret: false, purpose: 'A specific model, where the provider default is not wanted.', withoutIt: "The provider's default is used." },
   { name: 'AI_MAX_OUTPUT_TOKENS', stage: 'runtime', required: false, secret: false, purpose: 'The ceiling on a single answer from the model.', withoutIt: 'Defaults to a sensible ceiling.' },
   { name: 'AI_EFFORT', stage: 'runtime', required: false, secret: false, purpose: 'How hard the model works; read by Anthropic models only.', withoutIt: 'Defaults to high.' },
+  {
+    name: 'AI_BASE_URL',
+    stage: 'runtime',
+    required: false,
+    secret: false,
+    purpose:
+      "Where the model service lives, when it is not the provider's own host — a Cloudflare AI Gateway endpoint, for instance.",
+    withoutIt: "The provider's own API is called directly.",
+  },
+  {
+    name: 'AI_GATEWAY_TOKEN',
+    stage: 'runtime',
+    required: false,
+    secret: true,
+    purpose:
+      'Authorises this deployment to the AI gateway. With AI_BASE_URL it can replace AI_API_KEY entirely, where the gateway holds the provider key.',
+    withoutIt: 'No gateway is used; the provider key authenticates directly.',
+  },
 
   {
     name: 'AMRYN_ENABLE_EXTERNAL_RADAR',

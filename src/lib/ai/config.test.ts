@@ -6,7 +6,18 @@ import { aiConfig } from '@/lib/env';
  * likely to announce it: a model name sent to the wrong provider is a 404 at
  * request time, long after the setting that caused it.
  */
-const KEYS = ['AI_PROVIDER', 'AI_API_KEY', 'AI_MODEL', 'AI_MAX_OUTPUT_TOKENS', 'AI_EFFORT'] as const;
+// Every AI_* variable aiConfig() reads. withEnv() clears the whole list before
+// each case, so a variable missing from here leaks between tests and one case
+// silently configures the next.
+const KEYS = [
+  'AI_PROVIDER',
+  'AI_API_KEY',
+  'AI_MODEL',
+  'AI_MAX_OUTPUT_TOKENS',
+  'AI_EFFORT',
+  'AI_BASE_URL',
+  'AI_GATEWAY_TOKEN',
+] as const;
 const original = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
 
 afterEach(() => {
@@ -74,5 +85,59 @@ describe('aiConfig', () => {
   it('rejects an effort level it does not recognise', () => {
     expect(withEnv({ AI_API_KEY: 'k', AI_EFFORT: 'enormous' }).effort).toBe('high');
     expect(withEnv({ AI_API_KEY: 'k', AI_EFFORT: 'low' }).effort).toBe('low');
+  });
+});
+
+/**
+ * Routing through a gateway.
+ *
+ * The case that matters is the one without an Anthropic key at all. Cloudflare
+ * AI Gateway can hold the provider credential itself — from a stored key, or
+ * from prepaid credits — and then this deployment has nothing to put in
+ * AI_API_KEY. Reading "configured" as "AI_API_KEY is set" would switch the
+ * Intelligence Layer off on a setup that works perfectly.
+ */
+describe('aiConfig through an AI gateway', () => {
+  const GATEWAY = 'https://gateway.ai.cloudflare.com/v1/acc/amryn/anthropic';
+
+  it('is configured by a gateway alone, with no provider key', () => {
+    withEnv({ AI_API_KEY: '', AI_BASE_URL: GATEWAY, AI_GATEWAY_TOKEN: 'cf-token' });
+    const config = aiConfig();
+
+    expect(config.provider).toBe('anthropic');
+    expect(config.apiKey).toBeNull();
+    expect(config.baseUrl).toBe(GATEWAY);
+    expect(config.gatewayToken).toBe('cf-token');
+  });
+
+  it('treats half a gateway as no gateway', () => {
+    // An endpoint with no token is refused by the gateway; a token with no
+    // endpoint is sent to Anthropic, which has never heard of it. Either way
+    // the layer would be "on" and every call would fail, which is worse than
+    // being off and saying so.
+    withEnv({ AI_API_KEY: '', AI_BASE_URL: GATEWAY });
+    expect(aiConfig().provider).toBe('none');
+
+    withEnv({ AI_API_KEY: '', AI_GATEWAY_TOKEN: 'cf-token' });
+    expect(aiConfig().provider).toBe('none');
+  });
+
+  it('still carries a provider key when one is set as well', () => {
+    // BYOK through the gateway: Cloudflare forwards our key rather than
+    // supplying its own. Both halves have to survive.
+    withEnv({ AI_API_KEY: 'sk-ant-real', AI_BASE_URL: GATEWAY, AI_GATEWAY_TOKEN: 'cf-token' });
+    const config = aiConfig();
+
+    expect(config.apiKey).toBe('sk-ant-real');
+    expect(config.gatewayToken).toBe('cf-token');
+  });
+
+  it('reports nothing configured when the layer is off', () => {
+    withEnv({ AI_API_KEY: '', AI_PROVIDER: 'none', AI_BASE_URL: GATEWAY, AI_GATEWAY_TOKEN: 'x' });
+    const config = aiConfig();
+
+    expect(config.provider).toBe('none');
+    expect(config.baseUrl).toBeNull();
+    expect(config.gatewayToken).toBeNull();
   });
 });

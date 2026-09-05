@@ -370,6 +370,15 @@ export function redact(value: string | undefined | null): string {
 export interface AiConfig {
   provider: 'openai' | 'anthropic' | 'none';
   apiKey: string | null;
+  /**
+   * Where the provider's API lives, when it is not the provider's own host.
+   *
+   * Set to a Cloudflare AI Gateway endpoint to route through it — the gateway
+   * speaks the same API, so nothing above this changes.
+   */
+  baseUrl: string | null;
+  /** Cloudflare AI Gateway authorisation, sent as `cf-aig-authorization`. */
+  gatewayToken: string | null;
   model: string;
   /** AI_MODEL held something that looks like a credential, and was ignored. */
   modelIsSecret: boolean;
@@ -397,13 +406,29 @@ const DEFAULT_MODEL: Record<'openai' | 'anthropic', string> = {
 export function aiConfig(): AiConfig {
   const apiKey = process.env.AI_API_KEY?.trim() || null;
   const requested = process.env.AI_PROVIDER?.trim().toLowerCase();
+
+  // ── the gateway can hold the credential instead of us ─────────────────────
+  //
+  // Cloudflare AI Gateway can supply the provider key itself, either from a
+  // key stored there or from prepaid credits, in which case there is no
+  // Anthropic key on this side at all. So "is the AI layer configured" is not
+  // the same question as "is AI_API_KEY set": a gateway endpoint and a gateway
+  // token are equally an answer, and requiring a key as well would refuse a
+  // perfectly working setup.
+  //
+  // Both halves are needed. A token without an endpoint would be sent to
+  // Anthropic, which has no idea what it is; an endpoint without a token would
+  // be refused by the gateway. Half-configured counts as not configured.
+  const baseUrl = process.env.AI_BASE_URL?.trim() || null;
+  const gatewayToken = process.env.AI_GATEWAY_TOKEN?.trim() || null;
+  const gatewaySupplies = Boolean(baseUrl && gatewayToken);
   // Anthropic is the default where a key is set and no provider is named.
   // It was OpenAI, from when that was the only key to hand; the deployment
   // now runs on a Claude account, and a default that quietly points a
   // Claude key at OpenAI's endpoint fails with an authentication error that
   // says nothing about the cause.
   const provider: AiConfig['provider'] =
-    !apiKey || requested === 'none'
+    (!apiKey && !gatewaySupplies) || requested === 'none'
       ? 'none'
       : requested === 'openai'
         ? 'openai'
@@ -424,6 +449,8 @@ export function aiConfig(): AiConfig {
   return {
     provider,
     apiKey: provider === 'none' ? null : apiKey,
+    baseUrl: provider === 'none' ? null : baseUrl,
+    gatewayToken: provider === 'none' ? null : gatewayToken,
     modelIsSecret,
     model,
     // Adaptive thinking spends tokens from this same budget, so a small ceiling

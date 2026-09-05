@@ -60,6 +60,15 @@ export function isAiEnabled(): boolean {
 
 const REQUEST_TIMEOUT_MS = 45_000;
 
+/**
+ * Stands in for a provider key when a gateway holds the real one.
+ *
+ * Named rather than a bare string so that anybody reading a request log sees
+ * what it is and does not go looking for a leaked credential. It authenticates
+ * nothing: the gateway substitutes the real key before the request leaves it.
+ */
+const GATEWAY_SUPPLIES_THE_KEY = 'placeholder-the-gateway-holds-the-key';
+
 export async function complete(request: CompletionRequest): Promise<CompletionResult> {
   const config = aiConfig();
   if (config.provider === 'none' || !config.apiKey) {
@@ -156,11 +165,17 @@ async function completeOpenAi(
   const maxTokens = request.maxOutputTokens ?? config.maxOutputTokens;
   const reasoning = isReasoningModel(config.model);
 
-  const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
+  // Same base-URL rule as the Anthropic path. Reading the setting on one
+  // provider and ignoring it on the other would mean a gateway that works
+  // until somebody switches AI_PROVIDER, and then silently does not.
+  const endpoint = `${(config.baseUrl ?? 'https://api.openai.com').replace(/\/+$/, '')}/v1/chat/completions`;
+
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
+      Authorization: `Bearer ${config.apiKey ?? GATEWAY_SUPPLIES_THE_KEY}`,
+      ...(config.gatewayToken ? { 'cf-aig-authorization': `Bearer ${config.gatewayToken}` } : {}),
     },
     body: JSON.stringify({
       model: config.model,
@@ -207,7 +222,15 @@ async function completeAnthropic(
   config: AiConfig,
 ): Promise<CompletionResult> {
   const client = new Anthropic({
-    apiKey: config.apiKey ?? undefined,
+    // The SDK requires a key even when it will not be the thing that
+    // authenticates. Under a gateway holding the credential, Cloudflare
+    // replaces this before the request reaches Anthropic; Cloudflare's own
+    // documentation calls for a placeholder here for exactly this reason.
+    apiKey: config.apiKey ?? GATEWAY_SUPPLIES_THE_KEY,
+    ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+    ...(config.gatewayToken
+      ? { defaultHeaders: { 'cf-aig-authorization': `Bearer ${config.gatewayToken}` } }
+      : {}),
     timeout: REQUEST_TIMEOUT_MS,
     maxRetries: 2,
   });
