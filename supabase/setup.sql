@@ -4551,6 +4551,332 @@ create trigger zz_subscription_stock_items
 notify pgrst, 'reload schema';
 
 -- ══════════════════════════════════════════════════════════════════════
+-- 20260905060000_19_extension_schema_resolution.sql
+-- ══════════════════════════════════════════════════════════════════════
+do $setup$ begin raise notice 'applying 20260905060000_19_extension_schema_resolution.sql'; end $setup$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Amryn™ AIGrowthIntelligence® Software
+-- Migration 19 — where the database looks for pgcrypto
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- Five functions were dead on the hosted database. Not slow, not wrong —
+-- dead, every call, for every caller:
+--
+--   request_subscription   42883  function gen_random_bytes(integer) does not exist
+--   activation_preview     42883  function digest(text, unknown) does not exist
+--   redeem_activation      42883  function digest(text, unknown) does not exist
+--   invitation_preview     42883  function digest(text, unknown) does not exist
+--   accept_invitation      42883  function digest(text, unknown) does not exist
+--
+-- Between them that is the whole of the paid journey and the whole of the team
+-- journey: nobody could take out a subscription, nobody could be handed an
+-- activation link after paying by EFT, and nobody could be invited into an
+-- organisation. The screens were all built and all correct; the call at the
+-- bottom of each one raised before it did anything.
+--
+-- ── why it was invisible ──────────────────────────────────────────────────
+--
+-- Migration 01 asks for the extension without saying where:
+--
+--     create extension if not exists "pgcrypto";
+--
+-- On a plain PostgreSQL instance that installs it into `public`, which is on
+-- the search_path, and everything resolves. On Supabase pgcrypto is already
+-- installed — into `extensions` — so `if not exists` does nothing at all and
+-- the functions stay where Supabase put them.
+--
+-- Each of the five then pins `search_path = public, pg_temp`, correctly, so
+-- that a caller cannot shadow what a SECURITY DEFINER function resolves. That
+-- pin excludes `extensions`. The symbols are present in the database and
+-- unreachable from inside the function.
+--
+-- CI runs the SQL suite against a plain PostgreSQL, where the extension lands
+-- in `public` and all five pass. The failure exists only on the layout nobody
+-- tested, which is the layout in production. Test 22 now recreates the hosted
+-- arrangement, so this cannot come back silently.
+--
+-- ── the fix ───────────────────────────────────────────────────────────────
+--
+-- Add `extensions` to the pin rather than schema-qualifying each call site.
+-- Qualifying would hardcode one of the two layouts and break the other; naming
+-- both schemas is correct on both, because PostgreSQL ignores an entry in
+-- search_path that does not exist. Nothing untrusted can write to `extensions`
+-- — it is owned by the database owner and neither anon nor authenticated holds
+-- CREATE on it — so widening the pin by that one schema gives up none of what
+-- the pin is for.
+--
+-- ALTER rather than CREATE OR REPLACE: the bodies are right and were never the
+-- problem, and restating them here would leave two copies to keep in step.
+
+alter function public.request_subscription(public.subscription_plan, integer)
+  set search_path = public, extensions, pg_temp;
+alter function public.activation_preview(text)
+  set search_path = public, extensions, pg_temp;
+alter function public.redeem_activation(text)
+  set search_path = public, extensions, pg_temp;
+alter function public.invitation_preview(text)
+  set search_path = public, extensions, pg_temp;
+alter function public.accept_invitation(text)
+  set search_path = public, extensions, pg_temp;
+
+-- ── prove it, here, rather than trusting the ALTERs ───────────────────────
+--
+-- The five above are the ones known to be broken. This resolves the symbols
+-- the way those functions now resolve them and fails the migration if either
+-- is still unreachable, so a database that would go on refusing every payment
+-- and every invitation cannot record this migration as applied.
+do $$
+declare
+  probe bytea;
+begin
+  perform set_config('search_path', 'public, extensions, pg_temp', true);
+  probe := digest('resolution probe', 'sha256');
+  probe := gen_random_bytes(4);
+exception when undefined_function then
+  raise exception
+    'pgcrypto is not reachable from public, extensions, pg_temp — subscriptions, activations and invitations would still fail'
+    using errcode = '42883';
+end $$;
+
+-- ── while here: the five trigger functions with no pin at all ─────────────
+--
+-- Found by the same sweep. These are SECURITY INVOKER, so an unpinned path is
+-- not the privilege escalation it would be above — a caller who shadowed a
+-- name would only be shadowing it for themselves. It is still the one rule the
+-- rest of the schema keeps without exception, and a trigger that decides
+-- whether a branch belongs to your organisation is not where to start making
+-- exceptions. Every object each of them touches is already schema-qualified,
+-- so pinning changes no behaviour.
+
+alter function amryn.assert_branch_region_same_org()     set search_path = public, pg_temp;
+alter function amryn.assert_department_branch_same_org() set search_path = public, pg_temp;
+alter function amryn.assert_health_weights_sum()         set search_path = public, pg_temp;
+alter function amryn.derive_risk_severity()              set search_path = public, pg_temp;
+alter function amryn.touch_updated_at()                  set search_path = public, pg_temp;
+
+notify pgrst, 'reload schema';
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 20260905070000_20_rls_initplan.sql
+-- ══════════════════════════════════════════════════════════════════════
+do $setup$ begin raise notice 'applying 20260905070000_20_rls_initplan.sql'; end $setup$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Amryn™ AIGrowthIntelligence® Software
+-- Migration 20 — evaluate auth.uid() once per query, not once per row
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- Twelve policies name auth.uid() directly. PostgreSQL treats that as a
+-- per-row expression and calls it again for every row it examines, so reading
+-- a thousand notifications reads the JWT a thousand times. Wrapping it in a
+-- scalar subquery makes it an InitPlan: computed once, before the scan, and
+-- compared against as a constant.
+--
+--   using (user_id = auth.uid())            → one call per row
+--   using (user_id = (select auth.uid()))   → one call per query
+--
+-- The two are equivalent. auth.uid() is STABLE — by definition it cannot
+-- change within a statement — so a single evaluation is not an approximation
+-- of the per-row one, it is the same answer arrived at once. Nothing about who
+-- can see what changes here, which is the only reason this is worth doing at
+-- all: an optimisation that alters a tenancy boundary is not an optimisation.
+--
+-- Left alone deliberately: amryn.is_member(organisation_id) and
+-- amryn.has_permission(organisation_id, ...). They read auth.uid() too, but
+-- they take a column as an argument, so they genuinely do depend on the row
+-- and cannot be hoisted out of the scan. Wrapping those would change what they
+-- are asked, not when.
+--
+-- Policies are dropped and recreated rather than altered, because ALTER POLICY
+-- cannot change a policy's command or roles and restating the whole thing
+-- makes the diff readable. Each is recreated with the same command, the same
+-- roles and the same predicate, differing only in the parenthesised select.
+
+-- ── user_profiles ─────────────────────────────────────────────────────────
+
+drop policy user_profiles_read on public.user_profiles;
+create policy user_profiles_read on public.user_profiles
+  for select to authenticated
+  using (
+    id = (select auth.uid())
+    or exists (
+      select 1
+        from public.organisation_members me
+        join public.organisation_members them
+          on them.organisation_id = me.organisation_id
+       where me.user_id = (select auth.uid())
+         and me.status = 'active'
+         and them.user_id = user_profiles.id
+    )
+  );
+
+drop policy user_profiles_write on public.user_profiles;
+create policy user_profiles_write on public.user_profiles
+  for update to authenticated
+  using (id = (select auth.uid()))
+  with check (id = (select auth.uid()));
+
+drop policy user_profiles_insert on public.user_profiles;
+create policy user_profiles_insert on public.user_profiles
+  for insert to authenticated
+  with check (id = (select auth.uid()));
+
+-- ── organisation_members ──────────────────────────────────────────────────
+--
+-- The first arm is what lets somebody see their own membership row in an
+-- organisation they are not yet active in; is_member() would refuse it.
+
+drop policy members_read on public.organisation_members;
+create policy members_read on public.organisation_members
+  for select to authenticated
+  using (user_id = (select auth.uid()) or amryn.is_member(organisation_id));
+
+-- ── opportunity_assignments ───────────────────────────────────────────────
+
+drop policy opportunity_assignments_read on public.opportunity_assignments;
+create policy opportunity_assignments_read on public.opportunity_assignments
+  for select to authenticated
+  using (
+    assignee_id = (select auth.uid())
+    or amryn.has_permission(organisation_id, 'view_opportunities')
+  );
+
+-- ── notifications ─────────────────────────────────────────────────────────
+--
+-- The table this matters most on: a notification list is read constantly and
+-- is the one place a user routinely scans many of their own rows at once.
+
+drop policy notifications_read on public.notifications;
+create policy notifications_read on public.notifications
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy notifications_update on public.notifications;
+create policy notifications_update on public.notifications
+  for update to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+-- ── the assistant's own conversations ─────────────────────────────────────
+
+drop policy ai_conversations_own on public.ai_conversations;
+create policy ai_conversations_own on public.ai_conversations
+  for all to authenticated
+  using (user_id = (select auth.uid()) and amryn.is_member(organisation_id))
+  with check (user_id = (select auth.uid()) and amryn.is_member(organisation_id));
+
+drop policy ai_messages_own on public.ai_messages;
+create policy ai_messages_own on public.ai_messages
+  for all to authenticated
+  using (
+    amryn.is_member(organisation_id)
+    and exists (
+      select 1 from public.ai_conversations c
+       where c.id = ai_messages.conversation_id
+         and c.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    amryn.is_member(organisation_id)
+    and exists (
+      select 1 from public.ai_conversations c
+       where c.id = ai_messages.conversation_id
+         and c.user_id = (select auth.uid())
+    )
+  );
+
+-- ── POPIA requests and recovery codes ─────────────────────────────────────
+
+drop policy data_requests_read_own on public.data_requests;
+create policy data_requests_read_own on public.data_requests
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy data_requests_create_own on public.data_requests;
+create policy data_requests_create_own on public.data_requests
+  for insert to authenticated
+  with check (user_id = (select auth.uid()));
+
+drop policy mfa_recovery_read_own on public.mfa_recovery_codes;
+create policy mfa_recovery_read_own on public.mfa_recovery_codes
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+notify pgrst, 'reload schema';
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 20260905080000_21_revoke_unused_anon_grants.sql
+-- ══════════════════════════════════════════════════════════════════════
+do $setup$ begin raise notice 'applying 20260905080000_21_revoke_unused_anon_grants.sql'; end $setup$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Amryn™ AIGrowthIntelligence® Software
+-- Migration 21 — take back the anon grants nothing asked for
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- Every SECURITY DEFINER function from migration 04 to migration 15 ends with
+-- a line taking back what PostgreSQL grants by default:
+--
+--     revoke all on function public.accept_invitation(text) from public, anon;
+--
+-- Migrations 16 and 17 wrote nine such functions and remembered it twice.
+-- The other five are reachable by anyone holding the publishable key, over
+-- /rest/v1/rpc/, without signing in.
+--
+-- None of them is exploitable — each was probed on the live database as anon
+-- and each refuses:
+--
+--     ensure_onboarding      42501  not a member of that organisation
+--     complete_onboarding    42501  only an administrator can finish setting up
+--     request_subscription   28000  not signed in
+--     redeem_activation      requires auth.uid() to record who activated
+--
+-- So this changes no answer. It changes where the answer is decided: at the
+-- grant, rather than eleven statements into a function body that had to be
+-- read to know it was safe. Every one of these is called by the application
+-- with a session — redeem_activation() through requireUser() in
+-- features/billing/activate.ts — so nothing loses a caller it had.
+--
+-- The point is not this week's function bodies. It is that a guard added in
+-- one place is one edit away from being removed, and the convention the rest
+-- of the schema keeps means that edit cannot silently open a door.
+
+-- Revoke then grant, both halves, as migration 11 does for accept_invitation.
+-- The revoke alone would lock out the people these exist for: on a database
+-- built from these migrations `authenticated` has no grant of its own on any
+-- of the four and reaches them through the default PUBLIC one, so taking that
+-- back takes their own access with it. The SQL suite caught exactly that —
+-- test 19 could no longer buy a subscription.
+
+revoke all on function public.ensure_onboarding(uuid) from public, anon;
+grant execute on function public.ensure_onboarding(uuid) to authenticated;
+
+revoke all on function public.complete_onboarding(uuid) from public, anon;
+grant execute on function public.complete_onboarding(uuid) to authenticated;
+
+revoke all on function public.request_subscription(public.subscription_plan, integer) from public, anon;
+grant execute on function public.request_subscription(public.subscription_plan, integer) to authenticated;
+
+revoke all on function public.redeem_activation(text) from public, anon;
+grant execute on function public.redeem_activation(text) to authenticated;
+
+-- ── the one that stays open, and why ──────────────────────────────────────
+--
+-- activation_preview() answers the page somebody lands on from the email
+-- before they have signed in — "Amryn (Pty) Ltd, Professional, ready" — and
+-- must keep answering it. Possession of the link is the whole authorisation,
+-- which is why the function returns the organisation, the plan and the state
+-- and not the amount, the reference, or who paid.
+--
+-- Revoked from PUBLIC and granted to anon deliberately, exactly as
+-- invitation_preview() is: the two are the same shape and the same decision.
+revoke all on function public.activation_preview(text) from public;
+grant execute on function public.activation_preview(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ══════════════════════════════════════════════════════════════════════
 -- Did it work?
 -- ══════════════════════════════════════════════════════════════════════
 do $setup$
