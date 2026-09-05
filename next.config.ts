@@ -29,20 +29,19 @@ import type { NextConfig } from 'next';
  * Cloudflare regardless of where they originate.
  *
  * ── basePath ──────────────────────────────────────────────────────────────
- * The platform is served at amryn.ai/app, with the marketing site holding the
- * root of the domain and Cloudflare routing /app/* here. Next needs to know
- * that prefix so it emits `_next/` asset URLs and `next/link` hrefs beneath
- * it; `withBasePath` covers the hand-written URLs Next does not touch.
+ * The application is served from the root, so there is no prefix. BASE_PATH
+ * in base-path.mjs is the single source for that decision — this reads it
+ * rather than repeating the value, and passes it to Next only when it is set,
+ * because Next wants the key absent rather than empty.
  *
- * Both read BASE_PATH from base-path.mjs. Two literals that must agree is a
- * bug waiting to happen, and the symptom — pages that render with every image
- * missing — does not point at its cause.
+ * It was '/app' while the plan was to share a domain with the marketing site.
+ * See base-path.mjs for why that is on hold and why the helper stays.
  */
 import { BASE_PATH } from './base-path.mjs';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  basePath: BASE_PATH,
+  ...(BASE_PATH ? { basePath: BASE_PATH } : {}),
 
   reactStrictMode: true,
   poweredByHeader: false,

@@ -25,10 +25,11 @@
      unconfigured notice. When amryn.ai is registered and pointed at
      the same service, change this line to the custom domain — one
      value, one place.                                           */
-  // The application is served from the same domain as this site: Cloudflare
-  // sends /app/* to Railway and lets everything else reach GitHub Pages. See
-  // cloudflare/README.md.
-  var APP_URL = 'https://www.amryn.ai/app';
+  // Where the platform lives. The application is served from the root of the
+  // Railway host: the amryn.ai plan is on hold, because the domain's
+  // nameservers were never moved off the registrar and it resolves to a
+  // parking page.
+  var APP_URL = 'https://amryn-production.up.railway.app';
 
   (function wireAppLinks() {
     var links = document.querySelectorAll('[data-app-link]');
