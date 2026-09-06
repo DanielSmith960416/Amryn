@@ -137,15 +137,21 @@ async function withSite(appUrl, run) {
   });
 
   const site = await serve(dir);
+
+  // The order requests are issued in, which is the whole subject of the
+  // load-order check below.
+  const requested = [];
+
   page.on('request', (request) => {
     const url = request.url();
     if (!url.startsWith(site.origin) && !url.startsWith('data:')) offOrigin.push(url);
+    requested.push(url.replace(site.origin, ''));
   });
 
   await page.goto(`${site.origin}/index.html`);
   await page.waitForTimeout(600);
 
-  await run(page, errors, offOrigin);
+  await run(page, errors, offOrigin, requested);
   await page.close();
   site.close();
 }
@@ -226,6 +232,50 @@ console.log('\nAs committed — whatever APP_URL is currently set to');
     console.log('  note  APP_URL is empty, so the platform links stay hidden');
   }
 }
+
+console.log('\nThe demo\'s script is fetched before the artwork it has to outrun');
+await withSite('', async (page, errors, offOrigin, requested) => {
+  /*
+   * Every number, list and label in the Command Centre demo is written by
+   * app.js. Until it arrives the panel is laid out and empty — a score of 0, a
+   * subtitle of "—", no workspaces in the select — which reads as a broken
+   * site rather than a loading one.
+   *
+   * It used to be the last element in the body, so it was discovered last and
+   * queued behind 115 KB of @2x brand artwork and 78 KB of faces. Measured
+   * against a phone at 2.7 KB/s — the speed in the status bar of the report
+   * that prompted this — it had not arrived after 75 seconds.
+   *
+   * Order rather than timing, because timing here would measure the runner.
+   */
+  const scripts = requested.filter((path) => path.endsWith('app.js'));
+  const artwork = requested.filter((path) => path.endsWith('.png') && !path.includes('icon'));
+
+  assert(scripts.length === 1, 'app.js is requested exactly once');
+  assert(
+    artwork.every((path) => requested.indexOf(path) > requested.indexOf(scripts[0])),
+    `app.js is requested before every non-icon brand image${
+      artwork.length ? ` (artwork: ${artwork.join(', ')})` : ' (none requested at all, which is better)'
+    }`,
+  );
+
+  // Artwork below the first screen must not compete for the connection at
+  // all. The two product marks sit inside demo views that start hidden, and
+  // the lockup is in the footer.
+  const eagerBelowFold = await page.$$eval(
+    'img[src*="product-"], img.lockup--foot',
+    (els) => els.filter((el) => el.getAttribute('loading') !== 'lazy').map((el) => el.getAttribute('src')),
+  );
+  assert(
+    eagerBelowFold.length === 0,
+    `every image below the first screen defers its download${
+      eagerBelowFold.length ? `: ${eagerBelowFold.join(', ')} still load eagerly` : ''
+    }`,
+  );
+
+  assert(errors.length === 0, `no page errors${errors.length ? `: ${errors.join('; ')}` : ''}`);
+  assert(offOrigin.length === 0, "every asset is still served from the site's own origin");
+});
 
 await browser.close();
 console.log(failures === 0 ? '\nmarketing site checks passed\n' : `\n${failures} check(s) failed\n`);
