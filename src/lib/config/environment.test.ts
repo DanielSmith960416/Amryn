@@ -64,11 +64,16 @@ describe('the environment inventory', () => {
 
   it('does not name variables nothing reads', () => {
     const reads = readsInSource();
-    // Read by the deployment rather than by the code: the container sets it,
-    // the platform sets it, or a person exports it before running a script.
-    const setElsewhere = new Set(['AMRYN_ENABLE_EXTERNAL_RADAR']);
+    // Nothing is exempt any more.
+    //
+    // AMRYN_ENABLE_EXTERNAL_RADAR was, by name, on the grounds that it was
+    // "read by the deployment rather than by the code". It was not read by
+    // anything at all, and the exemption is what let it sit in the inventory
+    // and in .env.example for months looking like a control that did
+    // something. An exemption here should be treated as a claim to check
+    // rather than a note to keep.
     const stale = SETTINGS.map((s) => s.name)
-      .filter((name) => !reads.has(name) && !setElsewhere.has(name))
+      .filter((name) => !reads.has(name))
       .sort();
     expect(stale, `nothing reads these any more: ${stale.join(', ')}`).toEqual([]);
   });

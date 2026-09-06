@@ -14,7 +14,11 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['src/**/*.test.ts'],
+          // scripts/ is plain JavaScript with no build step — the migration
+          // runner and the backup have to run from a terminal with nothing
+          // installed but Node. Their tests are .mjs for the same reason, and
+          // are included here rather than left unrun.
+          include: ['src/**/*.test.ts', 'scripts/**/*.test.mjs'],
         },
       },
       {

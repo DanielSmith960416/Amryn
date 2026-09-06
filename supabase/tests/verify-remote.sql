@@ -30,19 +30,19 @@ with checks as (
          (to_regclass('amryn.schema_migrations') is not null) as ok
 
   union all
-  select 1 as ord, 'Tables' as item, count(*)::text as found, '56' as expected,
-         (count(*) = 56) as ok
+  select 1 as ord, 'Tables' as item, count(*)::text as found, '59' as expected,
+         (count(*) = 59) as ok
     from pg_tables where schemaname = 'public'
 
   union all
-  select 2, 'Tables with RLS enabled', count(*)::text, '56', count(*) = 56
+  select 2, 'Tables with RLS enabled', count(*)::text, '59', count(*) = 59
     from pg_tables t
     join pg_class c on c.relname = t.tablename
     join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
    where t.schemaname = 'public' and c.relrowsecurity
 
   union all
-  select 3, 'RLS policies', count(*)::text, '158', count(*) = 158
+  select 3, 'RLS policies', count(*)::text, '161', count(*) = 161
     from pg_policies where schemaname = 'public'
 
   union all
@@ -54,7 +54,7 @@ with checks as (
     from public.role_permissions
 
   union all
-  select 6, 'Functions in the amryn schema', count(*)::text, '20', count(*) = 20
+  select 6, 'Functions in the amryn schema', count(*)::text, '26', count(*) = 26
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'amryn'
@@ -78,6 +78,17 @@ with checks as (
     from pg_enum e
     join pg_type t on t.oid = e.enumtypid
    where t.typname = 'opportunity_kind' and e.enumlabel = 'tender'
+
+  -- The queue, and the flag that decides whose work runs. If these are missing
+  -- the web service is fine and nothing scheduled will ever happen, which is a
+  -- failure with no symptom on any page.
+  union all
+  select 10, 'job_runs (migration 23)', count(*)::text, '1', count(*) = 1
+    from pg_tables where schemaname = 'public' and tablename = 'job_runs'
+
+  union all
+  select 11, 'background_jobs flag (migration 23)', count(*)::text, '1', count(*) = 1
+    from public.feature_flags where key = 'background_jobs'
 
   -- The amryn schema must not be reachable through the API. It holds the
   -- functions the policies call.

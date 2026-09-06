@@ -155,19 +155,60 @@ export const SETTINGS: readonly Setting[] = [
     withoutIt: 'No gateway is used; the provider key authenticates directly.',
   },
 
+  // ── the worker ─────────────────────────────────────────────────────────
+  //
+  // Read by src/worker/main.ts, which is a different program in the same image
+  // — started with `node dist/worker.mjs` rather than `node server.js`. It
+  // needs SUPABASE_DB_URL and nothing else that is not listed here: it holds a
+  // direct connection rather than a session.
+  //
+  // AMRYN_ENABLE_EXTERNAL_RADAR used to sit here and nothing read it. It was
+  // exempted from the staleness check below by name, which is how a setting
+  // that does nothing survives for months looking like a control. Flags are
+  // rows now — public.feature_flags, migration 23 — so that turning one on is
+  // an act against one organisation rather than a redeploy for everybody.
   {
-    name: 'AMRYN_ENABLE_EXTERNAL_RADAR',
+    name: 'JOBS_CONCURRENCY',
     stage: 'runtime',
     required: false,
     secret: false,
-    purpose: 'Turns on live market scanning connectors.',
-    withoutIt: 'Market intelligence runs on what has been imported.',
+    purpose: 'How many jobs one worker runs at once. Running several workers is also safe — they never claim the same job.',
+    withoutIt: 'One at a time, which is right while the jobs are short.',
+  },
+  {
+    name: 'JOBS_POLL_SECONDS',
+    stage: 'runtime',
+    required: false,
+    secret: false,
+    purpose: 'How long the worker waits before looking for work again.',
+    withoutIt: 'Every five seconds.',
+  },
+  {
+    name: 'JOBS_SHUTDOWN_SECONDS',
+    stage: 'runtime',
+    required: false,
+    secret: false,
+    purpose: 'How long a stopping worker waits for the jobs it is already running. Anything still going keeps its lease and is retried after it lapses.',
+    withoutIt: 'Thirty seconds.',
+  },
+  {
+    name: 'JOBS_ONCE',
+    stage: 'runtime',
+    required: false,
+    secret: false,
+    purpose: 'Makes the worker do one pass and exit, for checking that a deployment can reach the database and claim. Same as --once.',
+    withoutIt: 'The worker runs continuously, which is how it is deployed.',
   },
 
   // Set by the platform. Listed so that nobody sets them, and so the
   // diagnostics page can say where its build information came from.
   { name: 'PORT', stage: 'platform', required: false, secret: false, purpose: 'The port the host expects the server to listen on.', withoutIt: 'Defaults to 3000.' },
   { name: 'NODE_ENV', stage: 'platform', required: false, secret: false, purpose: 'Set to production inside the image; never set by hand.', withoutIt: 'Development behaviour in production.' },
+  // Listed because a host may set it and somebody will wonder whether it
+  // matters. It does not: every schedule in the worker is anchored in UTC and
+  // computed with UTC accessors, because a schedule that moves twice a year is
+  // a schedule that fails twice a year. Asserted in src/lib/jobs/schedule.test.ts.
+  { name: 'TZ', stage: 'platform', required: false, secret: false, purpose: "The container's timezone, where the host sets one. The scheduled work is UTC regardless.", withoutIt: 'UTC, and nothing behaves differently.' },
   { name: 'RAILWAY_PUBLIC_DOMAIN', stage: 'platform', required: false, secret: false, purpose: 'What Railway calls this service, used where no site URL is configured.', withoutIt: 'Falls back to localhost.' },
   { name: 'RAILWAY_GIT_BRANCH', stage: 'platform', required: false, secret: false, purpose: 'The branch Railway deployed, shown on the operator pages.', withoutIt: 'The build stamp is blank.' },
   { name: 'RAILWAY_GIT_COMMIT_SHA', stage: 'platform', required: false, secret: false, purpose: 'The commit Railway deployed, shown on the operator pages.', withoutIt: 'The build stamp is blank.' },

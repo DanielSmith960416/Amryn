@@ -17,6 +17,7 @@ export interface Enums {
   goal_status: 'draft' | 'active' | 'at_risk' | 'achieved' | 'missed' | 'cancelled';
   health_category: 'financial' | 'operational' | 'sales' | 'growth' | 'customer' | 'strategic';
   import_status: 'uploaded' | 'mapping' | 'validating' | 'ready' | 'importing' | 'complete' | 'failed';
+  job_status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
   market_sector: 'private' | 'public' | 'mixed' | 'unknown';
   member_status: 'invited' | 'active' | 'suspended';
   metric_kind: 'financial' | 'sales' | 'operational' | 'customer' | 'employee' | 'growth' | 'custom';
@@ -1224,6 +1225,31 @@ export interface Database {
         Relationships: [
         ];
       };
+      feature_flags: {
+        Row: {
+          key: string;
+          name: string;
+          description: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          name: string;
+          description: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          name?: string;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+        ];
+      };
       financial_records: {
         Row: {
           id: string;
@@ -1477,6 +1503,93 @@ export interface Database {
             columns: ['organisation_id'];
             isOneToOne: false;
             referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      job_runs: {
+        Row: {
+          id: string;
+          organisation_id: string | null;
+          kind: string;
+          payload: Json;
+          status: Enums['job_status'];
+          priority: number;
+          run_at: string;
+          attempts: number;
+          max_attempts: number;
+          dedupe_key: string | null;
+          singleton_key: string | null;
+          worker_id: string | null;
+          lease_until: string | null;
+          started_at: string | null;
+          finished_at: string | null;
+          duration_ms: number | null;
+          result: Json | null;
+          error: string | null;
+          requested_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id?: string | null;
+          kind: string;
+          payload?: Json;
+          status?: Enums['job_status'];
+          priority?: number;
+          run_at?: string;
+          attempts?: number;
+          max_attempts?: number;
+          dedupe_key?: string | null;
+          singleton_key?: string | null;
+          worker_id?: string | null;
+          lease_until?: string | null;
+          started_at?: string | null;
+          finished_at?: string | null;
+          duration_ms?: number | null;
+          result?: Json | null;
+          error?: string | null;
+          requested_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string | null;
+          kind?: string;
+          payload?: Json;
+          status?: Enums['job_status'];
+          priority?: number;
+          run_at?: string;
+          attempts?: number;
+          max_attempts?: number;
+          dedupe_key?: string | null;
+          singleton_key?: string | null;
+          worker_id?: string | null;
+          lease_until?: string | null;
+          started_at?: string | null;
+          finished_at?: string | null;
+          duration_ms?: number | null;
+          result?: Json | null;
+          error?: string | null;
+          requested_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'job_runs_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'job_runs_requested_by_fkey';
+            columns: ['requested_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
             referencedColumns: ['id'];
           },
         ];
@@ -2217,6 +2330,61 @@ export interface Database {
           },
           {
             foreignKeyName: 'opportunity_scores_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      organisation_feature_flags: {
+        Row: {
+          organisation_id: string;
+          flag_key: string;
+          enabled: boolean;
+          note: string | null;
+          enabled_by: string | null;
+          enabled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          organisation_id: string;
+          flag_key: string;
+          enabled?: boolean;
+          note?: string | null;
+          enabled_by?: string | null;
+          enabled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          organisation_id?: string;
+          flag_key?: string;
+          enabled?: boolean;
+          note?: string | null;
+          enabled_by?: string | null;
+          enabled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'organisation_feature_flags_enabled_by_fkey';
+            columns: ['enabled_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'organisation_feature_flags_flag_key_fkey';
+            columns: ['flag_key'];
+            isOneToOne: false;
+            referencedRelation: 'feature_flags';
+            referencedColumns: ['key'];
+          },
+          {
+            foreignKeyName: 'organisation_feature_flags_organisation_id_fkey';
             columns: ['organisation_id'];
             isOneToOne: false;
             referencedRelation: 'organisations';
@@ -3367,6 +3535,17 @@ export interface Database {
           sort_order: number | null;
           included: boolean | null;
           limit_value: number | null;
+        };
+        Relationships: [];
+      };
+      organisation_features: {
+        Row: {
+          organisation_id: string | null;
+          flag_key: string | null;
+          name: string | null;
+          description: string | null;
+          enabled: boolean | null;
+          enabled_at: string | null;
         };
         Relationships: [];
       };

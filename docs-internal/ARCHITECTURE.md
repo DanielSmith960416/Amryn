@@ -20,12 +20,13 @@ This file says what the system is; that one says what you must not break.
                     │    forms, theme, sidebar)    │
                     └──────────────┬───────────────┘
                                    │ user's session cookie
-                    ┌──────────────▼───────────────┐
-                    │  Supabase PostgreSQL         │
-                    │  · Row Level Security        │
-                    │  · 56 tables, one schema     │
-                    └──────────────┬───────────────┘
-                                   │
+                    ┌──────────────▼───────────────┐      ┌──────────────────┐
+                    │  Supabase PostgreSQL         │◀─────│  Worker          │
+                    │  · Row Level Security        │      │  same image,     │
+                    │  · 59 tables, one schema     │      │  no HTTP, no     │
+                    │  · job_runs: the queue       │      │  session         │
+                    └──────────────┬───────────────┘      └──────────────────┘
+                                   │                       direct connection
         ┌──────────────────────────┴──────────────────────────┐
         │                                                      │
 ┌───────▼────────┐                                    ┌────────▼───────┐
@@ -38,6 +39,20 @@ This file says what the system is; that one says what you must not break.
 
 The load-bearing idea: **the engines decide what is true, the model decides how
 to say it.** Reverse that and the product becomes a fluent liar.
+
+**Two programs, one image.** The web server answers requests; the worker
+(`src/worker/main.ts`) drains a queue in the database. They are built from the
+same source and deployed as the same image, started with different commands, so
+a handler shares the engines and the types with the pages that render what it
+produced. A separate service would drift from them, and the drift would show up
+as a figure on a screen disagreeing with the figure in a brief.
+
+The worker is where anything that does not fit in an HTTP request lives — work
+measured in minutes, work that runs on the clock, work nobody is waiting on a
+page for. It holds a direct connection as the database owner and therefore
+carries no session: **row level security is not standing behind a handler**, so
+each one is responsible for its own tenancy. That is stated in
+`src/lib/jobs/types.ts`, where somebody writing one will read it.
 
 ---
 
