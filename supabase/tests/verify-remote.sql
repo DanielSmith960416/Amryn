@@ -30,12 +30,12 @@ with checks as (
          (to_regclass('amryn.schema_migrations') is not null) as ok
 
   union all
-  select 1 as ord, 'Tables' as item, count(*)::text as found, '61' as expected,
-         (count(*) = 61) as ok
+  select 1 as ord, 'Tables' as item, count(*)::text as found, '62' as expected,
+         (count(*) = 62) as ok
     from pg_tables where schemaname = 'public'
 
   union all
-  select 2, 'Tables with RLS enabled', count(*)::text, '61', count(*) = 61
+  select 2, 'Tables with RLS enabled', count(*)::text, '62', count(*) = 62
     from pg_tables t
     join pg_class c on c.relname = t.tablename
     join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
