@@ -42,6 +42,17 @@ values ('e0000000-0000-4000-8000-000000000001', 'Provenance Co', 'provenance-co'
 -- session. Constraints apply to it exactly as they do to anybody.
 set local role postgres;
 
+-- Migration 28 requires a simulated figure to name the fidelity measurement
+-- licensing it. That rule is asserted in its own file; here it would only
+-- obscure what these cases are about, so the licence exists up front and every
+-- simulated row below points at it.
+insert into public.twin_fidelity
+  (id, organisation_id, status, months_available, reason)
+values
+  ('e1000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001', 'not_measurable', 0,
+   'Fixture. This file is about uncertainty ranges, not about fidelity.');
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Saying nothing is not an option
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -78,9 +89,10 @@ select pg_temp.check(
 select pg_temp.check(
   pg_temp.refused($$
     insert into public.business_insights
-      (organisation_id, headline, narrative, impact_cents, provenance)
+      (organisation_id, headline, narrative, impact_cents, provenance, fidelity_id)
     values ('e0000000-0000-4000-8000-000000000001', 'The simulation says',
-            'Produced by a model run.', 5000000, 'simulated')
+            'Produced by a model run.', 5000000, 'simulated',
+            'e1000000-0000-4000-8000-000000000001')
   $$, 'uncertainty_carries_a_range'),
   'and neither can a simulated one — a model run is not a measurement');
 
@@ -148,9 +160,10 @@ select pg_temp.check(
   pg_temp.succeeds($$
     insert into public.business_insights
       (organisation_id, headline, narrative, impact_cents, provenance,
-       impact_p10_cents, impact_p50_cents, impact_p90_cents)
+       impact_p10_cents, impact_p50_cents, impact_p90_cents, fidelity_id)
     values ('e0000000-0000-4000-8000-000000000001', 'Converged',
-            'Every percentile the same.', 4000000, 'simulated', 4000000, 4000000, 4000000)
+            'Every percentile the same.', 4000000, 'simulated', 4000000, 4000000, 4000000,
+            'e1000000-0000-4000-8000-000000000001')
   $$),
   'a range with no width is allowed — a simulation may converge, and saying so is not the same as saying nothing');
 
