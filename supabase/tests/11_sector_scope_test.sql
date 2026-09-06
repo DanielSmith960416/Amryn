@@ -32,15 +32,17 @@ insert into public.organisation_members (organisation_id, user_id, role, scope_k
   ('d0000000-0000-0000-0000-000000000002', '66666666-6666-6666-6666-666666666666', 'executive', 'organisation');
 
 -- The same two opportunities exist for both: one commercial, one a public tender.
-insert into public.opportunities (organisation_id, title, kind, sector, summary) values
-  ('d0000000-0000-0000-0000-000000000001', 'Weekend delivery gap', 'market_expansion', 'private', 'Uncontested weekend demand.'),
-  ('d0000000-0000-0000-0000-000000000001', 'Municipal supply tender', 'tender', 'public', 'A 24-month schools supply tender, reissued.'),
-  ('d0000000-0000-0000-0000-000000000002', 'Weekend delivery gap', 'market_expansion', 'private', 'Uncontested weekend demand.'),
-  ('d0000000-0000-0000-0000-000000000002', 'Municipal supply tender', 'tender', 'public', 'A 24-month schools supply tender, reissued.');
+-- No value on any of these, so no range is required. What they must state is
+-- where the claim comes from, which is what migration 25 made unavoidable.
+insert into public.opportunities (organisation_id, title, kind, sector, summary, provenance) values
+  ('d0000000-0000-0000-0000-000000000001', 'Weekend delivery gap', 'market_expansion', 'private', 'Uncontested weekend demand.', 'estimated'),
+  ('d0000000-0000-0000-0000-000000000001', 'Municipal supply tender', 'tender', 'public', 'A 24-month schools supply tender, reissued.', 'fact'),
+  ('d0000000-0000-0000-0000-000000000002', 'Weekend delivery gap', 'market_expansion', 'private', 'Uncontested weekend demand.', 'estimated'),
+  ('d0000000-0000-0000-0000-000000000002', 'Municipal supply tender', 'tender', 'public', 'A 24-month schools supply tender, reissued.', 'fact');
 
-insert into public.market_signals (organisation_id, kind, sector, title, summary) values
-  ('d0000000-0000-0000-0000-000000000001', 'market', 'public', 'Provincial procurement calendar published', 'Supply categories open in the new year.'),
-  ('d0000000-0000-0000-0000-000000000002', 'market', 'public', 'Provincial procurement calendar published', 'Supply categories open in the new year.');
+insert into public.market_signals (organisation_id, kind, sector, title, summary, sourced_from) values
+  ('d0000000-0000-0000-0000-000000000001', 'market', 'public', 'Provincial procurement calendar published', 'Supply categories open in the new year.', 'Provincial gazette'),
+  ('d0000000-0000-0000-0000-000000000002', 'market', 'public', 'Provincial procurement calendar published', 'Supply categories open in the new year.', 'Provincial gazette');
 
 create or replace function pg_temp.expect(label text, got bigint, want bigint)
 returns void language plpgsql as $$

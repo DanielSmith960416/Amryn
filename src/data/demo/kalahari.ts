@@ -109,12 +109,17 @@ export const KALAHARI_BRANCHES: Branch[] = [
 
 /** OPPORTUNITY_DATABASE rows 3–8. */
 export const KALAHARI_OPPORTUNITIES: Opportunity[] = [
-  { id: 'OPP-001', date: '2026-07-15', title: 'Replicate Diamond Pavilion product mix at Galeshewe', category: 'Operational Improvement', source: 'Internal', estValue: 180_000, probability: 0.75, strategicFit: 0.85, urgency: 0.8, effort: 0.4, owner: 'CEO', status: 'Active' },
-  { id: 'OPP-002', date: '2026-07-22', title: 'Corporate catering contract — Sol Plaatje area', category: 'New Customer', source: 'Sales Call', estValue: 96_000, probability: 0.6, strategicFit: 0.7, urgency: 0.9, effort: 0.5, owner: 'Branch Mgr', status: 'Evaluating' },
-  { id: 'OPP-003', date: '2026-08-01', title: 'Private label product development — 2 SKUs', category: 'New Product', source: 'Market Research', estValue: 240_000, probability: 0.5, strategicFit: 0.8, urgency: 0.65, effort: 0.7, owner: 'CEO', status: 'Evaluating' },
-  { id: 'OPP-004', date: '2026-08-05', title: 'Loyalty programme launch — increase repeat visits', category: 'Customer Growth', source: 'Customer Feedback', estValue: 150_000, probability: 0.8, strategicFit: 0.9, urgency: 0.85, effort: 0.55, owner: 'CEO', status: 'Planning' },
-  { id: 'OPP-005', date: '2026-08-10', title: 'Cross-sell fresh produce at Diamond Pavilion', category: 'Cross-Sell', source: 'Internal', estValue: 72_000, probability: 0.7, strategicFit: 0.65, urgency: 0.7, effort: 0.35, owner: 'Branch Mgr', status: 'Active' },
-  { id: 'OPP-006', date: '2026-08-15', title: 'Weekend market presence — Kimberley CBD', category: 'Geographic Expansion', source: 'Market Research', estValue: 48_000, probability: 0.55, strategicFit: 0.6, urgency: 0.75, effort: 0.45, owner: 'CEO', status: 'Evaluating' },
+  // Every one of these is an estimate of what an opportunity might be worth,
+  // so every one carries a range — the demonstration business is held to the
+  // same rule as a real one, which is the only way the demonstration is worth
+  // showing. The spread is deliberately wide: these are early-stage figures
+  // and a narrow band would claim a precision nobody has.
+  { id: 'OPP-001', date: '2026-07-15', title: 'Replicate Diamond Pavilion product mix at Galeshewe', category: 'Operational Improvement', source: 'Internal', estValue: 180_000, probability: 0.75, strategicFit: 0.85, urgency: 0.8, effort: 0.4, owner: 'CEO', status: 'Active', provenance: 'estimated', valueRange: { p10: 90000, p90: 324000 } },
+  { id: 'OPP-002', date: '2026-07-22', title: 'Corporate catering contract — Sol Plaatje area', category: 'New Customer', source: 'Sales Call', estValue: 96_000, probability: 0.6, strategicFit: 0.7, urgency: 0.9, effort: 0.5, owner: 'Branch Mgr', status: 'Evaluating', provenance: 'estimated', valueRange: { p10: 48000, p90: 173000 } },
+  { id: 'OPP-003', date: '2026-08-01', title: 'Private label product development — 2 SKUs', category: 'New Product', source: 'Market Research', estValue: 240_000, probability: 0.5, strategicFit: 0.8, urgency: 0.65, effort: 0.7, owner: 'CEO', status: 'Evaluating', provenance: 'estimated', valueRange: { p10: 120000, p90: 432000 } },
+  { id: 'OPP-004', date: '2026-08-05', title: 'Loyalty programme launch — increase repeat visits', category: 'Customer Growth', source: 'Customer Feedback', estValue: 150_000, probability: 0.8, strategicFit: 0.9, urgency: 0.85, effort: 0.55, owner: 'CEO', status: 'Planning', provenance: 'estimated', valueRange: { p10: 75000, p90: 270000 } },
+  { id: 'OPP-005', date: '2026-08-10', title: 'Cross-sell fresh produce at Diamond Pavilion', category: 'Cross-Sell', source: 'Internal', estValue: 72_000, probability: 0.7, strategicFit: 0.65, urgency: 0.7, effort: 0.35, owner: 'Branch Mgr', status: 'Active', provenance: 'estimated', valueRange: { p10: 36000, p90: 130000 } },
+  { id: 'OPP-006', date: '2026-08-15', title: 'Weekend market presence — Kimberley CBD', category: 'Geographic Expansion', source: 'Market Research', estValue: 48_000, probability: 0.55, strategicFit: 0.6, urgency: 0.75, effort: 0.45, owner: 'CEO', status: 'Evaluating', provenance: 'estimated', valueRange: { p10: 24000, p90: 86000 } },
 ];
 
 /** RISK_REGISTER rows 3–8. */

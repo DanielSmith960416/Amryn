@@ -110,6 +110,8 @@ export interface HealthScore {
   status: HealthStatus;
 }
 
+import type { Provenance } from '@/lib/provenance';
+
 // ─── Opportunities (prototype: OPPORTUNITY_DATABASE, OPPORTUNITY_RADAR) ─────
 
 export type OpportunityStatus = 'Active' | 'Evaluating' | 'Planning';
@@ -121,8 +123,23 @@ export interface Opportunity {
   title: string;
   category: string;
   source: string;
-  /** Estimated value in the profile's currency. */
+  /** Estimated value in the profile's currency. This is the P50. */
   estValue: number;
+  /**
+   * Where estValue came from. A published tender value and a guess at what a
+   * new market might be worth are the same field and entirely different
+   * numbers, and until migration 25 nothing on the card could say which.
+   */
+  provenance: Provenance;
+  /**
+   * The tenth and ninetieth percentiles, where the value is uncertain.
+   *
+   * Absent for a reported or calculated figure, which has no spread to show.
+   * The database refuses to store an estimate without these, so a missing
+   * range on an estimated value means the row predates the rule rather than
+   * that somebody decided it was certain.
+   */
+  valueRange?: { p10: number; p90: number };
   /** 0–1 */
   probability: number;
   /** 0–1 */
