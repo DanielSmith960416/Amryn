@@ -9,6 +9,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export interface Enums {
   alert_status: 'new' | 'acknowledged' | 'assigned' | 'snoozed' | 'dismissed' | 'resolved';
+  analysis_status: 'queued' | 'running' | 'succeeded' | 'failed' | 'superseded';
   connection_status: 'pending' | 'connected' | 'syncing' | 'error' | 'disabled';
   data_request_kind: 'export' | 'deletion' | 'correction';
   data_request_status: 'received' | 'in_progress' | 'completed' | 'refused';
@@ -168,6 +169,8 @@ export interface Database {
           impact_p10_cents: number | null;
           impact_p50_cents: number | null;
           impact_p90_cents: number | null;
+          analysis_run_id: string | null;
+          is_provisional: boolean;
         };
         Insert: {
           id?: string;
@@ -195,6 +198,8 @@ export interface Database {
           impact_p10_cents?: number | null;
           impact_p50_cents?: number | null;
           impact_p90_cents?: number | null;
+          analysis_run_id?: string | null;
+          is_provisional?: boolean;
         };
         Update: {
           id?: string;
@@ -222,8 +227,17 @@ export interface Database {
           impact_p10_cents?: number | null;
           impact_p50_cents?: number | null;
           impact_p90_cents?: number | null;
+          analysis_run_id?: string | null;
+          is_provisional?: boolean;
         };
         Relationships: [
+          {
+            foreignKeyName: 'ai_recommendations_analysis_run_id_fkey';
+            columns: ['analysis_run_id'];
+            isOneToOne: false;
+            referencedRelation: 'analysis_runs';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'ai_recommendations_branch_id_fkey';
             columns: ['branch_id'];
@@ -360,6 +374,94 @@ export interface Database {
             columns: ['risk_id'];
             isOneToOne: false;
             referencedRelation: 'risks';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      analysis_runs: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          job_id: string | null;
+          trigger: string;
+          status: Enums['analysis_status'];
+          quality_score: number | null;
+          is_provisional: boolean;
+          expansion_suppressed: boolean;
+          started_at: string | null;
+          finished_at: string | null;
+          duration_ms: number | null;
+          insight_count: number;
+          recommendation_count: number;
+          opportunity_count: number;
+          gaps: Json;
+          error: string | null;
+          requested_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          job_id?: string | null;
+          trigger: string;
+          status?: Enums['analysis_status'];
+          quality_score?: number | null;
+          is_provisional: boolean;
+          expansion_suppressed: boolean;
+          started_at?: string | null;
+          finished_at?: string | null;
+          duration_ms?: number | null;
+          insight_count?: number;
+          recommendation_count?: number;
+          opportunity_count?: number;
+          gaps?: Json;
+          error?: string | null;
+          requested_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          job_id?: string | null;
+          trigger?: string;
+          status?: Enums['analysis_status'];
+          quality_score?: number | null;
+          is_provisional?: boolean;
+          expansion_suppressed?: boolean;
+          started_at?: string | null;
+          finished_at?: string | null;
+          duration_ms?: number | null;
+          insight_count?: number;
+          recommendation_count?: number;
+          opportunity_count?: number;
+          gaps?: Json;
+          error?: string | null;
+          requested_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'analysis_runs_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'job_runs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'analysis_runs_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: true;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'analysis_runs_requested_by_fkey';
+            columns: ['requested_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
             referencedColumns: ['id'];
           },
         ];
@@ -674,6 +776,8 @@ export interface Database {
           impact_p10_cents: number | null;
           impact_p50_cents: number | null;
           impact_p90_cents: number | null;
+          analysis_run_id: string | null;
+          is_provisional: boolean;
         };
         Insert: {
           id?: string;
@@ -695,6 +799,8 @@ export interface Database {
           impact_p10_cents?: number | null;
           impact_p50_cents?: number | null;
           impact_p90_cents?: number | null;
+          analysis_run_id?: string | null;
+          is_provisional?: boolean;
         };
         Update: {
           id?: string;
@@ -716,8 +822,17 @@ export interface Database {
           impact_p10_cents?: number | null;
           impact_p50_cents?: number | null;
           impact_p90_cents?: number | null;
+          analysis_run_id?: string | null;
+          is_provisional?: boolean;
         };
         Relationships: [
+          {
+            foreignKeyName: 'business_insights_analysis_run_id_fkey';
+            columns: ['analysis_run_id'];
+            isOneToOne: false;
+            referencedRelation: 'analysis_runs';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'business_insights_branch_id_fkey';
             columns: ['branch_id'];
@@ -2181,6 +2296,8 @@ export interface Database {
           value_p10_cents: number | null;
           value_p50_cents: number | null;
           value_p90_cents: number | null;
+          analysis_run_id: string | null;
+          is_provisional: boolean;
         };
         Insert: {
           id?: string;
@@ -2209,6 +2326,8 @@ export interface Database {
           value_p10_cents?: number | null;
           value_p50_cents?: number | null;
           value_p90_cents?: number | null;
+          analysis_run_id?: string | null;
+          is_provisional?: boolean;
         };
         Update: {
           id?: string;
@@ -2237,8 +2356,17 @@ export interface Database {
           value_p10_cents?: number | null;
           value_p50_cents?: number | null;
           value_p90_cents?: number | null;
+          analysis_run_id?: string | null;
+          is_provisional?: boolean;
         };
         Relationships: [
+          {
+            foreignKeyName: 'opportunities_analysis_run_id_fkey';
+            columns: ['analysis_run_id'];
+            isOneToOne: false;
+            referencedRelation: 'analysis_runs';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'opportunities_branch_id_fkey';
             columns: ['branch_id'];

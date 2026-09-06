@@ -10,6 +10,7 @@ import { compactMoney, count, date, money, percent, score } from '@/lib/format';
 import { currentWorkspace } from '@/lib/workspace';
 import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { ImprintPrompt } from '@/features/imprint/prompt';
+import { AnalysisBanner } from '@/features/analysis/banner';
 
 export const metadata: Metadata = { title: 'Executive Command Centre' };
 
@@ -35,6 +36,7 @@ export default async function CommandCentrePage() {
   return (
     <>
       <ImprintPrompt />
+      <AnalysisBanner />
       <PageHeader
         eyebrow="Detect → Simulate → Act"
         title="Executive Command Centre"
