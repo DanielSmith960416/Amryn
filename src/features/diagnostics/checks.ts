@@ -512,7 +512,7 @@ function checkRoleGrants(): Promise<Check> {
  *
  * Tables were checked and functions were not, so a missing or unreachable
  * create_organisation() surfaced at the worst possible moment — on the
- * onboarding form, to someone who had just signed up, as a paragraph of
+ * organisation form, to someone who had just signed up, as a paragraph of
  * PostgREST internals.
  *
  * The probe is a real call, because only a real call goes through the same
@@ -676,7 +676,7 @@ function checkMembership(): Promise<Check> {
         active.length > 0
           ? `Active member of ${active.length} organisation${active.length === 1 ? '' : 's'}.`
           : 'Signed in, but belonging to no organisation yet.',
-      remedy: active.length > 0 ? undefined : 'Go to /onboarding to create one.',
+      remedy: active.length > 0 ? undefined : 'Go to /imprint to create one.',
     };
   });
 }

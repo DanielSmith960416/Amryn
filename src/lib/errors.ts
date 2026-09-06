@@ -18,7 +18,7 @@ import 'server-only';
 /**
  * Logs the real fault and returns what to show instead.
  *
- * @param scope  where it happened, for the log prefix — 'invitations', 'onboarding'.
+ * @param scope  where it happened, for the log prefix — 'invitations', 'imprint'.
  * @param detail the underlying error, in whatever form it arrived.
  * @param shown  the sentence the reader gets. The default suits most forms.
  */

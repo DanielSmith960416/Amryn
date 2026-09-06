@@ -49,7 +49,7 @@ export function NoDataYet({
             {action?.label ?? 'Connect your data'}
           </Link>
           <Link
-            href="/onboarding/identity"
+            href="/imprint/identity"
             className="inline-flex h-9 items-center rounded-[var(--radius-field)] border border-[var(--border-strong)] px-4 text-[0.8125rem] font-medium text-[var(--text-primary)]"
           >
             Review your setup

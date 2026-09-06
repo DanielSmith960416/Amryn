@@ -448,8 +448,10 @@ select pg_temp.check(
       --   audit_logs                   the record must not have a gap
       --   billing_records              a customer who cannot pay cannot recover
       --   member_permission_overrides  withdrawing access must always work
-      --   onboarding_progress          setting up is how a trial becomes a
-      --                                customer (migration 17)
+      --   imprint_layers               taking an Imprint is how a trial
+      --   imprint_records              becomes a customer (migration 24)
+      --   onboarding_progress          the record migration 24 replaces, kept
+      --                                until a later migration removes it
       --   organisation_invitations     as above: withdrawing access
       --   organisation_members         as above
       --   subscription_activations     the activation that ends the lapse is
@@ -457,6 +459,8 @@ select pg_temp.check(
       --   subscriptions                as above
       'audit_logs',
       'billing_records',
+      'imprint_layers',
+      'imprint_records',
       'member_permission_overrides',
       'onboarding_progress',
       'organisation_invitations',

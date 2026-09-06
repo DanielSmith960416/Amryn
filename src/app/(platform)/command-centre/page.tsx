@@ -9,7 +9,7 @@ import { branchStatus } from '@/lib/intelligence/finance';
 import { compactMoney, count, date, money, percent, score } from '@/lib/format';
 import { currentWorkspace } from '@/lib/workspace';
 import { NoDataYet } from '@/components/intelligence/no-data-yet';
-import { SetupPrompt } from '@/features/onboarding/setup-prompt';
+import { ImprintPrompt } from '@/features/imprint/prompt';
 
 export const metadata: Metadata = { title: 'Executive Command Centre' };
 
@@ -34,7 +34,7 @@ export default async function CommandCentrePage() {
 
   return (
     <>
-      <SetupPrompt />
+      <ImprintPrompt />
       <PageHeader
         eyebrow="Detect → Simulate → Act"
         title="Executive Command Centre"

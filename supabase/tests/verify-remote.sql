@@ -30,19 +30,19 @@ with checks as (
          (to_regclass('amryn.schema_migrations') is not null) as ok
 
   union all
-  select 1 as ord, 'Tables' as item, count(*)::text as found, '59' as expected,
-         (count(*) = 59) as ok
+  select 1 as ord, 'Tables' as item, count(*)::text as found, '61' as expected,
+         (count(*) = 61) as ok
     from pg_tables where schemaname = 'public'
 
   union all
-  select 2, 'Tables with RLS enabled', count(*)::text, '59', count(*) = 59
+  select 2, 'Tables with RLS enabled', count(*)::text, '61', count(*) = 61
     from pg_tables t
     join pg_class c on c.relname = t.tablename
     join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
    where t.schemaname = 'public' and c.relrowsecurity
 
   union all
-  select 3, 'RLS policies', count(*)::text, '161', count(*) = 161
+  select 3, 'RLS policies', count(*)::text, '165', count(*) = 165
     from pg_policies where schemaname = 'public'
 
   union all
@@ -54,7 +54,7 @@ with checks as (
     from public.role_permissions
 
   union all
-  select 6, 'Functions in the amryn schema', count(*)::text, '26', count(*) = 26
+  select 6, 'Functions in the amryn schema', count(*)::text, '27', count(*) = 27
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'amryn'
@@ -89,6 +89,16 @@ with checks as (
   union all
   select 11, 'background_jobs flag (migration 23)', count(*)::text, '1', count(*) = 1
     from public.feature_flags where key = 'background_jobs'
+
+  -- The Imprint, and its eight layers. A deployment missing these serves every
+  -- screen correctly and cannot describe a single business.
+  union all
+  select 12, 'imprint_layers (migration 24)', count(*)::text, '1', count(*) = 1
+    from pg_tables where schemaname = 'public' and tablename = 'imprint_layers'
+
+  union all
+  select 13, 'the eight layers (migration 24)', count(*)::text, '8', count(*) = 8
+    from unnest(enum_range(null::public.imprint_layer))
 
   -- The amryn schema must not be reachable through the API. It holds the
   -- functions the policies call.

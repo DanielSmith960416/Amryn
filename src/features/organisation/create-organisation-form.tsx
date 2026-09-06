@@ -5,13 +5,13 @@ import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Checkbox, Input, Label } from '@/components/ui/field';
-import { createOrganisation, type OnboardingState } from './actions';
+import { createOrganisation, type CreateOrganisationState } from './actions';
 import { AuthError } from '@/features/auth/auth-error';
 
-export function OnboardingForm() {
+export function CreateOrganisationForm() {
   const [state, action] = useActionState(createOrganisation, {
     status: 'idle',
-  } as OnboardingState);
+  } as CreateOrganisationState);
 
   return (
     <form action={action} className="space-y-4">

@@ -69,7 +69,7 @@ customer in this project reached them through that gap.
 
 The remedy is structural, not disciplinary: the *decision* moves to a plain
 module beside the action, where it is pure and tested, and the action calls it.
-`src/features/onboarding/reconcile.ts` beside `actions.ts` is the pattern —
+`src/features/imprint/reconcile.ts` beside `actions.ts` is the pattern —
 `onlyNew` and `reconcileByName` are tested against the real live-deployment
 case that produced them. Do this for anything that decides rather than merely
 performs.
@@ -168,7 +168,7 @@ constraint doing its job before a customer met it.
 
 ### Uniqueness has three different failure modes and two of them are silent
 
-From the onboarding steps, all in one release:
+From the intake flow, all in one release:
 
 | Table | Constraint | What a repeated answer did |
 |---|---|---|
@@ -260,7 +260,7 @@ one loses access — and whether that combination exists is a question about the
 role matrix and per-member overrides, not about these two policies.
 
 **Four are genuinely redundant, and not worth changing.** On
-`onboarding_progress`, `subscriptions`, `organisation_members` and
+`imprint_records`, `subscriptions`, `organisation_members` and
 `member_permission_overrides` the read policy is `is_member(organisation_id)`,
 and `has_permission()` requires an active membership row — so it is a strict
 subset and the union is just `is_member`. But those tables hold one row per
@@ -356,6 +356,72 @@ The manifest identifies the database by a hash of its host and name, not of the
 connection string. Hashing the string folds the password in, so rotating the
 password would invalidate every backup ever taken and the guard would refuse a
 good one with a message about the wrong database.
+
+## 4d. Renaming a live flow without a window where it is broken
+
+The seven-step setup is now the Amryn™ Imprint®: eight layers, a Quality
+Score, and a record the customer owns rather than a process done to them. Three
+decisions inside that are worth keeping.
+
+**The old table is still there, and nothing reads it.** `alter table ... rename
+to` is one statement and would have been wrong. A deploy starts new containers
+alongside the old ones and retires the old ones as the new pass their health
+checks, so for a minute or so both are serving. A rename breaks every request
+the old containers handle in that window — not with a redirect or a stale page,
+but with "relation does not exist" on the setup flow, for real customers, with
+no way to retry until the rollout finishes. So migration 24 is additive: new
+tables beside the old, a backfill, and `onboarding_progress` left exactly as it
+was. A later migration removes it, as its own decision, with a backup.
+
+That means the brief's "no such string anywhere" is met in the code, the routes
+and the interface, and **not yet in the database**. Saying so is better than
+claiming otherwise: the word survives in one unread table and its two unused
+functions until that follow-up.
+
+**The backfill is a function, not eight inline statements.** A backfill is the
+part of a migration most likely to be wrong and least likely to be noticed: it
+runs once, against data the author cannot see, and leaves nothing behind when
+it silently matches nothing. Written inline it is also untestable by
+construction — by the time any test runs, the migration has been applied and
+there is no old record left to bring across. As a function it can be run again
+with fixtures in front of it, which is what test 25 does, including the case
+with no straightforward answer (two old steps feed the Intent layer, so half of
+it is neither answered nor skipped) and the case where it is run twice after a
+customer has since corrected an answer.
+
+**The feature-flag rule does not gate this, deliberately.** Phase 1 established
+that new behaviour ships behind a flag defaulted off. This is a replacement of
+an existing flow rather than behaviour added beside one: gated off, there would
+be no way to describe a business at all. The protection that rule provides is
+instead provided by the shape of the migration — the old record is untouched,
+so reverting is a deploy rollback rather than a data recovery. The rule applies
+in full to the analysis, the simulation and the brief, which are additions.
+
+## 4e. A score that decides what the product will say
+
+The Imprint Quality Score is not a progress bar. Below 70 the analysis marks
+everything provisional and refuses to discuss expansion at all, so this number
+decides what the platform is willing to claim about a business.
+
+A number with that job has to be defensible line by line, which is why
+`score()` returns the reasoning as well as the figure and every screen showing
+one shows it from the same call. A customer told their Imprint scores 64 can be
+shown exactly which answers would move it, ranked by how much each would add.
+
+The decision worth arguing about: **a skipped layer scores zero, exactly like
+one nobody has reached.** Skipping is a legitimate answer and the review screen
+says so. But the score does not measure effort or good faith — it measures how
+much of the business the platform can actually see, and a layer skipped for
+excellent reasons is just as invisible as one never opened. Letting a skip
+score full marks would produce Imprints reading 100 that the analysis cannot
+read, which is the one failure this number exists to prevent. What differs is
+the sentence, not the score.
+
+The figure is computed in TypeScript and stored on the record rather than
+derived in SQL. Two implementations of a gate like this would eventually
+disagree, and the one that disagreed silently would be the database's. Screens
+recompute it as they render, so a stored figure a moment stale never appears
+beside the answers it describes.
 
 ## 5. Decisions that were reversed
 
