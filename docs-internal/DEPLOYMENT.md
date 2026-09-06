@@ -84,14 +84,31 @@ queue and wait. That is a failure with no symptom on any page, which is why
 below asks for one line of output rather than a green tick.
 
 1. In the same Railway project: **New → GitHub Repo**, the same repository.
-2. **Settings → Deploy → Custom Start Command**: `node dist/worker.mjs`
-3. **Settings → Networking**: no domain, no port. It serves nothing.
-4. **Settings → Health Check**: none. There is no endpoint to check — it is not
-   a server.
-5. Variables: `SUPABASE_DB_URL`, and nothing else it does not share with the
-   web service. It holds a direct connection rather than a session, so none of
-   the `NEXT_PUBLIC_*` settings apply to it.
-6. Confirm it can actually reach the database and claim:
+2. **Settings → Build → Dockerfile Path**: `Dockerfile`.
+
+   Not optional, and the reason is the deprecation below. `railway.json` sets
+   the builder for the web service, and a new service cannot read it — so
+   without this the worker is built by Railpack, which knows nothing about
+   `npm run build:worker` and produces an image with no `dist/worker.mjs` in
+   it. Naming the Dockerfile forces the same image both services share, which
+   is what stops the worker running last week's handlers against this week's
+   schema.
+3. **Settings → Deploy → Custom Start Command**: `node dist/worker.mjs`.
+4. **Settings → Deploy → Health Check**: leave empty. There is no endpoint to
+   check — the worker serves no HTTP at all, so a healthcheck could never pass
+   and the deploy would be rolled back on a service that was working perfectly.
+5. **Settings → Deploy → Restart Policy**: `ALWAYS`, 10 retries. Three attempts
+   is right for a web server that fails to boot; for a process meant to run for
+   weeks, a database outage during a restart should not retire it permanently.
+6. **Settings → Networking**: no domain, no port. It serves nothing.
+7. Variables: **`SUPABASE_DB_URL`**, and nothing else. It holds a direct
+   connection rather than a session, so none of the `NEXT_PUBLIC_*` settings
+   apply to it, and it needs neither the anon key nor the service role key.
+
+   Take the **session pooler** string from Supabase → Settings → Database.
+   Without it the worker exits immediately and says so — deliberately, rather
+   than idling while the host reports it healthy and nothing is processed.
+8. Confirm it can actually reach the database and claim:
 
    ```
    railway run node dist/worker.mjs --once
@@ -99,6 +116,20 @@ below asks for one line of output rather than a green tick.
 
    One pass, then it exits. It should name the handlers it knows and either run
    something or say there was nothing to run.
+
+> **`railway.json` is deprecated, and this is dated.** Railway has replaced
+> Config as Code with Infrastructure as Code (`.railway/railway.ts`). Existing
+> `railway.json` files keep working **only until 2026-12-01**, and **new
+> services cannot opt into them at all** — which is why the worker's settings
+> above are set on the service rather than committed to a file beside
+> `railway.json`.
+>
+> Two consequences worth acting on before that date. The web service's builder
+> comes from `railway.json` today, so on 2026-12-01 it would silently fall back
+> to Railpack and stop using the Dockerfile. And the two services are
+> configured in two different ways, which is exactly the drift that file
+> existed to prevent. Migrating both to `.railway/railway.ts` fixes both and is
+> not urgent until it suddenly is.
 
 Running more than one worker is safe. They never take the same job — the claim
 is a single statement using `for update skip locked` — and a worker that is
