@@ -170,14 +170,14 @@ select pg_temp.check(
 
 select pg_temp.check(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity) = 59,
-  'all 59 tables have RLS enabled');
+    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity) = 61,
+  'all 61 tables have RLS enabled');
 
 select pg_temp.check(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r'
-      and c.relrowsecurity and c.relforcerowsecurity) = 56,
-  'and 56 of them force it against the owner as well');
+      and c.relrowsecurity and c.relforcerowsecurity) = 58,
+  'and 58 of them force it against the owner as well');
 
 reset role;
 rollback;

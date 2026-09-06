@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-import { OnboardingForm } from '@/features/organisation/onboarding-form';
+import { CreateOrganisationForm } from '@/features/organisation/create-organisation-form';
 import { LegalFooter } from '@/components/legal/legal-footer';
 import { getWorkspace, requireVerifiedUser } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
-import { resumeAt } from '@/features/onboarding/steps';
+import { imprintFor } from '@/features/imprint/record';
 import { isSupabaseConfigured } from '@/lib/env';
 import { withBasePath } from '@/lib/base-path';
 
-export const metadata: Metadata = { title: 'Set up your organisation' };
+export const metadata: Metadata = { title: 'Start your Imprint' };
 
 /**
  * Where a signed-in user with no organisation lands.
@@ -20,7 +19,7 @@ export const metadata: Metadata = { title: 'Set up your organisation' };
 // Reads the session to decide whether the caller already has a workspace.
 export const dynamic = 'force-dynamic';
 
-export default async function OnboardingPage() {
+export default async function ImprintPage() {
   if (!isSupabaseConfigured()) redirect('/sign-in');
 
   // requireVerifiedUser, for the same reason requireWorkspace checks first: at
@@ -29,22 +28,14 @@ export default async function OnboardingPage() {
   await requireVerifiedUser();
   const workspace = await getWorkspace();
 
-  // The organisation already exists, so this page has nothing left to do —
-  // but the seven questions after it may not have been answered. Sending
-  // somebody who is halfway through to the Command Centre instead of back to
-  // where they stopped is how a half-set-up account stays half set up.
+  // The organisation already exists, so this page has nothing left to do — but
+  // the Imprint may not be finished. Sending somebody who is halfway through to
+  // the Command Centre instead of back to where they stopped is how a
+  // half-described business stays half described.
   if (workspace) {
-    const supabase = await createClient();
-    const { data: progress } = await supabase
-      .from('onboarding_progress')
-      .select('completed_steps, skipped_steps, completed_at')
-      .eq('organisation_id', workspace.organisation.id)
-      .maybeSingle();
-
-    if (progress?.completed_at) redirect('/command-centre');
-    redirect(
-      `/onboarding/${resumeAt(progress?.completed_steps ?? [], progress?.skipped_steps ?? [])}`,
-    );
+    const imprint = await imprintFor(workspace.organisation.id);
+    if (imprint.completedAt) redirect('/command-centre');
+    redirect(`/imprint/${imprint.resumeAt}`);
   }
 
   return (
@@ -52,7 +43,7 @@ export default async function OnboardingPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center gap-2.5">
           <Image
-            src={withBasePath("/brand/amryn-icon-mark.png")}
+            src={withBasePath('/brand/amryn-icon-mark.png')}
             alt=""
             width={553}
             height={563}
@@ -68,13 +59,14 @@ export default async function OnboardingPage() {
           Set up your organisation
         </h1>
         <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
-          This creates your workspace and makes you its administrator. Seven short questions
-          follow, and you can leave and come back to them at any point — nothing is lost between
-          sittings.
+          This creates your workspace and makes you its administrator. Then we build your Amryn
+          <span className="tm">™</span> Imprint<span className="tm">®</span> — eight short layers
+          describing the business. You can leave and come back at any point; answers are kept as
+          you type, and anything you would rather not answer yet can be left.
         </p>
 
         <div className="mt-7">
-          <OnboardingForm />
+          <CreateOrganisationForm />
         </div>
 
         <LegalFooter className="mt-10" />

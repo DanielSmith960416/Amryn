@@ -221,7 +221,7 @@ every signed-in role.
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)
 - [ ] `www.amryn.ai` serves the marketing site
-- [ ] A test account can sign up, create an organisation, and finish the seven setup steps
+- [ ] A test account can sign up, create an organisation, and finish all eight Imprint layers
 - [ ] An invitation email arrives
 - [ ] A subscription request produces a reference; confirming it at `/activations` produces a working link
 - [ ] `INTERNAL_ACCESS_TOKEN` set, and `/diagnostics` is a 404 without it

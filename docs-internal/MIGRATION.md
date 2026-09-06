@@ -48,11 +48,11 @@ migrated**. No data was carried across, because none of it was real client data
 | `src/lib/email/` | SMTP transport and invitation mail |
 | `src/lib/ai/` | OpenAI/Anthropic provider abstraction, prompts, structured-output retry |
 | `src/lib/engines/` | The previous scoring engines (superseded by `src/lib/intelligence/`) |
-| `src/features/{setup,invitations,diagnostics,organisation,assistant}/` | Database setup wizard, invitation flow, diagnostics, org onboarding, AI assistant |
+| `src/features/{setup,invitations,diagnostics,organisation,assistant}/` | Database setup wizard, invitation flow, diagnostics, organisation creation, AI assistant |
 | `src/features/{intelligence,opportunities,performance}/` | Supabase-backed query layers |
 | `src/middleware.ts` | Session-refresh middleware |
 | `src/types/database.ts` | 45-table generated types |
-| `src/app/{setup,diagnostics,invite,auth/callback,onboarding}/` | Routes belonging to the removed features |
+| `src/app/{setup,diagnostics,invite,auth/callback,imprint}/` | Routes belonging to the removed features |
 | `src/app/api/health/route.ts` | Health check that probed the database |
 | `src/lib/env.ts` | Supabase-aware environment validation |
 | `src/components/charts/` | Recharts wrappers |

@@ -48,7 +48,7 @@ export async function switchOrganisation(organisationId: string): Promise<void> 
   // organisation exists; what it does not yet have is anything to say about
   // itself, and arriving at a blank dashboard is what teaches somebody the
   // product has nothing in it.
-  redirect('/onboarding/identity');
+  redirect('/imprint/identity');
 }
 
 /* ── sector scope ──────────────────────────────────────────────────────── */
@@ -119,9 +119,9 @@ export async function updateSectorScope(
   return { status: 'saved' };
 }
 
-/* ── onboarding ────────────────────────────────────────────────────────── */
+/* ── creating an organisation ──────────────────────────────────────────── */
 
-const onboardingSchema = z.object({
+const createOrganisationSchema = z.object({
   name: z.string().trim().min(2, 'Enter an organisation name').max(160),
   industry: z.string().trim().max(120).optional(),
   countryCode: z.string().trim().length(2, 'Use a two-letter country code').toUpperCase(),
@@ -135,7 +135,7 @@ const onboardingSchema = z.object({
   }),
 });
 
-export type OnboardingState = { status: 'idle' } | { status: 'error'; message: string };
+export type CreateOrganisationState = { status: 'idle' } | { status: 'error'; message: string };
 
 /**
  * Creates an organisation and makes the caller its administrator.
@@ -146,12 +146,12 @@ export type OnboardingState = { status: 'idle' } | { status: 'error'; message: s
  * a failed one.
  */
 export async function createOrganisation(
-  _previous: OnboardingState,
+  _previous: CreateOrganisationState,
   formData: FormData,
-): Promise<OnboardingState> {
+): Promise<CreateOrganisationState> {
   const user = await requireUser();
 
-  const parsed = onboardingSchema.safeParse({
+  const parsed = createOrganisationSchema.safeParse({
     name: formData.get('name'),
     industry: formData.get('industry') || undefined,
     countryCode: formData.get('countryCode'),
@@ -199,7 +199,7 @@ export async function createOrganisation(
     .eq('id', data);
 
   if (consentError) {
-    ourFault('onboarding', consentError);
+    ourFault('organisation', consentError);
   }
 
   await recordEvent(data, 'organisation.settings_changed', {
@@ -222,7 +222,7 @@ export async function createOrganisation(
   // organisation exists; what it does not yet have is anything to say about
   // itself, and arriving at a blank dashboard is what teaches somebody the
   // product has nothing in it.
-  redirect('/onboarding/identity');
+  redirect('/imprint/identity');
 }
 
 /** A URL-safe slug, with a short suffix so two "Acme Trading"s can coexist. */
@@ -242,7 +242,7 @@ function slugify(name: string): string {
 /**
  * A failed organisation creation, in words.
  *
- * The onboarding form used to print the database's own error, which is how
+ * The organisation form used to print the database's own error, which is how
  * someone who had just signed up was shown:
  *
  *   Could not find the function public.create_organisation(p_country_code,
@@ -273,7 +273,7 @@ function explainCreateFailure(error: { code?: string; message: string } | null):
   // to fix, not the person filling in the form.
   if (error?.code === 'PGRST202' || /could not find the function/i.test(message)) {
     console.error(
-      '[amryn:onboarding] create_organisation is not reachable — the migrations may not be ' +
+      '[amryn:organisation] create_organisation is not reachable — the migrations may not be ' +
         `applied, or the schema cache is stale. Open /diagnostics. (${message})`,
     );
     return OURS;
@@ -289,7 +289,7 @@ function explainCreateFailure(error: { code?: string; message: string } | null):
 
   if (/permission denied|42501/i.test(message)) {
     console.error(
-      `[amryn:onboarding] the database refused to create the organisation. Check the migrations are fully applied: /diagnostics. (${message})`,
+      `[amryn:organisation] the database refused to create the organisation. Check the migrations are fully applied: /diagnostics. (${message})`,
     );
     return OURS;
   }
@@ -300,7 +300,7 @@ function explainCreateFailure(error: { code?: string; message: string } | null):
   }
 
   console.error(
-    `[amryn:onboarding] organisation creation failed: ${message.length > 0 ? message : 'no reason given'}`,
+    `[amryn:organisation] organisation creation failed: ${message.length > 0 ? message : 'no reason given'}`,
   );
   return OURS;
 }

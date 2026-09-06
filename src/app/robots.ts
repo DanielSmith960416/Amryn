@@ -29,7 +29,7 @@ export default function robots(): MetadataRoute.Robots {
         // anyway, but saying so costs nothing and documents the intent.
         '/command-centre',
         '/settings/',
-        '/onboarding',
+        '/imprint',
         '/verify',
         '/reset-password',
       ],

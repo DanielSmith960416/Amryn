@@ -38,7 +38,13 @@ export type SecurityEvent =
   | 'subscription.requested'
   | 'subscription.request_withdrawn'
   | 'subscription.activated'
-  | 'onboarding.completed'
+  // The Imprint replaces the seven-step setup migration 17 introduced. That
+  // flow's action is not listed any more because nothing writes it — rows
+  // already carrying it stay exactly as they are, since an audit log that can
+  // be rewritten is not one.
+  | 'imprint.started'
+  | 'imprint.layer_completed'
+  | 'imprint.completed'
   | 'stocktake.imported';
 
 /**

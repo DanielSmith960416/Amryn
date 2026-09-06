@@ -17,6 +17,8 @@ export interface Enums {
   goal_status: 'draft' | 'active' | 'at_risk' | 'achieved' | 'missed' | 'cancelled';
   health_category: 'financial' | 'operational' | 'sales' | 'growth' | 'customer' | 'strategic';
   import_status: 'uploaded' | 'mapping' | 'validating' | 'ready' | 'importing' | 'complete' | 'failed';
+  imprint_layer: 'identity' | 'location' | 'offer' | 'customers' | 'operations' | 'commercial' | 'digital' | 'intent';
+  imprint_layer_state: 'unanswered' | 'answered' | 'skipped';
   job_status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
   market_sector: 'private' | 'public' | 'mixed' | 'unknown';
   member_status: 'invited' | 'active' | 'suspended';
@@ -1502,6 +1504,91 @@ export interface Database {
             foreignKeyName: 'health_score_weights_organisation_id_fkey';
             columns: ['organisation_id'];
             isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      imprint_layers: {
+        Row: {
+          organisation_id: string;
+          layer: Enums['imprint_layer'];
+          state: Enums['imprint_layer_state'];
+          answers: Json;
+          gaps: string[];
+          answered_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          organisation_id: string;
+          layer: Enums['imprint_layer'];
+          state?: Enums['imprint_layer_state'];
+          answers?: Json;
+          gaps?: string[];
+          answered_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          organisation_id?: string;
+          layer?: Enums['imprint_layer'];
+          state?: Enums['imprint_layer_state'];
+          answers?: Json;
+          gaps?: string[];
+          answered_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'imprint_layers_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      imprint_records: {
+        Row: {
+          organisation_id: string;
+          current_layer: Enums['imprint_layer'];
+          quality_score: number | null;
+          scored_at: string | null;
+          started_at: string;
+          completed_at: string | null;
+          initialised_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          organisation_id: string;
+          current_layer?: Enums['imprint_layer'];
+          quality_score?: number | null;
+          scored_at?: string | null;
+          started_at?: string;
+          completed_at?: string | null;
+          initialised_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          organisation_id?: string;
+          current_layer?: Enums['imprint_layer'];
+          quality_score?: number | null;
+          scored_at?: string | null;
+          started_at?: string;
+          completed_at?: string | null;
+          initialised_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'imprint_records_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: true;
             referencedRelation: 'organisations';
             referencedColumns: ['id'];
           },
@@ -3581,6 +3668,12 @@ export interface Database {
         };
         Returns: boolean;
       };
+      complete_imprint: {
+        Args: {
+          p_organisation: string;
+        };
+        Returns: Database['public']['Tables']['imprint_records']['Row'];
+      };
       complete_onboarding: {
         Args: {
           p_organisation: string;
@@ -3596,6 +3689,12 @@ export interface Database {
           p_currency_code?: string | null;
         };
         Returns: string;
+      };
+      ensure_imprint: {
+        Args: {
+          p_organisation: string;
+        };
+        Returns: Database['public']['Tables']['imprint_records']['Row'];
       };
       ensure_onboarding: {
         Args: {

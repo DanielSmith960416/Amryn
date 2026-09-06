@@ -217,7 +217,7 @@ export async function requireWorkspace(): Promise<Workspace> {
     const user = await getCurrentUser();
     // Signed in but belonging to nothing: send them to create an organisation
     // rather than to a sign-in page they have already passed.
-    redirect(user ? '/onboarding' : '/sign-in');
+    redirect(user ? '/imprint' : '/sign-in');
   }
   return workspace;
 }
