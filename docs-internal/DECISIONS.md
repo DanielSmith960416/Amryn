@@ -493,6 +493,51 @@ judgement worth recording:
   stands and names the figures the platform could not check — a ratio the
   reader recognises is fine, a market size nobody supplied is not.
 
+## 4h. One front door, and a redirect where the second one was
+
+The application served a marketing homepage at `/`: the same headline as the
+static site in `docs/`, the same three explanatory bands, the same closing call
+to action, in a different framework. Two marketing sites for one product.
+
+Nothing was broken by it, which is why it survived. The cost is the kind that
+only shows up later. Every change to the pitch had to be made twice, in two
+markup languages, and the second one was the copy nobody was linked to — so it
+was the one that went stale. A stranger who found the Railway host read an
+older description of the product than the one being advertised, with no way to
+tell which was current. And the static site's demonstration, which is the most
+persuasive thing either surface has, existed on only one of them.
+
+So `/` on the application is a redirect into the Command Centre, and the
+marketing site is the site in `docs/`.
+
+Three consequences worth recording, because each was a decision rather than a
+consequence that fell out:
+
+**`/` left the middleware's exemptions.** It was exempt from the signed-out
+redirect for as long as it was a public page — a stranger had to be able to
+read the pitch without an account. That reason is gone, so the exemption went
+with it, and a signed-out request to `/` now meets the sign-in form directly
+rather than being bounced through a redirect stub it has no session to follow.
+Verified against a built standalone server: `/` and `/command-centre` both 307
+to `/sign-in`, `/sign-in`, `/sign-up` and the four legal documents still serve
+200, and `/api/health/live` — which is what Railway's healthcheck actually hits
+— is untouched.
+
+**The brand lockup on the sign-in and legal pages now leaves the
+application.** It pointed at `/`, which was the marketing homepage and is now a
+redirect back into the platform: a reader who clicked it while signed out would
+have been sent to the sign-in page they were already looking at. It points at
+the marketing site instead, as a plain anchor rather than `next/link`, because
+that is a different origin.
+
+**Two constants, facing each other.** `docs/app.js` has held a single `APP_URL`
+naming the application since the site was first linked to it. `MARKETING_SITE_URL`
+in `src/lib/marketing-site.ts` is the same arrangement facing the other way.
+When the domain moves those are the two lines to change, and a grep for either
+name finds every link that has to move with it.
+
+---
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.

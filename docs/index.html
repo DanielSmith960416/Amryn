@@ -13,9 +13,28 @@
 <meta property="og:image" content="brand/amryn-lockup-secondary@2x.png">
 
 <link rel="stylesheet" href="styles.css">
-<!-- Both faces are needed to set the first screen, and neither is discovered
-     until the stylesheet has parsed. Preloading starts them in parallel with
-     it rather than one round trip behind. -->
+
+<!-- The demo's every number, list and label is written by app.js. Until it
+     arrives the panel is laid out and empty — dashes, zeros, no workspaces —
+     which reads as a broken site rather than a loading one. It was last in
+     the queue: 9.5 KB of script behind 115 KB of artwork and 78 KB of faces.
+     Measured from a phone at 2.7 KB/s it had not arrived after 75 seconds.
+
+     So it is fetched first and parsed from the head. `defer` keeps it running
+     after the document is built, exactly as it did at the end of the body;
+     the preload is what lifts it out of the low priority a deferred script is
+     otherwise given. -->
+<link rel="preload" href="app.js" as="script">
+<script src="app.js" defer></script>
+
+<!-- Both faces stay preloaded, and the reason is measured rather than assumed.
+     Dropping the IBM Plex preload looked like an easy 45 KB: body copy at
+     14-16px, where a swap is barely visible. It is not, because the demo's two
+     select controls are sized from the face at `line-height: normal`, and a
+     select does not re-lay-out cleanly when the face arrives late — the
+     Workspace and Period rows settled 2px shorter, a visible shift in the
+     panel this whole change exists to get on screen sooner. The artwork was
+     the 115 KB worth taking; this 45 KB pays for itself. -->
 <link rel="preload" href="fonts/outfit-latin-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/ibm-plex-sans-latin-var.woff2" as="font" type="font/woff2" crossorigin>
 
@@ -193,7 +212,7 @@
                 <img class="prodmark"
                      src="brand/amryn-product-digital-twin.png"
                      srcset="brand/amryn-product-digital-twin.png 1x, brand/amryn-product-digital-twin@2x.png 2x"
-                     width="569" height="56" alt="" aria-hidden="true">
+                     width="569" height="56" alt="" aria-hidden="true" loading="lazy" decoding="async">
               </h2>
               <p class="view__sub">A continuously updated model of the business itself — what it earns, who it keeps, and what changed.</p>
             </div>
@@ -259,7 +278,7 @@
                 <img class="prodmark"
                      src="brand/amryn-product-opportunity-radar.png"
                      srcset="brand/amryn-product-opportunity-radar.png 1x, brand/amryn-product-opportunity-radar@2x.png 2x"
-                     width="769" height="56" alt="" aria-hidden="true">
+                     width="769" height="56" alt="" aria-hidden="true" loading="lazy" decoding="async">
               </h2>
               <p class="view__sub">Everything happening around the business — demand shifts, competitor moves, and openings worth a week of attention.</p>
             </div>
@@ -413,7 +432,7 @@
          src="brand/amryn-lockup-secondary.png"
          srcset="brand/amryn-lockup-secondary.png 1x, brand/amryn-lockup-secondary@2x.png 2x"
          width="746" height="270"
-         alt="Amryn™ AIGrowthIntelligence®">
+         alt="Amryn™ AIGrowthIntelligence®" loading="lazy" decoding="async">
     <p class="foot__phil">Business Inside + Market Outside = Intelligent Growth</p>
   </div>
   <div class="foot__contact">
@@ -442,6 +461,5 @@
   </p>
 </footer>
 
-<script src="app.js"></script>
 </body>
 </html>

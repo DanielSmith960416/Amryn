@@ -1,7 +1,7 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import { LegalFooter } from '@/components/legal/legal-footer';
 import { withBasePath } from '@/lib/base-path';
+import { MARKETING_SITE_URL } from '@/lib/marketing-site';
 
 /**
  * Rendered per request, so these pages carry the settings the server holds now.
@@ -38,7 +38,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between overflow-hidden bg-[#081B33] p-10 lg:flex">
-        <Link href="/" className="flex items-center gap-2.5">
+        {/* The mark leaves the application deliberately. There is one
+        marketing site and it is not this server, so "back to the top"
+        means the site in docs/ — a plain anchor rather than next/link,
+        because this is a different origin. */}
+        <a href={MARKETING_SITE_URL} className="flex items-center gap-2.5">
           <Image
             src={withBasePath("/brand/amryn-icon-mark-white.png")}
             alt=""
@@ -50,7 +54,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="font-display text-[1.125rem] font-extrabold tracking-tight text-white">
             Amryn<span className="tm">™</span>
           </span>
-        </Link>
+        </a>
 
         <div className="relative max-w-md">
           {/* Not uppercased: the brand pack sets the solid capitalisation as

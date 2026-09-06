@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { LEGAL_VERSION, hasUnfilledDetails } from '@/lib/legal/documents';
 import { withBasePath } from '@/lib/base-path';
+import { MARKETING_SITE_URL } from '@/lib/marketing-site';
 
 /**
  * The frame every legal page shares.
@@ -19,7 +20,11 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
     <div className="min-h-dvh">
       <header className="border-b border-[var(--border)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
-          <Link href="/" className="flex items-center gap-2.5">
+          {/* The mark leaves the application deliberately. There is one
+          marketing site and it is not this server, so "back to the top"
+          means the site in docs/ — a plain anchor rather than next/link,
+          because this is a different origin. */}
+          <a href={MARKETING_SITE_URL} className="flex items-center gap-2.5">
             <Image
               src={withBasePath("/brand/amryn-icon-mark.png")}
               alt=""
@@ -30,7 +35,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <span className="font-display text-[1.0625rem] font-extrabold tracking-tight text-[var(--text-primary)]">
               Amryn<span className="tm">™</span>
             </span>
-          </Link>
+          </a>
           <Link
             href="/sign-in"
             className="text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
