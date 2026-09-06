@@ -538,6 +538,65 @@ name finds every link that has to move with it.
 
 ---
 
+## 4i. The model is not configured, and that is a decision
+
+No `AI_*` variable is set on either Railway service. `aiConfig()` therefore
+returns `provider: 'none'`, and every feature that would call a model falls
+back to the deterministic engine: the assistant, the briefing's rewrite, the
+narration on recommendations, and the market research added in #69.
+
+This was found while wiring the radar, and it is worth writing down because it
+had been true for months without anybody noticing. The reason nobody noticed is
+the fallback working as designed — the engines compute what is true and the
+model only decides how to say it, so a platform with no model is a platform
+that words things plainly rather than one that is broken. That is the right
+architecture and it is also how a missing credential stays invisible.
+
+── what was decided ─────────────────────────────────────────────────────
+
+To leave it off. The analysis is arithmetic over answers the customer gave; it
+needs no model and runs unchanged. `external_radar` stays off, which the run
+records as a gap rather than presenting an empty radar as a quiet market.
+
+── what turning it on would take ────────────────────────────────────────
+
+Either a key, or a gateway holding one:
+
+    AI_PROVIDER=anthropic
+    AI_API_KEY=…                       (the key sits on Railway)
+
+    — or —
+
+    AI_PROVIDER=anthropic
+    AI_BASE_URL=…                      (a Cloudflare AI Gateway endpoint)
+    AI_GATEWAY_TOKEN=…                 (no Anthropic key on Railway at all)
+
+Both halves of the gateway form are required, and env.ts enforces it: a token
+with no endpoint is sent to Anthropic, which does not know what it is; an
+endpoint with no token is refused by the gateway. Half-configured counts as
+not configured, deliberately, because the failure otherwise arrives as an
+authentication error that says nothing about its cause.
+
+── the thing to be clear about ──────────────────────────────────────────
+
+Neither form removes the credential from existence; the gateway moves it to
+Cloudflare. The Anthropic API authenticates with a key issued from the
+Anthropic Console, which is a different thing from a Claude.ai subscription,
+and there is no supported way to authenticate a server's API calls with the
+latter. A note in an earlier session read "use my Claude account, the api key
+has been revoked", and that is not a configuration this can be given.
+
+── what is therefore unproven ───────────────────────────────────────────
+
+The citation rule in web-research.ts is tested against fabricated API
+responses and has never seen a live one. That is a deliberate split — the rule
+lives in a module with no network code so it can be tested without a key, a
+gateway or a bill — but a passing test suite is not the same as a search that
+ran. Whoever turns the radar on should watch the first run's admitted and
+rejected counts before turning it on for a second organisation.
+
+---
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.
