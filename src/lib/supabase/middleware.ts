@@ -111,7 +111,15 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-  if (!data.user && !isPublic && pathname !== '/') {
+  /*
+   * `/` was exempt here for as long as it served a marketing homepage: a
+   * stranger had to be able to read the pitch without an account. It does not
+   * serve one any more — there is one marketing site, on GitHub Pages, and
+   * this address now means "take me into the platform". So it is treated like
+   * every other private route, and a signed-out request meets the sign-in form
+   * rather than a redirect stub it has no session to follow.
+   */
+  if (!data.user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = '/sign-in';
     url.searchParams.set('next', pathname);
@@ -147,7 +155,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // getSession() stays for the access token alone. That is a signed string
   // rather than a claim about who the caller is, and reading it warns about
   // nothing.
-  if (data.user && !isPublic && pathname !== '/verify' && pathname !== '/') {
+  if (data.user && !isPublic && pathname !== '/verify') {
     const session = await supabase.auth.getSession().catch(() => null);
     const claims = data.user.factors ?? [];
     const verified = claims.some((factor) => factor.status === 'verified');

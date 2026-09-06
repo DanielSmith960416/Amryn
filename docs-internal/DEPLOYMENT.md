@@ -4,14 +4,33 @@ Three services, each doing one thing:
 
 | Service | What it holds | Why not somewhere else |
 |---|---|---|
-| **Cloudflare** | DNS, TLS, CDN, firewall. The marketing site on `www.amryn.ai`. | Nothing else in the stack wants to be a CDN. |
-| **Railway** | The application: a Node server built from `Dockerfile`, on `app.amryn.ai`. | The app opens a raw TCP socket to PostgreSQL (`pg`) and speaks SMTP (`nodemailer`). Neither exists in a Workers runtime, so the application cannot live on Cloudflare — see the note at the top of `next.config.ts`. |
+| **GitHub Pages** | The marketing site — `docs/`, served at `danielsmith960416.github.io/Amryn`. Static, free, and the only marketing surface there is. | It is HTML, CSS and one script. Anything with a server would be paying for a capability the site does not use. |
+| **Railway** | The application: a Node server built from `Dockerfile`, at `amryn-production.up.railway.app`. | The app opens a raw TCP socket to PostgreSQL (`pg`) and speaks SMTP (`nodemailer`). Neither exists in a Workers runtime, so the application cannot live on a CDN edge — see the note at the top of `next.config.ts`. |
 | **Supabase** | PostgreSQL, authentication, storage. | Row Level Security is where every tenancy guarantee in this product is actually made. |
 
-The split of hostnames is deliberate. `www.amryn.ai` is a static marketing
-site that must load fast for a stranger and be indexable; `app.amryn.ai` is a
-dynamic server behind a session and must never be indexed. One origin serving
-both would compromise each.
+The split of hosts is deliberate. The marketing site must load fast for a
+stranger and be indexable; the application is behind a session and must never
+be indexed. One origin serving both would compromise each.
+
+**There is one marketing site.** The application used to serve a second one at
+its own `/` — the same headline, the same explanatory bands, maintained
+separately and free to drift from the site people were actually linked to. It
+does not any more: `/` on Railway is a redirect into the platform, and a
+signed-out request to it meets the sign-in form.
+
+Two constants join the halves, and they are the only two lines to change when
+the domain moves:
+
+| Where | Constant | Points at |
+|---|---|---|
+| `docs/app.js` | `APP_URL` | the application — every "Sign in" and "Open the platform" link |
+| `src/lib/marketing-site.ts` | `MARKETING_SITE_URL` | the marketing site — the brand lockup on the sign-in and legal pages |
+
+Cloudflare is not in the stack. It was, briefly, to serve both halves beneath
+one domain with the platform at `/app`; `amryn.ai` still resolves to a
+Namecheap parking page because the nameservers were never moved, so nothing
+behind it was ever reachable. Withdrawn in #59 — the history is there if the
+domain is ever pointed properly.
 
 ---
 

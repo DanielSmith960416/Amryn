@@ -16,6 +16,11 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
+      // `/` is a redirect into the platform now, not a page — the marketing
+      // site is the static one on GitHub Pages and is what should be indexed.
+      // Left allowed rather than disallowed because /sign-in, /sign-up and the
+      // legal documents live under it and are meant to be reachable; the
+      // redirect itself has nothing for a crawler to keep.
       allow: '/',
       disallow: [
         '/diagnostics',
