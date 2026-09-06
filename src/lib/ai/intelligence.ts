@@ -19,6 +19,7 @@ import {
   type CompletionMessage,
 } from './provider';
 import { assistantPrompt, briefingPrompt, recommendationPrompt } from './prompts';
+import { describeInvented, guardNumbers } from './numeric-guard';
 import type { BusinessContext, ExecutiveBriefing } from '@/types/intelligence';
 
 /* ── executive briefing ────────────────────────────────────────────────── */
@@ -45,13 +46,28 @@ export async function generateBriefing(context: BusinessContext): Promise<Execut
 
   try {
     const findings = engineBriefing.findings.map((f) => `${f.headline}. ${f.detail}`);
+    const prompt = briefingPrompt(context, findings);
     const { value } = await completeStructured(
-      {
-        messages: [{ role: 'user', content: briefingPrompt(context, findings) }],
-        temperature: 0.3,
-      },
+      { messages: [{ role: 'user', content: prompt }], temperature: 0.3 },
       briefingShape,
     );
+
+    // Checked against the prompt rather than trusted because it was asked
+    // nicely. The house voice instructs the model never to invent a figure;
+    // this is what happens when it does anyway, and the failure it prevents —
+    // a confident number on a page somebody is about to act on — is the worst
+    // one this product has.
+    //
+    // Falling back costs nothing. The engine's own briefing is complete and
+    // was computed before the model was called at all.
+    const claimed = guardNumbers(`${value.headline} ${value.narrative}`, prompt);
+    if (!claimed.ok) {
+      console.error(
+        `[amryn:ai] the briefing rewrite was discarded — it contained figures that were ` +
+          `not in its context: ${describeInvented(claimed)}`,
+      );
+      return engineBriefing;
+    }
 
     return {
       ...engineBriefing,
@@ -123,18 +139,37 @@ export async function generateRecommendations(
   }
 
   try {
+    const prompt = recommendationPrompt(context);
     const { value } = await completeStructured(
       {
-        messages: [{ role: 'user', content: recommendationPrompt(context) }],
+        messages: [{ role: 'user', content: prompt }],
         temperature: 0.4,
         maxOutputTokens: 2400,
       },
       recommendationShape,
     );
 
+    // Per recommendation rather than for the batch. One fabricated figure
+    // should cost the recommendation that carries it and not the three sound
+    // ones beside it — and a caller that dropped everything would make the
+    // guard expensive enough to be argued out of.
+    const kept = value.recommendations.filter((r) => {
+      const claimed = guardNumbers(
+        [r.title, r.summary, r.why_it_matters, r.recommended_action, r.impact_note ?? ''].join(' '),
+        prompt,
+      );
+      if (!claimed.ok) {
+        console.error(
+          `[amryn:ai] a recommendation was discarded — "${r.title}" contained figures that ` +
+            `were not in its context: ${describeInvented(claimed)}`,
+        );
+      }
+      return claimed.ok;
+    });
+
     return {
       available: true,
-      recommendations: value.recommendations.map((r) => ({
+      recommendations: kept.map((r) => ({
         title: r.title,
         summary: r.summary,
         whyItMatters: r.why_it_matters,
@@ -196,8 +231,33 @@ export async function askAssistant(
 
   try {
     const result = await complete({ messages, temperature: 0.3 });
+
+    /*
+     * The assistant is guarded differently from the briefing, and the
+     * difference is a judgement worth stating.
+     *
+     * There, the engines compute everything and the model only rewrites, so a
+     * figure it did not receive was invented and the whole rewrite is thrown
+     * away at no cost. Here somebody may reasonably ask "what is my revenue
+     * per employee?", and the honest answer divides two figures that were
+     * given to produce one that was not. The guard cannot tell that from
+     * invention, and discarding the answer would make the assistant refuse
+     * arithmetic — which is most of what it is for.
+     *
+     * Suppressing is wrong and staying silent is worse. So the answer stands
+     * and says which of its figures the platform could not trace back to the
+     * reader's own data. A person can act on that: a ratio they recognise is
+     * fine, a market size nobody supplied is not.
+     */
+    const answer = result.text.trim();
+    const claimed = guardNumbers(answer, assistantPrompt(context));
+
     return {
-      content: result.text.trim(),
+      content: claimed.ok
+        ? answer
+        : `${answer}\n\n---\n\nNot from your data: ${describeInvented(claimed)}. ` +
+          'Everything else here comes from figures in your workspace. Check anything above ' +
+          'before acting on it — it may be arithmetic on your own numbers, and it may not be.',
       model: result.model,
       tokensUsed: result.tokensUsed,
       fromModel: true,

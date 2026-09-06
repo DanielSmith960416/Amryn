@@ -188,19 +188,22 @@ insert into public.business_events (organisation_id, branch_id, kind, severity, 
    'Customer churn is 3.0%, down from 4.1% a year ago. The win-back campaign is the most likely cause.',
    now() - interval '9 days');
 
+-- Derived, not estimated: each of these is arithmetic the engines performed on
+-- figures above, so it is reproducible and needs no range. An insight that
+-- guessed would have to carry one — see migration 25.
 insert into public.business_insights
-  (organisation_id, headline, narrative, category, direction, impact_cents, confidence, evidence)
+  (organisation_id, headline, narrative, category, direction, impact_cents, confidence, evidence, provenance)
 values
   (:org_id,
    'Margin is being spent, not lost',
    'Revenue is growing and gross margin is broadly holding, but operating cost has run ahead of both since month seven. The business is trading well and paying more to do it. On current trend the cost line absorbs the whole of this year''s revenue gain within two quarters.',
    'financial', 'down', -120000000, 0.82,
-   '[{"metric":"operating_cost","change":"+27% over 4 months"},{"metric":"revenue","change":"+11% over 4 months"}]'::jsonb),
+   '[{"metric":"operating_cost","change":"+27% over 4 months"},{"metric":"revenue","change":"+11% over 4 months"}]'::jsonb, 'derived'),
   (:org_id,
    'Delivery is the operational risk worth watching',
    'Average delivery time has climbed for three months running and is now a full day past target. Delivery reliability is the reason two of the top ten accounts named for staying.',
    'operational', 'down', null, 0.74,
-   '[{"metric":"delivery_days","change":"3.1 → 4.1 days"}]'::jsonb);
+   '[{"metric":"delivery_days","change":"3.1 → 4.1 days"}]'::jsonb, 'derived');
 
 -- ── the market outside ────────────────────────────────────────────────────
 
@@ -229,65 +232,68 @@ insert into public.competitor_events (organisation_id, competitor_id, kind, titl
    'medium', current_date - 11);
 
 insert into public.market_signals
-  (organisation_id, kind, sector, title, summary, relevance, confidence, keywords, observed_at)
+  (organisation_id, kind, sector, title, summary, relevance, confidence, keywords, observed_at, sourced_from)
 values
   (:org_id, 'demand', 'private',
    'Weekend wholesale delivery demand up 34%',
    'Search demand for Saturday wholesale delivery across your categories has risen 34% since March. No competitor within 40km advertises weekend dispatch.',
-   0.88, 0.71, '{delivery,weekend,demand}', now() - interval '3 days'),
+   0.88, 0.71, '{delivery,weekend,demand}', now() - interval '3 days', 'Search-demand index, weekly'),
   (:org_id, 'industry', 'private',
    'Two input suppliers dropped minimum order quantities',
    'Both of your largest input suppliers cut minimums this month to clear stock ahead of the season.',
-   0.79, 0.86, '{supplier,pricing,inventory}', now() - interval '5 days'),
+   0.79, 0.86, '{supplier,pricing,inventory}', now() - interval '5 days', 'Supplier circulars'),
   (:org_id, 'market', 'private',
    'Contract catering is consolidating in Mpumalanga',
    'Three mid-sized caterers merged; the combined group is retendering its supply arrangements in the new year.',
-   0.74, 0.63, '{catering,consolidation,mpumalanga}', now() - interval '7 days'),
+   0.74, 0.63, '{catering,consolidation,mpumalanga}', now() - interval '7 days', 'Provincial tender bulletin'),
   (:org_id, 'trend', 'private',
    'Independent retail is shifting to smaller, more frequent orders',
    'Basket sizes are falling while order frequency rises — a working-capital response, not a demand fall.',
-   0.66, 0.69, '{retail,ordering,working-capital}', now() - interval '12 days');
+   0.66, 0.69, '{retail,ordering,working-capital}', now() - interval '12 days', 'Trade press');
 
 -- ── opportunities ─────────────────────────────────────────────────────────
 
+-- Every value here is an estimate, so every one carries a range. The headline
+-- figure is the P50 by constraint, which is why it appears twice.
 insert into public.opportunities
   (id, organisation_id, title, kind, sector, counterparty, summary, why_it_matters,
-   recommended_action, estimated_value_cents, stage, score, classification, closes_on, is_saved)
+   recommended_action, estimated_value_cents, stage, score, classification, closes_on, is_saved,
+   provenance, value_p10_cents, value_p50_cents, value_p90_cents)
 values
   ('e5f6a7b8-0000-4000-8000-00000000aa01'::uuid, :org_id,
    'Nobody serves the East Rand on Saturdays', 'market_expansion', 'private', null,
    'Weekend delivery demand in your categories is up 34% since March and no competitor within 40km advertises Saturday dispatch.',
    'Your Saturday fleet already runs at 40% capacity, so the marginal cost of serving this is close to nil.',
    'Pilot Saturday dispatch on the Germiston route for six weeks and measure attach rate on existing accounts.',
-   21000000, 'qualified', 84.2, 'high_priority', current_date + 84, true),
+   21000000, 'qualified', 84.2, 'high_priority', current_date + 84, true, 'estimated', 10500000, 21000000, 37800000),
 
   ('e5f6a7b8-0000-4000-8000-00000000aa02'::uuid, :org_id,
    'Suppliers dropped minimums — buy forward', 'supplier', 'private', 'Two primary input suppliers',
    'Both largest input suppliers cut minimum order quantities this month to move stock ahead of the season.',
    'Cash position supports carrying the stock, and buying forward at current rates protects margin into Q1 against the cost trend the twin has flagged.',
    'Model a forward buy at the current rate against the next two quarters of demand before the offer closes.',
-   15500000, 'analysing', 76.5, 'strong', current_date + 42, true),
+   15500000, 'analysing', 76.5, 'strong', current_date + 42, true, 'estimated', 7750000, 15500000, 27900000),
 
   ('e5f6a7b8-0000-4000-8000-00000000aa03'::uuid, :org_id,
    'Merged catering group retenders supply', 'partnership', 'private', 'Mpumalanga catering group',
    'Three mid-sized caterers merged and the combined group is retendering its supply arrangements in the new year.',
    'Nelspruit has stopped growing and has the capacity to serve this. It is the clearest available answer to that branch.',
    'Route the introduction through the Nelspruit branch manager and prepare a cold-chain reference pack.',
-   48000000, 'discovered', 71.8, 'strong', current_date + 120, false),
+   48000000, 'discovered', 71.8, 'strong', current_date + 120, false, 'estimated', 24000000, 48000000, 86400000),
 
   ('e5f6a7b8-0000-4000-8000-00000000aa04'::uuid, :org_id,
    'Smaller, more frequent orders favour your delivery model', 'product', 'private', null,
    'Independent retail is shifting to smaller and more frequent orders as a working-capital response.',
    'Your next-day capability is the reason to consolidate onto you — but only if delivery reliability recovers first.',
    'Hold until average delivery returns under 3.5 days, then package a high-frequency tier.',
-   9500000, 'discovered', 52.4, 'potential', current_date + 150, false),
+   9500000, 'discovered', 52.4, 'potential', current_date + 150, false, 'estimated', 4750000, 9500000, 17100000),
 
   ('e5f6a7b8-0000-4000-8000-00000000aa05'::uuid, :org_id,
    'Schools nutrition supply tender reissued', 'tender', 'public', 'Ekurhuleni Metro',
    'A 24-month dry goods supply tender was reissued after the first round failed on compliance. Two of the six original bidders have re-registered.',
    'You already hold the SABS certification the last round tripped on, and the volume fits Germiston''s spare warehouse capacity.',
    'Confirm the certification is current, then register before the compliance window closes.',
-   48000000, 'discovered', 68.9, 'strong', current_date + 21, false);
+   48000000, 'discovered', 68.9, 'strong', current_date + 21, false, 'estimated', 24000000, 48000000, 86400000);
 
 insert into public.opportunity_scores
   (organisation_id, opportunity_id, relevance, potential_value, strategic_alignment,
@@ -312,7 +318,7 @@ insert into public.opportunity_activities (organisation_id, opportunity_id, kind
 
 insert into public.ai_recommendations
   (organisation_id, title, summary, why_it_matters, recommended_action, impact_cents,
-   impact_note, confidence, priority, status, opportunity_id, evidence)
+   impact_note, confidence, priority, status, opportunity_id, evidence, provenance)
 values
   (:org_id,
    'Find where the operating cost went before anything else',
@@ -320,7 +326,7 @@ values
    'On the current trend the increase absorbs the whole of this year''s revenue gain within two quarters. It is the single largest movement in the business.',
    'Break operating cost down by branch and category for the last six months, starting with the month-seven step change.',
    -12000000, 'Approximately R120,000 a month at the current rate', 0.86, 'critical', 'new', null,
-   '[{"source":"metric","ref":"operating_cost","note":"+27% over four months"},{"source":"metric","ref":"revenue","note":"+11% over the same window"}]'::jsonb),
+   '[{"source":"metric","ref":"operating_cost","note":"+27% over four months"},{"source":"metric","ref":"revenue","note":"+11% over the same window"}]'::jsonb, 'derived'),
 
   (:org_id,
    'Run the Saturday delivery pilot on the Germiston route',
@@ -329,7 +335,7 @@ values
    'Commit six weeks of Saturday dispatch on Germiston and measure attach rate on existing accounts before extending it.',
    21000000, 'R210,000 of annualised revenue at a 30% attach rate', 0.71, 'high', 'new',
    'e5f6a7b8-0000-4000-8000-00000000aa01'::uuid,
-   '[{"source":"signal","ref":"weekend delivery demand +34%"},{"source":"metric","ref":"saturday_fleet_utilisation","note":"40%"}]'::jsonb),
+   '[{"source":"signal","ref":"weekend delivery demand +34%"},{"source":"metric","ref":"saturday_fleet_utilisation","note":"40%"}]'::jsonb, 'derived'),
 
   (:org_id,
    'Give Nelspruit the catering retender',
@@ -338,7 +344,7 @@ values
    'Route the introduction through the Nelspruit branch manager and prepare the cold-chain reference pack this quarter.',
    48000000, 'R480,000 contract value over 24 months', 0.63, 'high', 'new',
    'e5f6a7b8-0000-4000-8000-00000000aa03'::uuid,
-   '[{"source":"metric","ref":"branch_revenue_nelspruit","note":"+1.8% over eleven months"},{"source":"signal","ref":"catering consolidation"}]'::jsonb),
+   '[{"source":"metric","ref":"branch_revenue_nelspruit","note":"+1.8% over eleven months"},{"source":"signal","ref":"catering consolidation"}]'::jsonb, 'derived'),
 
   (:org_id,
    'Recover delivery time before selling on reliability',
@@ -346,7 +352,7 @@ values
    'The high-frequency ordering shift is an opportunity only for a supplier who is actually reliable. Selling into it now would sell a promise the operation cannot currently keep.',
    'Hold the high-frequency tier until average delivery is back under 3.5 days; treat the recovery as the gating measure.',
    null, 'Protects revenue rather than adding it', 0.74, 'medium', 'new', null,
-   '[{"source":"metric","ref":"delivery_days","note":"3.1 → 4.1 over three months"}]'::jsonb);
+   '[{"source":"metric","ref":"delivery_days","note":"3.1 → 4.1 over three months"}]'::jsonb, 'derived');
 
 -- ── risk and alerts ───────────────────────────────────────────────────────
 

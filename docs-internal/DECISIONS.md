@@ -423,6 +423,76 @@ disagree, and the one that disagreed silently would be the database's. Screens
 recompute it as they render, so a stored figure a moment stale never appears
 beside the answers it describes.
 
+## 4f. A number that cannot say where it came from
+
+Every asserted money figure now carries a provenance — reported, calculated,
+estimated or simulated — and the two uncertain kinds cannot be stored without a
+P10/P50/P90 range. Four decisions inside that.
+
+**A column, not a sentence.** The tempting version writes "estimated" into the
+narrative. That fails three ways: it cannot be filtered on, it cannot be
+enforced, and it is the first thing lost when a figure is quoted onward into a
+board pack. A column travels with the number and lets the database refuse an
+estimate that does not say how uncertain it is.
+
+**No default on the column.** A default is a way of not deciding that still
+fills the field in, and the entire value of this column is that somebody
+decided. Every existing write site — the seed, test 11, the demo data — had to
+be updated, which is the point rather than the cost: it surfaced every place
+the platform asserts a figure, and each one had to be classified by hand.
+
+**The headline figure is the P50, by constraint.** Without that a row can carry
+two numbers both claiming to be the estimate, and a screen showing one beside a
+report showing the other is unexplainable to the person holding both.
+
+**A range with no width is allowed.** A simulation may genuinely converge, and
+saying "all three percentiles agree" is not the same as saying nothing. What is
+forbidden is silence.
+
+The same rule is enforced twice more, deliberately. TypeScript's `Opportunity`
+requires it, so the demonstration business is held to the same standard as a
+real one — that is the only way a demonstration is worth showing. And the radar
+renders the tag beside the figure, because a provenance nobody sees is the
+narrative-sentence failure with extra steps.
+
+## 4g. Enforcing what the prompt only asks for
+
+The house voice has always instructed the model never to invent a number. That
+instruction is worth having and it is not a control: it is a request made to a
+system optimised to sound right, and the failure mode when it is not followed is
+the worst this product has — a confident figure, in the house voice, on a page a
+business owner is about to act on, indistinguishable from a real one.
+
+`src/lib/ai/numeric-guard.ts` checks every number in model output against the
+numbers in the context it was handed. It can be this strict only because of an
+older decision: the engines compute what is true and the model decides how to
+say it, so every figure the model has any business writing was already in its
+prompt. Against a model asked to do arithmetic this guard would be unworkable;
+against one asked to write prose about arithmetic already done it costs nothing
+legitimate.
+
+**Rounding is not invention.** "R4.2m" for 4,235,000 is better writing than the
+exact figure and is what a person would say aloud. A guard that rejected it
+would be switched off within a week, so the tolerance comes from the precision
+the output itself chose to use — two significant figures accept anything that
+rounds to them, an exact figure accepts almost nothing.
+
+**Three call sites, three different responses**, and the difference is the
+judgement worth recording:
+
+- *The briefing* discards the rewrite and returns the engine's own text. It
+  costs nothing: the engine briefing was complete before the model was called.
+- *Recommendations* drop the individual recommendation rather than the batch.
+  One fabricated figure should not cost the three sound recommendations beside
+  it, and a guard that expensive would be argued out of existence.
+- *The assistant* keeps the answer and appends what it could not trace. Here a
+  reader may legitimately ask for a ratio, and the honest answer divides two
+  given figures to produce one that was not given. The guard cannot tell that
+  from invention. Suppressing would make the assistant refuse arithmetic, which
+  is most of what it is for; silence would make it dangerous. So the answer
+  stands and names the figures the platform could not check — a ratio the
+  reader recognises is fine, a market size nobody supplied is not.
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.

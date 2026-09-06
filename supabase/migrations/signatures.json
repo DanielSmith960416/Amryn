@@ -22,5 +22,6 @@
   "20260905080000_21_revoke_unused_anon_grants.sql": "not has_function_privilege('anon', 'public.request_subscription(public.subscription_plan, integer)', 'EXECUTE')",
   "20260905190000_22_foreign_key_indexes.sql": "to_regclass('public.notifications_org_idx') is not null",
   "20260906090000_23_job_runner.sql": "to_regclass('public.job_runs') is not null",
-  "20260906120000_24_imprint.sql": "to_regclass('public.imprint_layers') is not null"
+  "20260906120000_24_imprint.sql": "to_regclass('public.imprint_layers') is not null",
+  "20260906150000_25_provenance.sql": "exists (select 1 from pg_type where typname = 'provenance')"
 }

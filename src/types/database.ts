@@ -27,6 +27,7 @@ export interface Enums {
   opportunity_stage: 'discovered' | 'analysing' | 'qualified' | 'assigned' | 'in_progress' | 'won' | 'lost' | 'archived';
   org_role: 'super_admin' | 'org_admin' | 'executive' | 'regional_manager' | 'branch_manager' | 'department_manager' | 'analyst' | 'viewer';
   priority_level: 'critical' | 'high' | 'medium' | 'low';
+  provenance: 'fact' | 'derived' | 'estimated' | 'simulated';
   recommendation_status: 'new' | 'accepted' | 'in_progress' | 'done' | 'dismissed';
   risk_status: 'open' | 'mitigating' | 'monitoring' | 'closed' | 'accepted';
   scope_kind: 'organisation' | 'region' | 'branch' | 'department';
@@ -163,6 +164,10 @@ export interface Database {
           created_at: string;
           updated_at: string;
           expires_on: string | null;
+          provenance: Enums['provenance'];
+          impact_p10_cents: number | null;
+          impact_p50_cents: number | null;
+          impact_p90_cents: number | null;
         };
         Insert: {
           id?: string;
@@ -186,6 +191,10 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           expires_on?: string | null;
+          provenance: Enums['provenance'];
+          impact_p10_cents?: number | null;
+          impact_p50_cents?: number | null;
+          impact_p90_cents?: number | null;
         };
         Update: {
           id?: string;
@@ -209,6 +218,10 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           expires_on?: string | null;
+          provenance?: Enums['provenance'];
+          impact_p10_cents?: number | null;
+          impact_p50_cents?: number | null;
+          impact_p90_cents?: number | null;
         };
         Relationships: [
           {
@@ -657,6 +670,10 @@ export interface Database {
           valid_from: string;
           valid_to: string | null;
           created_at: string;
+          provenance: Enums['provenance'];
+          impact_p10_cents: number | null;
+          impact_p50_cents: number | null;
+          impact_p90_cents: number | null;
         };
         Insert: {
           id?: string;
@@ -674,6 +691,10 @@ export interface Database {
           valid_from?: string;
           valid_to?: string | null;
           created_at?: string;
+          provenance: Enums['provenance'];
+          impact_p10_cents?: number | null;
+          impact_p50_cents?: number | null;
+          impact_p90_cents?: number | null;
         };
         Update: {
           id?: string;
@@ -691,6 +712,10 @@ export interface Database {
           valid_from?: string;
           valid_to?: string | null;
           created_at?: string;
+          provenance?: Enums['provenance'];
+          impact_p10_cents?: number | null;
+          impact_p50_cents?: number | null;
+          impact_p90_cents?: number | null;
         };
         Relationships: [
           {
@@ -1698,6 +1723,7 @@ export interface Database {
           source_url: string | null;
           observed_at: string;
           created_at: string;
+          sourced_from: string | null;
         };
         Insert: {
           id?: string;
@@ -1715,6 +1741,7 @@ export interface Database {
           source_url?: string | null;
           observed_at?: string;
           created_at?: string;
+          sourced_from?: string | null;
         };
         Update: {
           id?: string;
@@ -1732,6 +1759,7 @@ export interface Database {
           source_url?: string | null;
           observed_at?: string;
           created_at?: string;
+          sourced_from?: string | null;
         };
         Relationships: [
           {
@@ -2149,6 +2177,10 @@ export interface Database {
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
+          provenance: Enums['provenance'];
+          value_p10_cents: number | null;
+          value_p50_cents: number | null;
+          value_p90_cents: number | null;
         };
         Insert: {
           id?: string;
@@ -2173,6 +2205,10 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          provenance: Enums['provenance'];
+          value_p10_cents?: number | null;
+          value_p50_cents?: number | null;
+          value_p90_cents?: number | null;
         };
         Update: {
           id?: string;
@@ -2197,6 +2233,10 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          provenance?: Enums['provenance'];
+          value_p10_cents?: number | null;
+          value_p50_cents?: number | null;
+          value_p90_cents?: number | null;
         };
         Relationships: [
           {

@@ -24,6 +24,7 @@ import 'server-only';
  * and nothing claims to have measured anything.
  */
 import { cache } from 'react';
+import type { Provenance } from '@/lib/provenance';
 import { createClient } from '@/lib/supabase/server';
 import {
   deriveMonths,
@@ -250,6 +251,14 @@ function toOpportunities(rows: Row<'opportunities'>[]): Opportunity[] {
     category: o.kind,
     source: o.counterparty ?? 'Amryn',
     estValue: units(o.estimated_value_cents),
+    provenance: (o.provenance ?? 'estimated') as Provenance,
+    // Only where the database holds one. It refuses to store an estimate
+    // without a range, so an estimate arriving here without one is a row from
+    // before that rule and is shown as a bare figure rather than given an
+    // invented spread.
+    ...(o.value_p10_cents !== null && o.value_p90_cents !== null
+      ? { valueRange: { p10: units(o.value_p10_cents), p90: units(o.value_p90_cents) } }
+      : {}),
     // The database keeps one 0–100 score; the radar wants the four factors it
     // was built from. Until a scoring run records them separately, the stored
     // score stands in for probability and the rest are neutral — and the

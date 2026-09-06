@@ -100,6 +100,21 @@ with checks as (
   select 13, 'the eight layers (migration 24)', count(*)::text, '8', count(*) = 8
     from unnest(enum_range(null::public.imprint_layer))
 
+  -- Provenance. Without it every asserted figure is a bare number again, and
+  -- the constraints that stop an estimate being stored without a range go with
+  -- it — a deployment that looks identical and quietly allows what this exists
+  -- to forbid.
+  union all
+  select 14, 'the four kinds of provenance (migration 25)', count(*)::text, '4', count(*) = 4
+    from unnest(enum_range(null::public.provenance))
+
+  union all
+  select 15, 'ranges are enforced (migration 25)', count(*)::text, '3', count(*) = 3
+    from pg_constraint
+   where conname in ('insight_uncertainty_carries_a_range',
+                     'recommendation_uncertainty_carries_a_range',
+                     'opportunity_uncertainty_carries_a_range')
+
   -- The amryn schema must not be reachable through the API. It holds the
   -- functions the policies call.
   union all

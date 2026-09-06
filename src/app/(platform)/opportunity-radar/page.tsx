@@ -10,6 +10,7 @@ import { count, date, money, percent, score } from '@/lib/format';
 import { currentWorkspace } from '@/lib/workspace';
 import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { requireEntitlement } from '@/lib/auth/session';
+import { PROVENANCE_LABEL, PROVENANCE_MEANING, needsRange } from '@/lib/provenance';
 
 export const metadata: Metadata = { title: 'OpportunityRadar®' };
 
@@ -115,6 +116,32 @@ export default async function OpportunityRadarPage() {
                   <p className="numeric mt-1 text-[0.8125rem] text-[var(--text-secondary)]">
                     {money(o.estValue, currency)} · {percent(o.probability, 0)} probability ·{' '}
                     {o.owner} · identified {date(o.date)}
+                  </p>
+                  {/*
+                    Where the figure came from, beside the figure.
+                    A provenance column nobody sees is the same failure as
+                    writing "estimated" into the narrative: it cannot be
+                    filtered, and it is the first thing lost when the number is
+                    quoted onward. The range is shown with it, because an
+                    estimate whose spread is hidden reads as a measurement.
+                  */}
+                  <p className="mt-1 text-[0.75rem] text-[var(--text-tertiary)]">
+                    <span
+                      className="rounded border border-[var(--border-strong)] px-1.5 py-0.5"
+                      title={PROVENANCE_MEANING[o.provenance]}
+                    >
+                      {PROVENANCE_LABEL[o.provenance]}
+                    </span>
+                    {o.valueRange ? (
+                      <span className="numeric ml-2">
+                        {money(o.valueRange.p10, currency)} to {money(o.valueRange.p90, currency)}
+                      </span>
+                    ) : needsRange(o.provenance) ? (
+                      // The database refuses to store this combination, so it
+                      // can only be a row from before the rule. Saying so is
+                      // better than showing a bare number that looks firm.
+                      <span className="ml-2">recorded before ranges were required</span>
+                    ) : null}
                   </p>
                 </div>
                 <div className="text-right">
