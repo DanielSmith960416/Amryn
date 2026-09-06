@@ -6,9 +6,13 @@
  *
  * ── why the helper stays when the value is empty ──────────────────────────
  * It was '/app' for a while, when the plan was to serve the platform beneath
- * a marketing site sharing one domain. That plan is on hold: the domain's
- * nameservers were never moved, so amryn.ai resolves to a registrar parking
- * page and nothing behind it was ever reachable.
+ * a marketing site sharing one domain. That plan is dead rather than on hold,
+ * and the reason is worth stating plainly because this comment used to get it
+ * wrong: the domain it was built around was never ours. It is registered to
+ * somebody else and listed for sale. The earlier wording — "the nameservers
+ * were never moved off the registrar" — described a domain we held and had
+ * misconfigured, which sent more than one person looking for a DNS setting to
+ * change. There was none to find.
  *
  * Reintroducing the prefix correctly across every hand-written asset URL cost
  * a day and twelve broken images the first time, including the two font

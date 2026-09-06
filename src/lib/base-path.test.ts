@@ -9,7 +9,7 @@ describe('withBasePath', () => {
   });
 
   it('leaves an absolute URL alone, so a caller need not check first', () => {
-    expect(withBasePath('https://amryn.ai/x.png')).toBe('https://amryn.ai/x.png');
+    expect(withBasePath('https://example.com/x.png')).toBe('https://example.com/x.png');
     expect(withBasePath('//cdn.example.com/x.png')).toBe('//cdn.example.com/x.png');
     expect(withBasePath('data:image/png;base64,AAAA')).toBe('data:image/png;base64,AAAA');
   });
@@ -25,9 +25,9 @@ describe('withBasePath', () => {
  * Next applies basePath to `next/link` and to its own `_next/` assets, and to
  * nothing else. A hand-written `src="/brand/mark.png"` compiles, renders, and
  * 404s — the page looks right in review and arrives at a customer with holes
- * in it. Moving the application to amryn.ai/app broke twelve of these at once,
- * including the two font preloads added to fix a slow first paint, which would
- * have quietly undone that work.
+ * in it. Serving the application under a `/app` prefix broke twelve of these at
+ * once, including the two font preloads added to fix a slow first paint, which
+ * would have quietly undone that work.
  *
  * So the rule is checked rather than remembered: every root-relative URL to a
  * file we ship goes through withBasePath().
