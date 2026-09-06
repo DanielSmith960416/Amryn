@@ -25,5 +25,6 @@
   "20260906120000_24_imprint.sql": "to_regclass('public.imprint_layers') is not null",
   "20260906150000_25_provenance.sql": "exists (select 1 from pg_type where typname = 'provenance')",
   "20260906180000_26_analysis_runs.sql": "to_regclass('public.analysis_runs') is not null",
-  "20260906200000_27_external_radar_flag.sql": "exists (select 1 from public.feature_flags where key = 'external_radar')"
+  "20260906200000_27_external_radar_flag.sql": "exists (select 1 from public.feature_flags where key = 'external_radar')",
+  "20260906220000_28_twin_fidelity.sql": "to_regclass('public.twin_fidelity') is not null"
 }

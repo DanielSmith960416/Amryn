@@ -15,6 +15,7 @@ export interface Enums {
   data_request_status: 'received' | 'in_progress' | 'completed' | 'refused';
   data_source_category: 'accounting' | 'crm' | 'pos' | 'erp' | 'spreadsheet' | 'database' | 'api' | 'manual';
   event_kind: 'anomaly' | 'trend' | 'threshold' | 'milestone' | 'ingestion' | 'manual';
+  fidelity_status: 'not_measurable' | 'measured' | 'failed';
   goal_status: 'draft' | 'active' | 'at_risk' | 'achieved' | 'missed' | 'cancelled';
   health_category: 'financial' | 'operational' | 'sales' | 'growth' | 'customer' | 'strategic';
   import_status: 'uploaded' | 'mapping' | 'validating' | 'ready' | 'importing' | 'complete' | 'failed';
@@ -171,6 +172,7 @@ export interface Database {
           impact_p90_cents: number | null;
           analysis_run_id: string | null;
           is_provisional: boolean;
+          fidelity_id: string | null;
         };
         Insert: {
           id?: string;
@@ -200,6 +202,7 @@ export interface Database {
           impact_p90_cents?: number | null;
           analysis_run_id?: string | null;
           is_provisional?: boolean;
+          fidelity_id?: string | null;
         };
         Update: {
           id?: string;
@@ -229,6 +232,7 @@ export interface Database {
           impact_p90_cents?: number | null;
           analysis_run_id?: string | null;
           is_provisional?: boolean;
+          fidelity_id?: string | null;
         };
         Relationships: [
           {
@@ -243,6 +247,13 @@ export interface Database {
             columns: ['branch_id'];
             isOneToOne: false;
             referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_recommendations_fidelity_id_fkey';
+            columns: ['fidelity_id'];
+            isOneToOne: false;
+            referencedRelation: 'twin_fidelity';
             referencedColumns: ['id'];
           },
           {
@@ -778,6 +789,7 @@ export interface Database {
           impact_p90_cents: number | null;
           analysis_run_id: string | null;
           is_provisional: boolean;
+          fidelity_id: string | null;
         };
         Insert: {
           id?: string;
@@ -801,6 +813,7 @@ export interface Database {
           impact_p90_cents?: number | null;
           analysis_run_id?: string | null;
           is_provisional?: boolean;
+          fidelity_id?: string | null;
         };
         Update: {
           id?: string;
@@ -824,6 +837,7 @@ export interface Database {
           impact_p90_cents?: number | null;
           analysis_run_id?: string | null;
           is_provisional?: boolean;
+          fidelity_id?: string | null;
         };
         Relationships: [
           {
@@ -838,6 +852,13 @@ export interface Database {
             columns: ['branch_id'];
             isOneToOne: false;
             referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'business_insights_fidelity_id_fkey';
+            columns: ['fidelity_id'];
+            isOneToOne: false;
+            referencedRelation: 'twin_fidelity';
             referencedColumns: ['id'];
           },
           {
@@ -2298,6 +2319,7 @@ export interface Database {
           value_p90_cents: number | null;
           analysis_run_id: string | null;
           is_provisional: boolean;
+          fidelity_id: string | null;
         };
         Insert: {
           id?: string;
@@ -2328,6 +2350,7 @@ export interface Database {
           value_p90_cents?: number | null;
           analysis_run_id?: string | null;
           is_provisional?: boolean;
+          fidelity_id?: string | null;
         };
         Update: {
           id?: string;
@@ -2358,6 +2381,7 @@ export interface Database {
           value_p90_cents?: number | null;
           analysis_run_id?: string | null;
           is_provisional?: boolean;
+          fidelity_id?: string | null;
         };
         Relationships: [
           {
@@ -2372,6 +2396,13 @@ export interface Database {
             columns: ['branch_id'];
             isOneToOne: false;
             referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunities_fidelity_id_fkey';
+            columns: ['fidelity_id'];
+            isOneToOne: false;
+            referencedRelation: 'twin_fidelity';
             referencedColumns: ['id'];
           },
           {
@@ -3707,6 +3738,65 @@ export interface Database {
             foreignKeyName: 'subscriptions_organisation_id_fkey';
             columns: ['organisation_id'];
             isOneToOne: true;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      twin_fidelity: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          status: Enums['fidelity_status'];
+          months_available: number;
+          months_required: number;
+          score: number | null;
+          metric: string | null;
+          method: string | null;
+          error_pct: number | null;
+          sample_size: number | null;
+          reason: string | null;
+          measured_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          status: Enums['fidelity_status'];
+          months_available: number;
+          months_required?: number;
+          score?: number | null;
+          metric?: string | null;
+          method?: string | null;
+          error_pct?: number | null;
+          sample_size?: number | null;
+          reason?: string | null;
+          measured_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          status?: Enums['fidelity_status'];
+          months_available?: number;
+          months_required?: number;
+          score?: number | null;
+          metric?: string | null;
+          method?: string | null;
+          error_pct?: number | null;
+          sample_size?: number | null;
+          reason?: string | null;
+          measured_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'twin_fidelity_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
             referencedRelation: 'organisations';
             referencedColumns: ['id'];
           },
