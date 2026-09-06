@@ -124,13 +124,32 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // Centre rendered entirely empty and conclude the platform had lost their
   // business.
   //
-  // Read from the token rather than by asking the auth server: middleware runs
-  // on every request, and a round trip here would be a round trip on every
-  // asset that is not excluded by the matcher. The claim is signed, so a
-  // forged one fails at the database anyway.
+  // Read the level from the token rather than by asking the auth server:
+  // middleware runs on every request, and a round trip here would be a round
+  // trip on every asset that is not excluded by the matcher. The claim is
+  // signed, so a forged one fails at the database anyway.
+  //
+  // The factors come from getUser() above rather than from the session, and
+  // the difference is not cosmetic. supabase-js emits an error-severity
+  // warning when anything reads `.user` off a getSession() result — that value
+  // is decoded from the cookie and was never revalidated, so the library
+  // refuses to vouch for it. Reading it here fired that warning on every
+  // non-public request: five identical lines in forty seconds of ordinary
+  // traffic, in a log where an error line should mean something.
+  //
+  // Nothing was ever exposed by it — the level is what gates this redirect,
+  // the database refuses the session regardless, and the redirect is a
+  // courtesy rather than the control. But getUser() has already been awaited
+  // thirty lines above, its result is revalidated against the auth server, and
+  // it carries the same factors. So this is one fewer call, from an
+  // authenticated source, and a log that no longer cries wolf.
+  //
+  // getSession() stays for the access token alone. That is a signed string
+  // rather than a claim about who the caller is, and reading it warns about
+  // nothing.
   if (data.user && !isPublic && pathname !== '/verify' && pathname !== '/') {
     const session = await supabase.auth.getSession().catch(() => null);
-    const claims = session?.data.session?.user.factors ?? [];
+    const claims = data.user.factors ?? [];
     const verified = claims.some((factor) => factor.status === 'verified');
     const aal = decodeAal(session?.data.session?.access_token);
 
