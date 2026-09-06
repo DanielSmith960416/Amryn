@@ -3802,6 +3802,139 @@ export interface Database {
           },
         ];
       };
+      twin_scenarios: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          name: string;
+          description: string | null;
+          demand_multiplier: number;
+          price_multiplier: number;
+          horizon_days: number;
+          is_baseline: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          name: string;
+          description?: string | null;
+          demand_multiplier?: number;
+          price_multiplier?: number;
+          horizon_days?: number;
+          is_baseline?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          name?: string;
+          description?: string | null;
+          demand_multiplier?: number;
+          price_multiplier?: number;
+          horizon_days?: number;
+          is_baseline?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'twin_scenarios_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'twin_scenarios_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: true;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      twin_simulations: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          scenario_id: string;
+          fidelity_id: string;
+          seed: number;
+          iterations: number;
+          horizon_days: number;
+          revenue_p10_cents: number;
+          revenue_p50_cents: number;
+          revenue_p90_cents: number;
+          orders_per_day_p50: number | null;
+          assumptions: Json;
+          duration_ms: number | null;
+          ran_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          scenario_id: string;
+          fidelity_id: string;
+          seed: number;
+          iterations: number;
+          horizon_days: number;
+          revenue_p10_cents: number;
+          revenue_p50_cents: number;
+          revenue_p90_cents: number;
+          orders_per_day_p50?: number | null;
+          assumptions?: Json;
+          duration_ms?: number | null;
+          ran_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          scenario_id?: string;
+          fidelity_id?: string;
+          seed?: number;
+          iterations?: number;
+          horizon_days?: number;
+          revenue_p10_cents?: number;
+          revenue_p50_cents?: number;
+          revenue_p90_cents?: number;
+          orders_per_day_p50?: number | null;
+          assumptions?: Json;
+          duration_ms?: number | null;
+          ran_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'twin_simulations_fidelity_id_fkey';
+            columns: ['fidelity_id'];
+            isOneToOne: false;
+            referencedRelation: 'twin_fidelity';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'twin_simulations_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'twin_simulations_scenario_id_fkey';
+            columns: ['scenario_id'];
+            isOneToOne: false;
+            referencedRelation: 'twin_scenarios';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       user_profiles: {
         Row: {
           id: string;
