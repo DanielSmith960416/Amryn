@@ -1,8 +1,10 @@
 /**
  * The subpath the application is served from.
  *
- * `/app`, because the platform lives at amryn.ai/app: the marketing site holds
- * the root of the domain and Cloudflare routes /app/* to this server.
+ * Empty today: the platform is served from the root of its own host. It was
+ * `/app` while the plan was for one domain to hold a marketing site at the
+ * root and route /app/* to this server. That domain was never ours — see
+ * base-path.mjs — so the plan is dead rather than paused.
  *
  * The helper exists because Next only applies the prefix to `next/link` and
  * its own `_next/` assets. An unoptimised `next/image` renders as a plain

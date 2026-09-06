@@ -100,7 +100,7 @@ describe('supabaseConfigError', () => {
     withEnv({
       NEXT_PUBLIC_SUPABASE_URL: VALID_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: VALID_KEY,
-      NEXT_PUBLIC_SITE_URL: 'app.amryn.ai',
+      NEXT_PUBLIC_SITE_URL: 'app.example.com',
     });
     expect(supabaseConfigError()).toContain('NEXT_PUBLIC_SITE_URL');
   });
@@ -114,8 +114,8 @@ describe('siteUrl', () => {
   });
 
   it('uses the configured value when it is real', () => {
-    withEnv({ NEXT_PUBLIC_SITE_URL: 'https://app.amryn.ai' });
-    expect(siteUrl()).toBe('https://app.amryn.ai');
+    withEnv({ NEXT_PUBLIC_SITE_URL: 'https://app.example.com' });
+    expect(siteUrl()).toBe('https://app.example.com');
   });
 
   it('falls back to whatever the host calls itself', () => {
@@ -134,10 +134,10 @@ describe('siteUrl', () => {
 
   it('prefers the configured value over anything the host says', () => {
     withEnv({
-      NEXT_PUBLIC_SITE_URL: 'https://app.amryn.ai',
+      NEXT_PUBLIC_SITE_URL: 'https://app.example.com',
       RAILWAY_PUBLIC_DOMAIN: 'amryn-production.up.railway.app',
     });
-    expect(siteUrl()).toBe('https://app.amryn.ai');
+    expect(siteUrl()).toBe('https://app.example.com');
   });
 
   it('follows PORT locally, so a second dev server still gets working links', () => {

@@ -5,30 +5,32 @@
   'use strict';
 
   /* ══ Platform link ══════════════════════════════════════════
-     Where the Amryn software is deployed. Set this once, and every
-     [data-app-link] on the page is revealed and pointed at it.
-     Left empty, those links stay hidden — a marketing site with a
-     "Sign in" button that 404s is worse than one without.
+     Where the Amryn software is deployed.
 
-     The application is a Node server on Railway behind Cloudflare;
-     this site is the static half. Two hostnames on purpose: this
-     page must load fast for a stranger and be indexable, and the
-     application must never be either.
+     Set this once, and every [data-app-link] on the page is revealed
+     and pointed at it. Left empty, those links stay hidden — a
+     marketing site with a "Sign in" button that 404s is worse than one
+     without.
 
-     It was briefly set to app.amryn.ai, which is not registered — so
-     every Sign in button on a live page led to a DNS failure, which
-     is precisely the thing the paragraph above says not to do.
+     The application is a Node server on Railway; this site is the
+     static half on GitHub Pages. Two hosts on purpose: this page must
+     load fast for a stranger and be indexable, and the application
+     must never be either.
 
-     Now the Railway service answers, so this is its generated
-     hostname. Verified before setting it: /api/health/live returns
-     200 and the sign-in page renders its form rather than an
-     unconfigured notice. When amryn.ai is registered and pointed at
-     the same service, change this line to the custom domain — one
-     value, one place.                                           */
-  // Where the platform lives. The application is served from the root of the
-  // Railway host: the amryn.ai plan is on hold, because the domain's
-  // nameservers were never moved off the registrar and it resolves to a
-  // parking page.
+     ── on amryn.ai, which this file used to plan around ──────────
+     It is not ours and never was. WHOIS: registered to someone else
+     and listed for sale, its nameservers are Namecheap's, and the page
+     it serves is that owner's parking lander. Earlier notes here and
+     in base-path.mjs said the plan was "on hold because the
+     nameservers were never moved off the registrar", which reads as a
+     domain we hold and have misconfigured. That was wrong, and it cost
+     a day of basePath work in #56 building toward a hostname that
+     could never have answered.
+
+     No domain is registered for Amryn yet. When one is, change this
+     line and MARKETING_SITE_URL in src/lib/marketing-site.ts — the
+     two constants that name each half to the other — and nothing
+     else.                                                        */
   var APP_URL = 'https://amryn-production.up.railway.app';
 
   (function wireAppLinks() {
