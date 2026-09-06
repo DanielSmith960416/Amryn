@@ -13,12 +13,21 @@
  */
 import { pruneRateLimits } from './handlers/prune-rate-limits';
 import { measureTwinFidelity } from './handlers/measure-fidelity';
+import { nightlyTwinTick } from './handlers/nightly-twin';
 import { runAnalysis } from './handlers/run-analysis';
+import { simulateTwin } from './handlers/simulate-twin';
 import { sweepJobs } from './handlers/sweep-jobs';
 import type { JobHandler } from './types';
 import type { Schedule } from './schedule';
 
-const HANDLERS: readonly JobHandler[] = [pruneRateLimits, sweepJobs, runAnalysis, measureTwinFidelity];
+const HANDLERS: readonly JobHandler[] = [
+  pruneRateLimits,
+  sweepJobs,
+  runAnalysis,
+  measureTwinFidelity,
+  nightlyTwinTick,
+  simulateTwin,
+];
 
 const BY_KIND = new Map(HANDLERS.map((handler) => [handler.kind, handler]));
 
@@ -56,5 +65,25 @@ export const PLATFORM_SCHEDULES: readonly Schedule[] = [
     // competing with everything else that finds midnight attractive.
     cadence: { dailyAtUtc: '01:15' },
     priority: 20,
+  },
+  {
+    /*
+     * The Twin's nightly tick.
+     *
+     * 02:30 UTC is half past four in the morning in Johannesburg — after the
+     * sweep at 01:15 has tidied the queue, and long before anybody opens the
+     * product to read what it found.
+     *
+     * It carries no organisation because it does not know how many exist: the
+     * handler enumerates the tenants who opted in and fans out. That is why
+     * this one schedule is here rather than one per customer, and why adding a
+     * customer needs no change to this file.
+     */
+    name: 'twin-nightly',
+    kind: nightlyTwinTick.kind,
+    description: nightlyTwinTick.description,
+    cadence: { dailyAtUtc: '02:30' },
+    // Behind the housekeeping, ahead of nothing. It only enqueues.
+    priority: 30,
   },
 ];
