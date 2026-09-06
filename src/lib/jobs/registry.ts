@@ -12,11 +12,12 @@
  * avoids.
  */
 import { pruneRateLimits } from './handlers/prune-rate-limits';
+import { runAnalysis } from './handlers/run-analysis';
 import { sweepJobs } from './handlers/sweep-jobs';
 import type { JobHandler } from './types';
 import type { Schedule } from './schedule';
 
-const HANDLERS: readonly JobHandler[] = [pruneRateLimits, sweepJobs];
+const HANDLERS: readonly JobHandler[] = [pruneRateLimits, sweepJobs, runAnalysis];
 
 const BY_KIND = new Map(HANDLERS.map((handler) => [handler.kind, handler]));
 
