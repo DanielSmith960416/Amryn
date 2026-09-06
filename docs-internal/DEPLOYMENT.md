@@ -97,9 +97,18 @@ below asks for one line of output rather than a green tick.
 4. **Settings → Deploy → Health Check**: leave empty. There is no endpoint to
    check — the worker serves no HTTP at all, so a healthcheck could never pass
    and the deploy would be rolled back on a service that was working perfectly.
-5. **Settings → Deploy → Restart Policy**: `ALWAYS`, 10 retries. Three attempts
-   is right for a web server that fails to boot; for a process meant to run for
-   weeks, a database outage during a restart should not retire it permanently.
+5. **Settings → Deploy → Restart Policy**: `ON_FAILURE`, 10 retries.
+
+   Not `ALWAYS`, and this was learned the hard way on the first deploy. Railway
+   applies `restartPolicyMaxRetries` only to `ON_FAILURE`; under `ALWAYS` the
+   retry count is ignored entirely. The worker exits immediately when
+   `SUPABASE_DB_URL` is missing — correctly — so `ALWAYS` turned a missing
+   variable into a container restarting every 0.7 seconds indefinitely, on a
+   service billed by the second, with the same line filling the log.
+
+   A misconfiguration will never fix itself and should stop; a transient
+   database outage should be survived. Ten attempts under `ON_FAILURE` does
+   both, and setting the variable triggers a redeploy that starts it cleanly.
 6. **Settings → Networking**: no domain, no port. It serves nothing.
 7. Variables: **`SUPABASE_DB_URL`**, and nothing else. It holds a direct
    connection rather than a session, so none of the `NEXT_PUBLIC_*` settings
