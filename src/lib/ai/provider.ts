@@ -15,6 +15,7 @@ import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { aiConfig, type AiConfig } from '@/lib/env';
+import { AiResponseError, AiUnavailableError } from './errors';
 
 export interface CompletionMessage {
   role: 'system' | 'user' | 'assistant';
@@ -36,23 +37,10 @@ export interface CompletionResult {
   fromModel: boolean;
 }
 
-export class AiUnavailableError extends Error {
-  constructor(message = 'No AI provider is configured') {
-    super(message);
-    this.name = 'AiUnavailableError';
-  }
-}
-
-/** Raised when a model returns something that is not the shape we asked for. */
-export class AiResponseError extends Error {
-  readonly raw: string;
-
-  constructor(message: string, raw: string) {
-    super(message);
-    this.name = 'AiResponseError';
-    this.raw = raw;
-  }
-}
+// Defined in errors.ts so the worker can catch them without importing this
+// file, which carries `server-only`. Re-exported so every existing caller
+// keeps working — see errors.ts for why the split exists.
+export { AiResponseError, AiUnavailableError } from './errors';
 
 export function isAiEnabled(): boolean {
   return aiConfig().provider !== 'none';

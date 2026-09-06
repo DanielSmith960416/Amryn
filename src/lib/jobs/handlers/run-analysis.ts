@@ -1,3 +1,5 @@
+import { AiUnavailableError } from '@/lib/ai/errors';
+import { researchMarket } from '@/lib/ai/market-research';
 import type { JobHandler } from '../types';
 
 /**
@@ -274,6 +276,12 @@ export const runAnalysis: JobHandler = {
       const declared = rows.flatMap((row) => row.gaps ?? []);
       const gaps = [...new Set([...declared, ...unanswered])].sort();
 
+      const named = await query<{ name: string }>(
+        `select name from public.organisations where id = $1`,
+        [job.organisationId],
+      );
+      const organisation = named[0]?.name ?? 'this business';
+
       // The gate, as it was frozen — not as the score reads now.
       const admitted = run.expansion_suppressed ? findings.filter((f) => !f.isExpansion) : findings;
       const suppressed = findings.length - admitted.length;
@@ -308,15 +316,93 @@ export const runAnalysis: JobHandler = {
         written += 1;
       }
 
+      // ── outside the business ────────────────────────────────────────────
+      //
+      // Behind its own flag, because this is the only part of the reading that
+      // spends money and the only part that writes a claim about the world.
+      // Off is the state to start in, and its absence is recorded rather than
+      // left as a silently empty radar.
+      const radarOn = await query<{ on: boolean }>(
+        `select amryn.feature_enabled($1, 'external_radar') as on`,
+        [job.organisationId],
+      );
+
+      let signalsWritten = 0;
+      let signalsRejected = 0;
+
+      if (!radarOn[0]?.on) {
+        gaps.push('external_market_research_is_off');
+      } else if (!(await keepAlive())) {
+        log('lease lapsed before the market search; another worker has it');
+        return { abandoned: true };
+      } else {
+        try {
+          const identity = new Map(answers);
+          const research = await researchMarket({
+            organisationName: organisation,
+            industry: identity.get('industry'),
+            city: identity.get('primaryCity'),
+            whatTheySell: identity.get('whatYouSell'),
+            competitors: identity.get('competitors'),
+            sectorScope: identity.get('sectorScope'),
+          });
+
+          signalsRejected = research.rejected.length;
+
+          for (const signal of research.kept) {
+            await query(
+              `insert into public.market_signals
+                 (organisation_id, kind, sector, title, summary, detail,
+                  keywords, entities, source_url, sourced_from, confidence)
+               values ($1,'market'::public.signal_kind,'unknown'::public.market_sector,
+                       $2,$3,$4,$5,$6,$7,$8,0.5)`,
+              [
+                job.organisationId,
+                signal.title,
+                signal.summary,
+                signal.detail ?? null,
+                signal.keywords ?? [],
+                signal.entities ?? [],
+                signal.sourceUrl || null,
+                signal.sourcedFrom ?? null,
+              ],
+            );
+            signalsWritten += 1;
+          }
+
+          // Rejections are worth surfacing rather than burying. A search that
+          // returned six signals and admitted none is telling you the model
+          // filled a silence, and that is a different state from a quiet
+          // market.
+          if (research.kept.length === 0) gaps.push('no_external_signal_survived_attribution');
+          log(
+            `market search: ${research.searchesRun} searches, ` +
+              `${research.kept.length} admitted, ${signalsRejected} rejected` +
+              `${signalsRejected ? ` (${research.rejected.map((r) => r.reason).join(', ')})` : ''}`,
+          );
+        } catch (error) {
+          // No model configured, or the provider has no server-side search.
+          // An analysis that cannot reach the outside world is still a valid
+          // reading of the inside, so this is a gap rather than a failure.
+          if (error instanceof AiUnavailableError) {
+            gaps.push('external_market_research_unavailable');
+            log('market search skipped: no model configured for it');
+          } else {
+            throw error;
+          }
+        }
+      }
+
       await query(
         `update public.analysis_runs
             set status = 'succeeded',
                 finished_at = now(),
                 duration_ms = $2,
                 insight_count = $3,
-                gaps = $4::jsonb
+                gaps = $4::jsonb,
+                opportunity_count = $5
           where id = $1`,
-        [runId, Date.now() - startedAt, written, JSON.stringify(gaps)],
+        [runId, Date.now() - startedAt, written, JSON.stringify(gaps), signalsWritten],
       );
 
       log(
@@ -328,6 +414,8 @@ export const runAnalysis: JobHandler = {
 
       return {
         insights: written,
+        signals: signalsWritten,
+        signalsRejected,
         suppressed,
         gaps,
         provisional: run.is_provisional,
