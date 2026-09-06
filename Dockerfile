@@ -55,6 +55,12 @@ COPY . .
 
 RUN npm run build
 
+# The worker, bundled into one file. Separate from the Next build because it is
+# a different program with a different entry point — same repository, same
+# handlers, same engines, started with a different command. See
+# scripts/build-worker.mjs for why it is bundled rather than compiled in place.
+RUN npm run build:worker
+
 # ── run ───────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -86,6 +92,16 @@ COPY --from=build --chown=nextjs:nodejs /app/public ./public
 # copy of npm's job that goes stale the first time one of them is renamed.
 COPY --from=build --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=build --chown=nextjs:nodejs /app/supabase/migrations ./supabase/migrations
+
+# The worker. One file, and it resolves `pg` from the standalone tree above for
+# the same reason migrate.mjs does — the application imports it, so tracing has
+# already put it there.
+#
+# This image is both programs. Which one a container runs is the start command:
+# the web service keeps the default below, and the worker service overrides it
+# with `node dist/worker.mjs`. Building them as one image is what stops the
+# worker running yesterday's handlers against today's schema.
+COPY --from=build --chown=nextjs:nodejs /app/dist ./dist
 
 USER nextjs
 EXPOSE 3000

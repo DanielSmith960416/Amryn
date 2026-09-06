@@ -48,6 +48,18 @@ begin
   perform set_config('request.jwt.claim.sub', uid::text, true);
 end $$;
 
+-- Did it actually run? Used below for the two statements whose failure mode is
+-- a refusal rather than a wrong answer.
+create or replace function pg_temp.succeeds(stmt text) returns boolean
+language plpgsql as $$
+begin
+  execute stmt;
+  return true;
+exception when others then
+  raise notice 'statement failed: %', sqlerrm;
+  return false;
+end $$;
+
 -- ── take the superuser exemption away ────────────────────────────────────
 --
 -- The owner of the tables and of the SECURITY DEFINER functions becomes a
@@ -171,5 +183,55 @@ select pg_temp.check(
   (select count(*) from public.user_profiles
     where id = 'c1111111-1111-4111-8111-111111111111') = 1,
   'ensure_user_profile() works without a superuser exemption');
+
+-- ── the worker, under the same role the hosted one will run as ───────────
+--
+-- This is the assertion this file exists for, applied to migration 23. The
+-- worker is the first thing in the platform that writes to a table it does
+-- not reach through PostgREST: it holds a direct connection and calls the
+-- definer functions as the owner. job_runs both enables and FORCEs row level
+-- security and has no write policy at all, so if the hosted owner were subject
+-- to that the worker would claim nothing, silently, for ever — every job would
+-- sit queued and every screen would look fine.
+--
+-- BYPASSRLS is what makes it work, and asserting it here is what stops the
+-- next person removing that attribute from the model on the grounds that it
+-- looks like an over-permission.
+set local role amryn_hosted_owner;
+
+select pg_temp.check(
+  (select count(*) from public.feature_flags where key = 'background_jobs') = 1,
+  'the flag catalogue seeded under a non-superuser owner, past FORCE and no insert policy');
+
+-- A catalogue that can be read but never added to would fail the first time a
+-- later migration registered a flag — which is exactly how migration 06 broke.
+select pg_temp.check(
+  pg_temp.succeeds($$
+    insert into public.feature_flags (key, name, description)
+    values ('probe_flag', 'Probe', 'Registered by test 17 and rolled back with it.')
+  $$),
+  'and a later migration could register another one');
+
+insert into public.job_runs (kind) values ('rate_limits.prune')
+returning id as hosted_job \gset
+
+select pg_temp.check(
+  (select id from amryn.claim_jobs('hosted-worker', 1)) = :'hosted_job',
+  'the worker claims a job as the hosted owner would, past FORCE and no write policy');
+
+select pg_temp.check(
+  amryn.heartbeat_job(:'hosted_job', 'hosted-worker') = true,
+  'and can extend its lease');
+
+select pg_temp.check(
+  (select status from amryn.complete_job(:'hosted_job', '{"removed": 0}'::jsonb)) = 'succeeded',
+  'and can close it');
+
+-- The sweep runs on the same connection and must not need anything more.
+select pg_temp.check(
+  amryn.sweep_jobs(interval '30 days') ? 'removed',
+  'and can sweep');
+
+reset role;
 
 rollback;

@@ -276,6 +276,87 @@ the obvious fix, this is why not — and the test that would catch the damage is
 The sibling finding in the same scan, `unindexed_foreign_keys`, was acted on in
 full: see migration 22 and test 23.
 
+## 4b. The queue, and the decisions inside it
+
+Everything the platform computed, it computed inside the request that rendered
+it. That is right for a health score over twelve rows and impossible for what
+comes next: an analysis measured in minutes, a simulation run five hundred
+times, a brief that has to be written at six whether or not anybody opens a
+page. Migration 23 is the queue those need. Four decisions in it are worth
+keeping.
+
+**The queue is in PostgreSQL, not in a broker.** A broker is a second store
+that can disagree with the first. The thing a job is *about* — the
+organisation, the figures, the row it will write — is in this database, and a
+job acknowledged by a broker whose transaction then rolled back is a job that
+will run against a state that never existed. Keeping the queue here makes
+enqueueing and the change that justified it one transaction. `for update skip
+locked` is the primitive a broker would be reimplementing, and it has been in
+PostgreSQL since 9.5.
+
+**Attempts are counted when a job is claimed, not when it fails.** The
+intuitive version counts failures, and it has a hole exactly where it matters:
+a job that reliably kills the worker process never records anything, so it is
+picked up again by whichever worker starts next, for ever. Counting the start
+means a crash costs an attempt, which is the only version that terminates.
+
+**A dead worker is recovered by a lease, not by a reaper.** A worker that is
+killed cannot tell anybody. Rather than a process whose job is to notice —
+which is itself a process that can be dead — a claimed job carries an expiry,
+and a job whose expiry has passed is claimable again on the same terms as a new
+one. There is nothing to keep alive for the system to heal, and nothing to
+elect.
+
+**Flags are rows, and off is the absence of one.** `AMRYN_ENABLE_EXTERNAL_RADAR`
+sat in `.env.example` and in the environment inventory for months. Nothing read
+it. It survived because the test that checks for settings nothing reads
+exempted it *by name*, with a comment explaining that it was read "by the
+deployment rather than by the code" — a sentence that was simply not true and
+that nobody had reason to check. It was the wrong shape as well as dead: one
+value for the whole deployment, when what a rollout needs is switching
+behaviour on for one organisation at a time.
+
+Both are fixed. Flags are `public.feature_flags` and
+`public.organisation_feature_flags`, where a flag with no row is off — there is
+no way to write a default of true, which is the point — and the exemption list
+in the inventory test is now empty. An exemption there is a claim to check
+rather than a note to keep.
+
+## 4c. A backup rule that is enforced rather than written down
+
+This project is on Supabase's free plan. There are no automatic backups and no
+point-in-time recovery, so "restore from the backup" currently describes
+something that does not exist. The brief for the next phases requires a backup
+before any migration touching existing client records, and a requirement of
+that kind kept in a document is a requirement that is met until the evening it
+is not.
+
+So `scripts/migrate.mjs` refuses. It reads each pending migration and, if one
+updates, deletes, drops or retypes, will not proceed without a manifest from
+`scripts/backup.mjs` that is recent, intact and from the same database.
+
+Three things about how it decides, each of which was wrong first:
+
+- **It reads the SQL rather than trusting a marker.** A convention like
+  `-- requires-backup` puts the classification in the hands of whoever writes
+  the migration, and the migration where somebody forgets is exactly the one
+  that needed it.
+- **It strips comments and function bodies before deciding.** Defining a
+  function that will one day delete something is not deleting something now.
+  Without stripping, almost every migration in this repository reads as
+  destructive — `prune_rate_limits()` deletes and `sweep_jobs()` deletes — and
+  a check that fires on everything is a check that gets worked around.
+- **There is no escape hatch, and it lifts itself instead.** A database with no
+  organisations in it has no client records to lose, so the requirement does not
+  apply. Making a fresh install take a backup of nothing would teach everybody
+  that the step is theatre, and the next person would go looking for the flag
+  that skips it.
+
+The manifest identifies the database by a hash of its host and name, not of the
+connection string. Hashing the string folds the password in, so rotating the
+password would invalidate every backup ever taken and the guard would refuse a
+good one with a message about the wrong database.
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.

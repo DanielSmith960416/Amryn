@@ -36,3 +36,6 @@ next-env.d.ts.timestamp
 /.tmp*
 /.*.mjs
 /.*.sh
+
+# The bundled worker, built by scripts/build-worker.mjs.
+dist/

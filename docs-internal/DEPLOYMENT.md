@@ -71,6 +71,55 @@ both would compromise each.
 > enough**, on any host, and changing one later is a restart rather than a
 > rebuild. Passing them as `--build-arg` still works and is no longer required.
 
+## 2b. The worker
+
+A second Railway service, from the same repository and the same image, started
+with a different command. It is what runs work that does not fit inside an HTTP
+request: the hourly prune and the nightly sweep today, and the analysis, the
+simulation and the daily brief in the phases after this one.
+
+**Without it the platform works and nothing scheduled ever happens.** Jobs
+queue and wait. That is a failure with no symptom on any page, which is why
+`supabase/tests/verify-remote.sql` checks the queue exists and why the checklist
+below asks for one line of output rather than a green tick.
+
+1. In the same Railway project: **New → GitHub Repo**, the same repository.
+2. **Settings → Deploy → Custom Start Command**: `node dist/worker.mjs`
+3. **Settings → Networking**: no domain, no port. It serves nothing.
+4. **Settings → Health Check**: none. There is no endpoint to check — it is not
+   a server.
+5. Variables: `SUPABASE_DB_URL`, and nothing else it does not share with the
+   web service. It holds a direct connection rather than a session, so none of
+   the `NEXT_PUBLIC_*` settings apply to it.
+6. Confirm it can actually reach the database and claim:
+
+   ```
+   railway run node dist/worker.mjs --once
+   ```
+
+   One pass, then it exits. It should name the handlers it knows and either run
+   something or say there was nothing to run.
+
+Running more than one worker is safe. They never take the same job — the claim
+is a single statement using `for update skip locked` — and a worker that is
+killed has its work returned automatically when the lease it was holding
+lapses. There is no leader, no lock and no reaper process to keep alive.
+
+**Which organisations it works for.** A job with no organisation is platform
+housekeeping and always runs. A job belonging to a customer runs only if that
+organisation has the `background_jobs` flag switched on, which nothing is by
+default:
+
+```sql
+insert into public.organisation_feature_flags (organisation_id, flag_key, enabled, enabled_at, note)
+values ('<organisation-id>', 'background_jobs', true, now(), 'why this one first')
+on conflict (organisation_id, flag_key) do update
+  set enabled = excluded.enabled, enabled_at = now(), note = excluded.note;
+```
+
+Switching it off does not discard anything: the jobs stay queued, and switching
+it back on runs the backlog.
+
 ## 3. Cloudflare
 
 DNS, on the `amryn.ai` zone:
@@ -168,6 +217,7 @@ every signed-in role.
 - [ ] Supabase project created, schema applied, `/setup` reports every check green
 - [ ] Authentication URLs point at `https://app.amryn.ai`
 - [ ] Railway service deployed, `/api/health/live` returns 200, and `/api/health` reaches 200 once Supabase is configured
+- [ ] Worker service deployed with start command `node dist/worker.mjs`, and `railway run node dist/worker.mjs --once` claims and runs something
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)
 - [ ] `www.amryn.ai` serves the marketing site
@@ -178,6 +228,7 @@ every signed-in role.
 - [ ] The Vercel GitHub integration is disconnected (see below)
 - [ ] The exposed OpenAI key from the earlier deployment has been revoked
 - [ ] The `[BRACKETED]` placeholders in `src/lib/legal/documents.ts` are filled in and an Information Officer is registered with the Information Regulator
+- [ ] A backup has been taken and restored once into a scratch database, so the file is known to be a backup rather than assumed to be one
 
 ## Disconnecting Vercel
 
@@ -207,9 +258,42 @@ workaround rather than a disconnection — it leaves a Vercel configuration file
 in a project that deliberately has none — and it is not committed here because
 there is no way to test it from this side. The two steps above are the answer.
 
+## Backups
+
+**There are none, other than the ones you take.** This project is on Supabase's
+free plan: no automatic backups, no point-in-time recovery. That is worth
+saying plainly rather than discovering during an incident, because "restore
+from the backup" otherwise describes something that does not exist.
+
+Most migrations here cannot lose anything — they add a table, a column, an
+index, a policy. Two of the twenty-three rewrite existing rows, and those are
+the ones this is about.
+
+```
+node scripts/backup.mjs                          # from a machine that keeps its files
+node scripts/migrate.mjs --backup <manifest>     # apply, with that backup to hand
+```
+
+`backup.mjs` needs `pg_dump` at least as new as the server (PostgreSQL 17), and
+must **not** be run inside the deployment container: that filesystem is
+discarded with the container, so a dump written there exists for exactly as
+long as it is useless. It verifies the dump is complete rather than merely
+present, records a checksum, and prints the row counts it captured.
+
+The rule is enforced, not documented. `migrate.mjs` reads each pending
+migration and refuses to apply one that updates, deletes, drops or retypes
+unless `--backup` names a manifest that is recent, intact, and from this same
+database. There is deliberately no way to skip it — the requirement lifts
+itself when the database has no organisations in it, because then there is
+nothing to lose.
+
 ## Rolling back
 
 Railway keeps previous deployments; redeploy one from the service's history.
 Nothing in the application writes a schema change on start, so rolling the
 application back does not roll the database back — and must not be relied on
 to. A migration that has to be undone needs a migration that undoes it.
+
+Roll the worker back with the web service, not separately. They are one image
+on purpose: a worker running last week's handlers against this week's schema is
+the failure mode that makes an incident hard to read.

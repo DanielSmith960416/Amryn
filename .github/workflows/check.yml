@@ -53,6 +53,23 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The worker is a second program from the same source, and it is built
+      # here for the same reason the image is: so that a handler that stops
+      # compiling, or one that reaches for `server-only` and could never run
+      # outside a request, fails in a pull request rather than at three in the
+      # morning on a queue nobody is watching.
+      - name: Build the worker
+        run: npm run build:worker
+
+      # Anything in .next/static or a prerendered document is served to every
+      # visitor. The service role key bypasses every row level security policy
+      # in the database, and it is a JWT signed with the same secret as the
+      # anon key that legitimately ships in the bundle — so the check that
+      # matters reads the claim rather than the shape. See the script's header
+      # for what each check is worth and what was measured to find out.
+      - name: Confirm no secret reached the browser bundle
+        run: npm run check:secrets
+
       # The build above runs with no NEXT_PUBLIC_* set, exactly as the
       # Dockerfile permits. That is what makes this check meaningful: a page
       # prerendered under those conditions writes no settings into the
