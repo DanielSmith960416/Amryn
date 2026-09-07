@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Badge, BRANCH_TONE, HEALTH_TONE } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Stat, StatGrid } from '@/components/ui/stat';
@@ -50,9 +52,14 @@ export default async function DigitalTwinPage() {
         }
         description="A continuously updated model of the business itself — what it earns, who it keeps, and what changed."
         actions={
-          <Badge tone={HEALTH_TONE[w.health.status]}>
-            {score(w.health.overall)}/100 — {w.health.status}
-          </Badge>
+          <>
+            <Button asChild variant="secondary">
+              <Link href="/digital-twin/scenarios">Scenarios</Link>
+            </Button>
+            <Badge tone={HEALTH_TONE[w.health.status]}>
+              {score(w.health.overall)}/100 — {w.health.status}
+            </Badge>
+          </>
         }
       />
 
