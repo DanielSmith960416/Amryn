@@ -639,6 +639,78 @@ written where somebody can argue with it.
 
 ---
 
+## 4k. A brief that cites, and two things running it taught us
+
+The requirement was "every item traceable to its source record". That is the
+whole difference between a brief and a newsletter, so it is two `not null`
+columns — `source_table` and `source_id` — rather than a convention. An item
+that cannot name the row it came from cannot be written. The citation is also
+printed on the page and in the email rather than hidden behind a hover: a
+source you have to reach for is a source nobody checks, and an unread citation
+is the same as none.
+
+"Maximum five, ranked by impact" is `rank between 1 and 5` plus a uniqueness
+constraint per brief. Together they make six items impossible rather than
+discouraged. A brief that quietly grew to eleven on a bad week is one nobody
+finishes reading.
+
+### Why this is not a second brief beside the existing one
+
+The brief said to extend a reporting feature rather than build one next to it.
+The executive summary on the Command Centre stays exactly as it is: it is
+computed live from the workspace as it stands at the moment somebody opens the
+page. This is a different object — dated, stored, cited, and delivered. Merging
+them would mean losing whichever property the survivor did not keep, and the
+live summary's value is that it is never stale while the brief's is that it is
+never rewritten.
+
+### Two things only running it against a real database revealed
+
+Both handlers were correct in every unit test and wrong against Postgres.
+
+The first: the driver returns `timestamptz` as a `Date`, not a string. The
+handler called `.slice(0, 10)` on `ran_at` to get the day, which type-checked
+because the row interface said `string` — a claim about the database that
+nothing verified. It would have thrown on the first brief ever composed. The
+fix is `ran_at::text` in the query, which is what the other date columns in
+that file already did.
+
+The second was not a crash. The trajectory item's impact was the shortfall to
+target, and it ranked first every morning: a whole year's gap is a bigger
+number than any single day's variance can be, so "you are 62% of the way to
+your annual goal" led the brief on the day a competitor opened four kilometres
+away. Two incomparable things had been put on one scale. A shortfall is a
+standing position and everything else in the brief is a change, so trajectory
+now carries no monetary impact and ranks on its section weight — which puts
+"am I still on course" at the bottom of a Tuesday, where it belongs.
+
+Neither was findable without executing the handlers. The harness that found
+them is the same approach used on the Twin in #72, and the score is now four
+bugs it has caught that a passing suite did not.
+
+### Mail, and a module split
+
+`src/lib/email/smtp.ts` became a re-export of `transport.ts`, which is the same
+code without `import 'server-only'`. The worker has to email a brief, and that
+marker — which exists for the React bundler, not as a runtime protection —
+makes the worker build refuse the file by design. Same split as the AI error
+types in #70, for the same reason. Every existing caller still imports the
+guarded module and is guarded exactly as before, and the CI bundle scan still
+fails the build if an SMTP value reaches client output.
+
+Recipients are resolved through the permission catalogue rather than by naming
+roles, and the resolution is spelled out in SQL rather than calling
+`amryn.has_permission()`: that function answers for the *current session's*
+user through `auth.uid()`, and the worker has no session, so it would answer
+for nobody.
+
+SMTP is configured on the web service and not on the worker, so the brief
+records `email_skipped` and is in-app only until the same five variables are
+set on the worker service. That is a fact on the row rather than a silence,
+because "emailed" and "we never tried" are different things.
+
+---
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.

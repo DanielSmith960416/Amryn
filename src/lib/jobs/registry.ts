@@ -11,8 +11,10 @@
  * healthy while nothing is capable of running it is the failure mode this
  * avoids.
  */
+import { composeBrief } from './handlers/compose-brief';
 import { pruneRateLimits } from './handlers/prune-rate-limits';
 import { measureTwinFidelity } from './handlers/measure-fidelity';
+import { nightlyBriefTick } from './handlers/nightly-brief';
 import { nightlyTwinTick } from './handlers/nightly-twin';
 import { runAnalysis } from './handlers/run-analysis';
 import { simulateTwin } from './handlers/simulate-twin';
@@ -27,6 +29,8 @@ const HANDLERS: readonly JobHandler[] = [
   measureTwinFidelity,
   nightlyTwinTick,
   simulateTwin,
+  nightlyBriefTick,
+  composeBrief,
 ];
 
 const BY_KIND = new Map(HANDLERS.map((handler) => [handler.kind, handler]));
@@ -84,6 +88,27 @@ export const PLATFORM_SCHEDULES: readonly Schedule[] = [
     description: nightlyTwinTick.description,
     cadence: { dailyAtUtc: '02:30' },
     // Behind the housekeeping, ahead of nothing. It only enqueues.
+    priority: 30,
+  },
+  {
+    /*
+     * The morning brief's tick.
+     *
+     * 03:30 UTC — half past five in Johannesburg, an hour after the Twin's
+     * nightly run. The order matters and is not incidental: the brief's first
+     * section compares yesterday against what the Twin predicted, and a brief
+     * composed before the night's simulation would compare it against the
+     * night before's. Reading yesterday against a prediction made two days ago
+     * is not wrong so much as quietly stale, which is worse.
+     *
+     * An hour is slack rather than synchronisation. If the Twin has not
+     * finished, the brief cites the most recent run it can see and says which
+     * day that run was made on.
+     */
+    name: 'brief-nightly',
+    kind: nightlyBriefTick.kind,
+    description: nightlyBriefTick.description,
+    cadence: { dailyAtUtc: '03:30' },
     priority: 30,
   },
 ];

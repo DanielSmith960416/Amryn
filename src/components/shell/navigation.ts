@@ -62,6 +62,12 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'view_goals',
         hint: 'Organisational memory',
       },
+      {
+        label: 'Morning Brief',
+        href: '/brief',
+        permission: 'view_intelligence',
+        hint: 'Five things, every morning',
+      },
       { label: 'Alerts', href: '/alerts', permission: 'view_alerts', hint: 'What changed, and when' },
     ],
   },
