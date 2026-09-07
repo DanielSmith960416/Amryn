@@ -76,6 +76,12 @@ export const NAV_GROUPS: NavGroup[] = [
         hint: 'The business, modelled',
       },
       {
+        label: 'Scenarios',
+        href: '/digital-twin/scenarios',
+        permission: 'view_intelligence',
+        hint: 'What if, answered as a range',
+      },
+      {
         label: 'OpportunityRadar',
         href: '/opportunity-radar',
         permission: 'view_opportunities',

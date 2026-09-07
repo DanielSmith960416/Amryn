@@ -4149,6 +4149,13 @@ export interface Database {
         };
         Returns: undefined;
       };
+      request_simulation: {
+        Args: {
+          p_organisation: string;
+          p_scenario: string;
+        };
+        Returns: Json;
+      };
       request_subscription: {
         Args: {
           p_plan: string;

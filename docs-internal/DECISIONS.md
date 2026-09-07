@@ -597,6 +597,48 @@ rejected counts before turning it on for a second organisation.
 
 ---
 
+## 4j. A second door into the queue, and why there is not a third
+
+`job_runs` has no write policy, and adding one was the obvious way to let
+somebody press "Run". It was rejected. A queue a browser can insert into
+directly is a queue anybody can fill with work of any kind, at any priority,
+for any tenant they can name — and the row-level check would have to
+re-implement every rule about what a job may be, expressed in a policy, where
+it cannot be read beside the rules it enforces.
+
+So `public.request_simulation` is the second and last thing in this schema that
+may put work in the queue on a person's behalf. Like `complete_imprint` it is
+`security definer`, it knows exactly which two kinds of job it is allowed to
+queue, and it grants nothing else. The permission, the feature switch, whose
+scenario it is, and whether one is already running are all checked there rather
+than in the server action, because a rule in an action holds only for callers
+who came through the action.
+
+Three details worth keeping:
+
+- **It queues the fidelity measurement on the nightly tick's own key.** The two
+  therefore share one measurement per organisation per day instead of racing.
+  If this call is what started the measurement, the simulation waits ninety
+  seconds; if today's was already taken, it starts now. The wait is slack, not
+  synchronisation — a simulation that arrives too early refuses by name and
+  nothing is lost.
+- **`singleton_key`, not `dedupe_key`.** The nightly tick wants one run per
+  scenario per night, ever. A person editing a multiplier and asking again is
+  not a duplicate, so the manual path allows one run in flight at a time and
+  the next the moment it lands.
+- **The seed is still fixed per scenario per day.** Asking twice on one day
+  gives the same answer unless a lever moved, which is deliberate: it makes the
+  difference between two runs the lever rather than the dice. The studio says
+  so on the result, because otherwise it reads as a stuck page.
+
+The multiplier ceiling of ten is in the server action rather than the database,
+and it is a judgement rather than a constraint — past about ten times, "nothing
+outside the business changes" is a fiction rather than a simplification, which
+is the same reasoning migration 29 used for the three-year horizon. It is
+written where somebody can argue with it.
+
+---
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.

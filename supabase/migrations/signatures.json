@@ -27,5 +27,6 @@
   "20260906180000_26_analysis_runs.sql": "to_regclass('public.analysis_runs') is not null",
   "20260906200000_27_external_radar_flag.sql": "exists (select 1 from public.feature_flags where key = 'external_radar')",
   "20260906220000_28_twin_fidelity.sql": "to_regclass('public.twin_fidelity') is not null",
-  "20260907090000_29_twin_scenarios.sql": "to_regclass('public.twin_simulations') is not null"
+  "20260907090000_29_twin_scenarios.sql": "to_regclass('public.twin_simulations') is not null",
+  "20260907140000_30_request_simulation.sql": "to_regprocedure('public.request_simulation(uuid, uuid)') is not null"
 }

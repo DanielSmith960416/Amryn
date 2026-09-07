@@ -45,6 +45,9 @@ export type SecurityEvent =
   | 'imprint.started'
   | 'imprint.layer_completed'
   | 'imprint.completed'
+  | 'twin.scenario_saved'
+  | 'twin.scenario_removed'
+  | 'twin.simulation_requested'
   | 'stocktake.imported';
 
 /**
