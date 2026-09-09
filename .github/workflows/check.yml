@@ -61,6 +61,17 @@ jobs:
       - name: Build the worker
         run: npm run build:worker
 
+      # Building the worker proves it compiles; it does not prove it starts.
+      # A package left external is one esbuild deliberately does not bundle,
+      # and whether it resolves is decided on the machine that runs the file.
+      # nodemailer was marked external on the reasoning that Next's tracing
+      # would place it in .next/standalone the way it does for pg. It had not,
+      # and the worker crashlooped on its first boot after deploy — the whole
+      # queue down, not just the mail. This is that failure, moved into a pull
+      # request.
+      - name: Confirm the worker's externals resolve where it runs
+        run: npm run check:worker
+
       # Anything in .next/static or a prerendered document is served to every
       # visitor. The service role key bypasses every row level security policy
       # in the database, and it is a JWT signed with the same secret as the
