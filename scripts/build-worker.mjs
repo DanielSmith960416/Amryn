@@ -18,10 +18,19 @@
  * which the standalone build already contains because the application imports
  * it too.
  *
- * `nodemailer` stays external for the same reason and by the same argument: it
- * resolves transports and DNS lookups through conditional requires, and the
- * application imports it to send invitations, so Next's tracing has already
- * put it in the standalone tree the worker runs beside.
+ * `nodemailer` is bundled rather than external, and that is the opposite of
+ * what was tried first. The reasoning that failed went: the application
+ * imports it to send invitations, so tracing will have put it in the
+ * standalone tree exactly as it does for `pg`. It had not, and the worker
+ * crashlooped in production with ERR_MODULE_NOT_FOUND on its first boot after
+ * deploy — the whole queue stopped, not just the mail.
+ *
+ * The difference is that `pg` is imported by pages the tracer walks, while
+ * nodemailer is reached only through a server action, and what the tracer puts
+ * in .next/standalone is not something to reason about from the outside. So it
+ * is bundled: it has no runtime dependencies of its own, and the only
+ * conditional requires it makes are for Node builtins, which resolve wherever
+ * the file runs.
  *
  *   node scripts/build-worker.mjs
  */
@@ -44,7 +53,7 @@ const result = await build({
   // someone diagnosing a job at an unsociable hour, and the bytes saved buy
   // nothing when the file is never sent over a network.
   minify: false,
-  external: ['pg', 'nodemailer'],
+  external: ['pg'],
   // The alias tsconfig defines. esbuild does read tsconfig paths, but stating
   // it here means the build does not silently change if that file is
   // reorganised.
