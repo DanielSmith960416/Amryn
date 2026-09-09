@@ -293,6 +293,60 @@ export async function applySchema(): Promise<SetupResult> {
 }
 
 /**
+ * The freshest worker heartbeat, or null if none has ever been written.
+ *
+ * Read over the direct connection because the table has row-level security on
+ * with no policy at all — it is the platform's own plumbing, naming hosts and
+ * process ids, and no session should ever see it.
+ *
+ * Returns null on any failure rather than throwing. A diagnostics page that
+ * cannot render because one check could not connect is a page nobody can use
+ * during exactly the outage they opened it for.
+ */
+export async function readWorkerHeartbeat(): Promise<{
+  workerId: string;
+  lastSeenAt: string;
+  startedAt: string;
+  handlers: string[];
+  inFlight: number;
+  revision: string | null;
+} | null> {
+  let client: Client | undefined;
+  try {
+    client = await connect();
+    const { rows } = await client.query<{
+      worker_id: string;
+      last_seen_at: string;
+      started_at: string;
+      handlers: string[];
+      in_flight: number;
+      revision: string | null;
+    }>(
+      `select worker_id, last_seen_at::text, started_at::text, handlers, in_flight, revision
+         from public.worker_heartbeats
+        order by last_seen_at desc
+        limit 1`,
+    );
+
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      workerId: row.worker_id,
+      lastSeenAt: row.last_seen_at,
+      startedAt: row.started_at,
+      handlers: row.handlers ?? [],
+      inFlight: row.in_flight,
+      revision: row.revision,
+    };
+  } catch {
+    return null;
+  } finally {
+    await client?.end().catch(() => {});
+  }
+}
+
+/**
  * What the database still needs, without changing anything.
  *
  * Used by /diagnostics, which reports and never writes.

@@ -30,5 +30,6 @@
   "20260907090000_29_twin_scenarios.sql": "to_regclass('public.twin_simulations') is not null",
   "20260907140000_30_request_simulation.sql": "to_regprocedure('public.request_simulation(uuid, uuid)') is not null",
   "20260907160000_31_daily_brief.sql": "to_regclass('public.brief_items') is not null",
-  "20260909200000_32_proposals.sql": "to_regclass('public.proposals') is not null"
+  "20260909200000_32_proposals.sql": "to_regclass('public.proposals') is not null",
+  "20260909210000_33_worker_heartbeat.sql": "to_regclass('public.worker_heartbeats') is not null"
 }

@@ -845,6 +845,61 @@ spent one evening on the cost of shipping things that were only reasoned about.
 
 ---
 
+## 4m. Phase 7: the worker says it is alive
+
+The evening this was written, the worker went down twice for a combined
+thirty-five minutes. `/api/health` reported "ok" throughout. Every schedule had
+stopped — the nightly Twin run, the morning brief, the queue sweep, the
+rate-limit prune — and the only reason anybody knew was that somebody happened
+to open the deployment dashboard.
+
+The health endpoint was not wrong. It checks the web service and the database,
+and it had never had anything to say about the worker. Nothing did.
+
+### Why a heartbeat and not "when did a job last finish?"
+
+The obvious check is the wrong one. This queue is quiet by design: the prune is
+hourly, the sweep and both nightly ticks are daily. Between 03:31 and 20:00 a
+perfectly healthy worker touches nothing. A silence-based check either alerts
+every night or is set so loose it would have missed the actual outage.
+
+A heartbeat separates *nothing to do* from *nobody to do it*. The worker writes
+on every poll, including the polls where it claims nothing, so the reading is
+unambiguous.
+
+### The thresholds are a judgement, and they are written down
+
+Ninety seconds to stale, five minutes to gone. The poll is five seconds, so
+ninety is twelve missed writes — not a slow database, a process that is not
+there. It is not sixty because a deploy replaces the worker and the new one
+takes a moment, and **a threshold that fires during every routine deployment is
+one people learn to ignore**. An alert nobody reads is worse than no alert: it
+converts a real outage into one more notification to dismiss.
+
+`never` is its own state rather than a very old `gone`, because waiting is the
+right response to one and investigating to the other.
+
+### It also catches a split deploy
+
+Two services build from one image and can end up on different commits when one
+build fails. Nothing else reveals it — the worker beats happily, the web
+service serves happily — until a job queues with no handler to run it and fails
+every attempt. The beat carries the handler list, so the check compares it
+against what this build expects.
+
+### And a comment that was wrong
+
+The first draft said "deliberately no grant to authenticated or anon". That was
+false: migration 09 sets default privileges granting select, insert, update and
+delete to `authenticated` on every new table in this schema, so the only thing
+protecting the table was the absence of a policy. It protected it, but for a
+reason nobody reading that file would have seen.
+
+The revoke is now explicit, and a signed-in caller is refused at the privilege
+check before RLS is reached. Two assertions cover both halves.
+
+---
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.
