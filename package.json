@@ -20,7 +20,7 @@
     "check:site": "node scripts/check-marketing-site.mjs",
     "check:runtime": "node scripts/check-runtime-settings.mjs",
     "check:secrets": "node scripts/check-bundle-secrets.mjs",
-    "check:worker": "node scripts/check-worker-externals.mjs",
+    "check:worker": "node scripts/check-worker-externals.mjs && node scripts/check-worker-boots.mjs",
     "db:test": "bash supabase/tests/run.sh",
     "db:migrate": "node scripts/migrate.mjs",
     "db:migrate:dry": "node scripts/migrate.mjs --dry-run",
