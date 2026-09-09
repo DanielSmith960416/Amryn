@@ -516,6 +516,21 @@ export function layer(id: LayerId): Layer {
   return LAYERS.find((l) => l.id === id)!;
 }
 
+/**
+ * Which layer owns a field, or null if nothing does.
+ *
+ * Derived from the layer definitions rather than kept as a second map, so a
+ * field moved between layers stays findable and a field that no longer exists
+ * stops being. A proposal naming a field nobody defines is refused rather than
+ * written into a layer that never asked for it.
+ */
+export function layerOwning(field: string): LayerId | null {
+  for (const definition of LAYERS) {
+    if (definition.fields.some((f) => f.name === field)) return definition.id;
+  }
+  return null;
+}
+
 export function layerIndex(id: LayerId): number {
   return LAYER_IDS.indexOf(id);
 }

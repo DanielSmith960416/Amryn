@@ -19,13 +19,13 @@ import type { JobHandler } from '../types';
  * newsletter, and a rule enforced in one place is a rule that holds until
  * somebody adds a sixth section in a hurry.
  *
- * ── the section that is deliberately empty ────────────────────────────────
+ * ── the section that used to be empty ─────────────────────────────────────
  *
- * 'open_items' is proposals awaiting the reader's verification. Proposals do
- * not exist yet — they arrive with the Assistant — so this reports the section
- * as empty with a reason naming what is missing, rather than omitting it. A
- * section nobody built and a section that found nothing look identical to a
- * reader, and only one of them is worth mentioning to us.
+ * 'open_items' is proposals awaiting the reader's verification. It reported
+ * itself empty with a reason until migration 32 gave proposals a table; it now
+ * draws on that. What it never does is invent something to put there — a brief
+ * that manufactures an open item to avoid a gap is a brief that has started
+ * lying about the quiet weeks.
  */
 export const composeBrief: JobHandler = {
   kind: 'brief.compose',
@@ -60,21 +60,12 @@ export const composeBrief: JobHandler = {
       ...(await yesterday(query, org, briefDate)),
       ...(await today(query, org)),
       ...(await radar(query, org, since)),
+      ...(await openItems(query, org)),
       ...(await trajectory(query, org)),
     ];
 
-    // Everything except open_items, which nothing looked at — see the note above.
-    const ran = SECTIONS.filter((section) => section !== 'open_items');
-    const brief = compose(candidates, ran);
-
-    const empty: EmptySection[] = [
-      ...brief.empty,
-      {
-        section: 'open_items',
-        reason:
-          'Nothing is waiting on you. Proposals arrive with the Assistant; until then this section has nothing to draw on.',
-      },
-    ];
+    const brief = compose(candidates, SECTIONS);
+    const empty: EmptySection[] = [...brief.empty];
 
     const inserted = await query<{ id: string }>(
       `insert into public.daily_briefs
@@ -406,6 +397,58 @@ async function radar(query: Query, org: string, since: string): Promise<Candidat
       provenance: 'fact',
       sourceTable: 'market_signals',
       sourceId: signal.id,
+    },
+  ];
+}
+
+/**
+ * Waiting on you: suggested changes nobody has decided.
+ *
+ * The oldest first, because a suggestion that has sat for three weeks is worth
+ * more of a nudge than one raised last night — and because the count in the
+ * detail is what actually matters when there are several.
+ *
+ * No monetary impact: a proposal to correct a blank Imprint field has no rand
+ * value, and giving it one to help it rank would be inventing a figure to win
+ * an argument about ordering. It ranks on its section weight.
+ */
+async function openItems(query: Query, org: string): Promise<Candidate[]> {
+  const rows = await query<{
+    id: string;
+    target_field: string;
+    proposed_value: string;
+    rationale: string;
+    waiting: number;
+  }>(
+    `select id, target_field, proposed_value, rationale,
+            count(*) over () as waiting
+       from public.proposals
+      where organisation_id = $1
+        and status = 'pending'
+      order by created_at asc
+      limit 1`,
+    [org],
+  );
+
+  const oldest = rows[0];
+  if (!oldest) return [];
+
+  const waiting = Number(oldest.waiting);
+
+  return [
+    {
+      section: 'open_items',
+      headline:
+        waiting === 1
+          ? `One suggestion is waiting on you: ${oldest.target_field}`
+          : `${waiting} suggestions are waiting on you, the oldest about ${oldest.target_field}`,
+      detail: `${oldest.rationale} Suggested value: ${oldest.proposed_value}. Nothing is applied until you decide.`,
+      impactCents: null,
+      // The proposal is a record of a suggestion, not a measurement of the
+      // business. It happened, so it is a fact; what it proposes is not.
+      provenance: 'fact',
+      sourceTable: 'proposals',
+      sourceId: oldest.id,
     },
   ];
 }

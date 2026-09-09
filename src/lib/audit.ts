@@ -48,6 +48,8 @@ export type SecurityEvent =
   | 'twin.scenario_saved'
   | 'twin.scenario_removed'
   | 'twin.simulation_requested'
+  | 'proposal.accepted'
+  | 'proposal.declined'
   | 'stocktake.imported';
 
 /**

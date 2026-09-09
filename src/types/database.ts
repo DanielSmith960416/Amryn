@@ -30,6 +30,7 @@ export interface Enums {
   opportunity_stage: 'discovered' | 'analysing' | 'qualified' | 'assigned' | 'in_progress' | 'won' | 'lost' | 'archived';
   org_role: 'super_admin' | 'org_admin' | 'executive' | 'regional_manager' | 'branch_manager' | 'department_manager' | 'analyst' | 'viewer';
   priority_level: 'critical' | 'high' | 'medium' | 'low';
+  proposal_status: 'pending' | 'accepted' | 'declined' | 'superseded';
   provenance: 'fact' | 'derived' | 'estimated' | 'simulated';
   recommendation_status: 'new' | 'accepted' | 'in_progress' | 'done' | 'dismissed';
   risk_status: 'open' | 'mitigating' | 'monitoring' | 'closed' | 'accepted';
@@ -3066,6 +3067,92 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: 'subscription_plans';
             referencedColumns: ['plan'];
+          },
+        ];
+      };
+      proposals: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          target_table: string;
+          target_id: string | null;
+          target_field: string;
+          current_value: string | null;
+          proposed_value: string;
+          rationale: string;
+          conversation_id: string | null;
+          status: Enums['proposal_status'];
+          proposed_by: string | null;
+          decided_by: string | null;
+          decided_at: string | null;
+          decision_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          target_table: string;
+          target_id?: string | null;
+          target_field: string;
+          current_value?: string | null;
+          proposed_value: string;
+          rationale: string;
+          conversation_id?: string | null;
+          status?: Enums['proposal_status'];
+          proposed_by?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          target_table?: string;
+          target_id?: string | null;
+          target_field?: string;
+          current_value?: string | null;
+          proposed_value?: string;
+          rationale?: string;
+          conversation_id?: string | null;
+          status?: Enums['proposal_status'];
+          proposed_by?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'proposals_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'ai_conversations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'proposals_decided_by_fkey';
+            columns: ['decided_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'proposals_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'proposals_proposed_by_fkey';
+            columns: ['proposed_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
           },
         ];
       };
