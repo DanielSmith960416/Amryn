@@ -120,12 +120,21 @@ function Item({ item, currency }: { item: StoredItem; currency: string }) {
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
           <Badge tone={PROVENANCE_TONE[item.provenance]}>{PROVENANCE_LABEL[item.provenance]}</Badge>
           {/*
-            The citation, in full, on the page. Not a tooltip: a source you have
-            to hover to see is a source most readers will never look at, and an
-            unread citation is the same as none.
+            The citation, in full, on the page, and now something you can
+            follow. Not a tooltip: a source you have to hover to see is a source
+            most readers will never look at, and an unread citation is the same
+            as none. A citation you cannot follow is not much better — printing
+            a row id was proof the line had a source, not a way to go and read
+            it.
           */}
+          <Link
+            href={`/explain/brief_items/${item.id}`}
+            className="text-[0.75rem] font-medium text-[var(--brand)] hover:underline"
+          >
+            Where did this come from?
+          </Link>
           <span className="numeric text-[0.6875rem] text-[var(--text-tertiary)]">
-            from {item.sourceTable} · {item.sourceId}
+            {item.sourceTable} · {item.sourceId}
           </span>
         </div>
       </CardBody>
