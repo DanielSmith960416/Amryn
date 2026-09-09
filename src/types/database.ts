@@ -10,6 +10,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Enums {
   alert_status: 'new' | 'acknowledged' | 'assigned' | 'snoozed' | 'dismissed' | 'resolved';
   analysis_status: 'queued' | 'running' | 'succeeded' | 'failed' | 'superseded';
+  brief_section: 'yesterday' | 'today' | 'radar' | 'open_items' | 'trajectory';
   connection_status: 'pending' | 'connected' | 'syncing' | 'error' | 'disabled';
   data_request_kind: 'export' | 'deletion' | 'correction';
   data_request_status: 'received' | 'in_progress' | 'completed' | 'refused';
@@ -638,6 +639,76 @@ export interface Database {
           },
         ];
       };
+      brief_items: {
+        Row: {
+          id: string;
+          brief_id: string;
+          organisation_id: string;
+          section: Enums['brief_section'];
+          rank: number;
+          headline: string;
+          detail: string;
+          impact_cents: number | null;
+          provenance: Enums['provenance'];
+          source_table: string;
+          source_id: string;
+          fidelity_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          brief_id: string;
+          organisation_id: string;
+          section: Enums['brief_section'];
+          rank: number;
+          headline: string;
+          detail: string;
+          impact_cents?: number | null;
+          provenance: Enums['provenance'];
+          source_table: string;
+          source_id: string;
+          fidelity_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          brief_id?: string;
+          organisation_id?: string;
+          section?: Enums['brief_section'];
+          rank?: number;
+          headline?: string;
+          detail?: string;
+          impact_cents?: number | null;
+          provenance?: Enums['provenance'];
+          source_table?: string;
+          source_id?: string;
+          fidelity_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'brief_items_brief_id_fkey';
+            columns: ['brief_id'];
+            isOneToOne: false;
+            referencedRelation: 'daily_briefs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'brief_items_fidelity_id_fkey';
+            columns: ['fidelity_id'];
+            isOneToOne: false;
+            referencedRelation: 'twin_fidelity';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'brief_items_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       business_events: {
         Row: {
           id: string;
@@ -1020,6 +1091,63 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: 'competitors_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      daily_briefs: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          brief_date: string;
+          job_id: string | null;
+          item_count: number;
+          empty_sections: Json;
+          emailed_at: string | null;
+          email_skipped: string | null;
+          generated_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          brief_date: string;
+          job_id?: string | null;
+          item_count?: number;
+          empty_sections?: Json;
+          emailed_at?: string | null;
+          email_skipped?: string | null;
+          generated_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          brief_date?: string;
+          job_id?: string | null;
+          item_count?: number;
+          empty_sections?: Json;
+          emailed_at?: string | null;
+          email_skipped?: string | null;
+          generated_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'daily_briefs_job_id_fkey';
+            columns: ['job_id'];
+            isOneToOne: false;
+            referencedRelation: 'job_runs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'daily_briefs_organisation_id_fkey';
             columns: ['organisation_id'];
             isOneToOne: false;
             referencedRelation: 'organisations';

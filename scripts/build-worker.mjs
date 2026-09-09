@@ -18,6 +18,11 @@
  * which the standalone build already contains because the application imports
  * it too.
  *
+ * `nodemailer` stays external for the same reason and by the same argument: it
+ * resolves transports and DNS lookups through conditional requires, and the
+ * application imports it to send invitations, so Next's tracing has already
+ * put it in the standalone tree the worker runs beside.
+ *
  *   node scripts/build-worker.mjs
  */
 import { build } from 'esbuild';
@@ -39,7 +44,7 @@ const result = await build({
   // someone diagnosing a job at an unsociable hour, and the bytes saved buy
   // nothing when the file is never sent over a network.
   minify: false,
-  external: ['pg'],
+  external: ['pg', 'nodemailer'],
   // The alias tsconfig defines. esbuild does read tsconfig paths, but stating
   // it here means the build does not silently change if that file is
   // reorganised.
