@@ -799,6 +799,50 @@ The citation on a brief line is now a link rather than a printed row id. An id
 was proof the line had a source; it was not a way to go and read it, and an
 unfollowable citation is only slightly better than none.
 
+### The tool surface, and the one rule it is built around
+
+The Assistant's tools are defined against the Anthropic SDK's own `Tool` type
+and drop straight into a `messages.create({ tools })` call. `strict: true` with
+`additionalProperties: false` on every one, so arguments validate before an
+executor ever sees them.
+
+**No tool takes an organisation as an input. Not one.** The tenant comes from
+the session that invoked the Assistant and is passed to the executor beside the
+model's arguments, never inside them.
+
+That is not defence in depth; it is the actual defence. A tool accepting
+`{ organisation_id }` is a tool the model can be talked into pointing
+elsewhere — by a document it was asked to summarise, by a market signal scraped
+off a website, by the customer's own message. Row-level security would still
+refuse most of it, but the platform would then be relying on the database to
+catch what the design should never have permitted. A test asserts no tool
+declares such a parameter, by pattern.
+
+**None of them write.** The Assistant's only route to changing anything is a
+proposal a person accepts. A write tool added to this registry later would
+quietly undo what migration 32 was built to enforce, so a test asserts by name
+that no tool is called `write_*`, `set_*`, `apply_*` and so on.
+
+The definitions live in `tool-definitions.ts` without `server-only` — the same
+split made for the AI error types and the mail transport, and for the same
+reason: a rule worth enforcing has to be reachable by something that enforces
+it. The executors, which read a customer's database, stay behind the guard.
+
+Two smaller things worth keeping:
+
+- **Descriptions carry the caveats, because the description is what the model
+  reads.** `read_imprint` says an unanswered field is not zero. `read_twin_state`
+  says an accuracy measurement is what makes a range quotable.
+  `read_open_proposals` says never to tell somebody a change has been made
+  because a proposal exists. Tests assert each of those sentences is present.
+- **A definition with no executor fails at import**, naming the tool. That
+  fault otherwise survives review intact — everything still works, and the
+  model simply burns a turn apologising for a tool that does not run.
+
+What is deliberately not here is the tool-use loop. The model is unconfigured,
+so a loop could be written but not exercised, and this project has already
+spent one evening on the cost of shipping things that were only reasoned about.
+
 ---
 
 ## 5. Decisions that were reversed
