@@ -57,6 +57,24 @@ function positiveNumber(raw: string | undefined, fallback: number): number {
  */
 const WORKER_ID = `${hostname()}/${process.pid}/${randomUUID().slice(0, 8)}`;
 
+/** Fixed at boot, so a restart is visible as a new start rather than a gap. */
+const STARTED_AT = new Date().toISOString();
+
+/*
+ * Which commit this worker is running, when the platform says.
+ *
+ * Two services deploy from one image and can end up on different commits if
+ * one build fails — invisible from every other angle until a job queues with
+ * no handler to run it. Read rather than required: a worker started by hand
+ * has no revision and that is not a fault.
+ *
+ * One variable, the one the platform actually sets. A second name added as a
+ * fallback would be a setting nobody sets, sitting in the inventory looking
+ * like a control that does something — which is the failure that inventory
+ * test was written for.
+ */
+const REVISION = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
+
 function log(message: string): void {
   console.log(`[worker ${WORKER_ID}] ${message}`);
 }
@@ -190,7 +208,38 @@ async function runJob(job: Job): Promise<void> {
   }
 }
 
+/**
+ * Says the worker is alive, on every poll including the empty ones.
+ *
+ * Deliberately before the claim rather than after: the useful signal is "this
+ * process is running its loop", and beating only after successful work would
+ * make a worker that cannot claim look identical to one that is not there.
+ *
+ * Never throws. A heartbeat that can bring down the loop it monitors is worse
+ * than no heartbeat — it would turn a transient write failure into the outage
+ * it exists to report. A missed beat is visible in the reading; a crashed
+ * worker is not.
+ */
+async function beat(): Promise<void> {
+  try {
+    await pool.query(
+      `insert into public.worker_heartbeats
+         (worker_id, last_seen_at, started_at, handlers, in_flight, revision)
+       values ($1, now(), $2, $3, $4, $5)
+       on conflict (worker_id) do update
+         set last_seen_at = now(),
+             handlers     = excluded.handlers,
+             in_flight    = excluded.in_flight,
+             revision     = excluded.revision`,
+      [WORKER_ID, STARTED_AT, registeredKinds(), inFlight.size, REVISION],
+    );
+  } catch (error) {
+    log(`heartbeat failed — ${safeMessage(error, connectionString)}`);
+  }
+}
+
 async function tick(): Promise<void> {
+  await beat();
   await queue.enqueueDue();
 
   const capacity = CONCURRENCY - inFlight.size;

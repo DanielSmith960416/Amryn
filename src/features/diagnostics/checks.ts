@@ -25,7 +25,9 @@ import { createClient } from '@/lib/supabase/server';
 import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
 import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
-import { databaseUrl, readPending } from '@/lib/db/setup';
+import { databaseUrl, readPending, readWorkerHeartbeat } from '@/lib/db/setup';
+import { missingHandlers, workerHealth } from '@/features/operations/heartbeat';
+import { registeredKinds } from '@/lib/jobs/registry';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { isKeyRejection, isPermissionDenied, isSchemaCacheMiss } from './errors';
 
@@ -214,6 +216,7 @@ export async function runDiagnostics(
     checkRoleGrants(),
     checkBootstrapFunction(),
     checkPendingMigrations(options.directConnection ?? false),
+    checkWorker(options.directConnection ?? false),
     checkRowLevelSecurity(),
     checkSession(),
     checkMembership(),
@@ -780,5 +783,102 @@ function buildInfo(): DiagnosticsReport['build'] {
     commit: commit ? commit.slice(0, 7) : null,
     ref,
     deployedAt: startedAt.toISOString(),
+  };
+}
+
+
+/**
+ * Whether anything is running the queue.
+ *
+ * This check exists because of a specific evening: the worker was down twice
+ * for a combined thirty-five minutes, /api/health reported "ok" throughout,
+ * and the only reason anybody noticed was that somebody happened to open the
+ * deployment dashboard. Every schedule had stopped and the product said it was
+ * healthy.
+ *
+ * It reads a heartbeat rather than the queue, because this queue is silent for
+ * sixteen hours a day by design — see features/operations/heartbeat.ts for why
+ * silence in job_runs cannot be alerted on.
+ */
+async function checkWorker(allowed: boolean): Promise<Check> {
+  const name = 'Background worker';
+
+  if (!allowed) {
+    return {
+      name,
+      status: 'skipped',
+      detail: 'Not checked here — it needs a direct database connection.',
+    };
+  }
+
+  if (!databaseUrl()) {
+    return {
+      name,
+      status: 'warn',
+      detail: 'Cannot tell — this needs the direct database connection.',
+      remedy:
+        'Set SUPABASE_DB_URL to the session pooler string from Settings → Database, and this page can then say whether the worker is running.',
+    };
+  }
+
+  const beat = await readWorkerHeartbeat();
+  const health = workerHealth(beat, new Date());
+
+  if (health.state === 'never') {
+    return {
+      name,
+      status: 'warn',
+      detail: health.detail,
+      remedy:
+        'If the worker service is deployed, check its logs — a worker that cannot start writes nothing here. If this deploy is the first to carry heartbeats, this clears itself within a minute.',
+    };
+  }
+
+  if (health.state === 'gone') {
+    return {
+      name,
+      status: 'fail',
+      detail: health.detail,
+      remedy:
+        'Open the worker service on Railway. A crashloop shows as a CRASHED deployment; the logs name what it could not load.',
+    };
+  }
+
+  if (health.state === 'stale') {
+    return { name, status: 'warn', detail: health.detail };
+  }
+
+  /*
+   * Running, but possibly on the wrong build.
+   *
+   * Two services deploy from one image and can end up on different commits
+   * when one build fails. Nothing else reveals it: the worker beats happily
+   * and the web service serves happily, until a job queues with no handler to
+   * run it and fails on every attempt.
+   */
+  const missing = missingHandlers(beat, registeredKinds());
+  if (missing.length > 0) {
+    return {
+      name,
+      status: 'fail',
+      detail:
+        `The worker is running but does not know how to run ${missing.join(', ')}. ` +
+        'It is on an older build than this one' +
+        (beat?.revision ? ` (worker at ${beat.revision})` : '') +
+        '. Any job of those kinds will fail every attempt.',
+      remedy:
+        'Redeploy the worker service. Both services build from one image, so this means one of the two builds did not take.',
+    };
+  }
+
+  return {
+    name,
+    status: 'ok',
+    detail:
+      `Running — last reported ${health.secondsSince}s ago, ` +
+      `${health.inFlight} job${health.inFlight === 1 ? '' : 's'} in flight, ` +
+      `${health.handlers.length} handlers` +
+      (beat?.revision ? ` at ${beat.revision}` : '') +
+      '.',
   };
 }
