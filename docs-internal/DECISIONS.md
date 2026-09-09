@@ -768,6 +768,37 @@ counted. What it still never does is invent something to put there: a brief
 that manufactures an open item to avoid a gap has started lying about the quiet
 weeks.
 
+### Explaining a number, and why it needs no model
+
+The brief asks the Assistant to "explain any number by walking back through its
+provenance chain". That turned out to be the one part of Change 6 that works
+today, because the chain is columns rather than reasoning: `provenance`,
+`is_provisional`, `analysis_run_id`, `fidelity_id`, `source_table`.
+
+Each of those was added on the same argument — a caveat one join away is lost
+the moment a figure is quoted onward — and each of them is, on its own, a word
+a reader has to know how to interpret. The walk-back is where they are read
+together and turned into sentences. It is the difference between a platform
+that *could* justify its numbers and one that does, and nothing on that page is
+written by a model.
+
+Two rules in it are worth keeping:
+
+- **A link that will not resolve is reported, never dropped.** "The accuracy
+  measurement this figure was licensed by is no longer on record" is useful;
+  "derived from your financial records" said on no evidence is the invention
+  the provenance column exists to prevent. The database refuses a simulated
+  figure without a measurement, so an unresolved fidelity link means one was
+  deleted afterwards — which is worth saying loudly.
+- **Not-traceable is not the same as gone.** A brief line citing
+  `financial_records` is not reported as a broken citation just because this
+  page cannot look in that table. Only tables it can actually read are ever
+  described as missing.
+
+The citation on a brief line is now a link rather than a printed row id. An id
+was proof the line had a source; it was not a way to go and read it, and an
+unfollowable citation is only slightly better than none.
+
 ---
 
 ## 5. Decisions that were reversed
