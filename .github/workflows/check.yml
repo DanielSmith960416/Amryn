@@ -69,7 +69,13 @@ jobs:
       # and the worker crashlooped on its first boot after deploy — the whole
       # queue down, not just the mail. This is that failure, moved into a pull
       # request.
-      - name: Confirm the worker's externals resolve where it runs
+      # Two checks, because they catch different failures and each is blind to
+      # the other's. One reads the tree the image ships and asks whether every
+      # external is in it. The other starts the built worker the way the
+      # container does and asks whether it gets as far as its own
+      # configuration. The worker was taken down twice in one evening — once by
+      # each — with a green build both times.
+      - name: Confirm the worker can actually start
         run: npm run check:worker
 
       # Anything in .next/static or a prerendered document is served to every

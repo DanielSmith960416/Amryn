@@ -54,6 +54,26 @@ const result = await build({
   // nothing when the file is never sent over a network.
   minify: false,
   external: ['pg'],
+  /*
+   * A real `require` for the CommonJS this bundle contains.
+   *
+   * esbuild's ESM output shims `require` with a function that throws unless a
+   * real one happens to be in scope. Nothing bundled here is affected —
+   * esbuild rewrites those to its own module map — but a dependency that
+   * reaches for a Node builtin at run time is, and nodemailer does exactly
+   * that: `require('events')` from lib/mailer/index.js.
+   *
+   * That threw on the first boot after #75 and took the queue down with it.
+   * The banner gives the shim something real to delegate to, which is the
+   * documented answer and the reason this is one line rather than a fork in
+   * how the worker is built.
+   */
+  banner: {
+    js: [
+      "import { createRequire as __createRequire } from 'node:module';",
+      'const require = __createRequire(import.meta.url);',
+    ].join('\n'),
+  },
   // The alias tsconfig defines. esbuild does read tsconfig paths, but stating
   // it here means the build does not silently change if that file is
   // reorganised.
