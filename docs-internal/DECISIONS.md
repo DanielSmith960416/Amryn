@@ -711,6 +711,65 @@ because "emailed" and "we never tried" are different things.
 
 ---
 
+## 4l. A model may suggest; only a person may write
+
+Change 6 lets the Assistant "adjust Twin parameters as proposals, fill Imprint
+fields, and run scenarios". The table that makes the word *proposals* mean
+something was built before the Assistant that writes into it, for the same
+reason the fidelity gate came before the simulation: afterwards there is no
+moment at which anybody goes back and adds the restraint.
+
+The decision, put to the user and taken deliberately, is **proposals only,
+never applied**. The reasoning is not squeamishness about models. The Imprint
+is the record every figure in this platform derives from, so anything that can
+edit it can edit the basis of every number the product will ever show — and no
+amount of care in a prompt is a control. The control is that the write requires
+a person with `manage_organisation` to press a button.
+
+Enforced rather than intended: migration 32 attaches no trigger and no rewrite
+rule that applies a proposal, and a test asserts exactly that by reading
+`pg_trigger` and `pg_rewrite`. If it ever stops being true, that assertion is
+what says so.
+
+### Raising is not deciding
+
+Raising a proposal needs only membership. It changes nothing, and a colleague
+who spots a wrong figure should be able to say so without an administrator's
+rights. Deciding needs `manage_organisation`. There is no delete policy: a
+declined proposal is the record that somebody declined it, and removing it is
+how the same argument gets had twice.
+
+### "Accepted" has to mean the change happened
+
+The easy version records the acceptance and leaves the writing to somebody,
+which puts a green tick beside a field that never moved — the same class of
+quiet untruth as a caveat one join away. So accepting writes, and a proposal
+whose target the platform cannot write is refused *at the point of accepting*,
+by name, rather than accepted and quietly ignored. Today that means Imprint
+fields are applicable and nothing else is.
+
+The write happens before the status changes. A proposal marked accepted whose
+write then failed is the untruth this exists to prevent; a write that lands
+while the status does not leaves the proposal visibly pending, which is
+recoverable.
+
+### A stale proposal is refused, not forced
+
+If somebody answered the field after the suggestion was raised, accepting would
+overwrite a person's answer with a model's suggestion and neither of them would
+know. That is marked `superseded` with a reason, so the suggestion can be
+re-argued against what the field says today rather than silently winning.
+
+### And the brief's empty section is no longer empty
+
+`open_items` reported itself empty with a reason from #74 onward because
+proposals had no table. It now draws on them — the oldest cited, all of them
+counted. What it still never does is invent something to put there: a brief
+that manufactures an open item to avoid a gap has started lying about the quiet
+weeks.
+
+---
+
 ## 5. Decisions that were reversed
 
 Worth having on record, because a reversed decision tends to be re-proposed.

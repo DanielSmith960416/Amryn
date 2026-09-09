@@ -68,6 +68,12 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'view_intelligence',
         hint: 'Five things, every morning',
       },
+      {
+        label: 'Waiting on You',
+        href: '/proposals',
+        permission: 'view_intelligence',
+        hint: 'Suggestions nobody has decided',
+      },
       { label: 'Alerts', href: '/alerts', permission: 'view_alerts', hint: 'What changed, and when' },
     ],
   },
