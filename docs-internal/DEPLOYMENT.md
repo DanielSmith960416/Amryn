@@ -496,6 +496,43 @@ database. There is deliberately no way to skip it — the requirement lifts
 itself when the database has no organisations in it, because then there is
 nothing to lose.
 
+### How you know whether any of this has happened
+
+All of the above protects *migrations*. None of it answers the question
+somebody asks after a disaster: **is there a backup, and how old is it?**
+
+`backup.mjs` now records each completed dump in `public.backups`, and
+`/diagnostics` reads the newest one:
+
+| What it says | What it means |
+|---|---|
+| *Last backup 4 hours ago — 12.3 MB* | Fine. |
+| *The last backup was 3 days ago* | A warning. The routine is meant to be daily. |
+| *The last backup was 9 days ago* | A failure. Everything since exists in one place. |
+| *No backup has ever been recorded* | A failure, and the honest state of a new deployment. |
+| *…contains no organisations at all* | A failure, and the one to read twice — see below. |
+
+A row is written only after the dump completes and verifies, so a row means a
+complete dump of that database existed at that moment. What it cannot promise
+is that the **file** still does: the dumps live on whichever machine took them,
+which the platform cannot see. `stored_at` records where you said you put it.
+
+**The empty-backup case is the one worth understanding.** A dump of the wrong
+database, or of an empty one, is complete, correctly checksummed, the right
+size, and restores exactly as cleanly as a good backup — leaving you with
+nothing. The row counts are the only signal that distinguishes them, which is
+why they are recorded and why a backup containing no organisations is reported
+as a failure rather than a curiosity.
+
+Those counts were wrong until now: an empty table was counted by reading past
+its terminator into the next table's rows, so an empty `organisations` reported
+39. Anyone who had checked would have been reassured by a fabricated number.
+Fixed, with the empty case pinned by a test.
+
+Backups are ignored by git — see `.gitignore`. A dump is every row of every
+table in one plain-text file, in the working tree of a repository where
+`git add -A` is routine.
+
 ## Rolling back
 
 Railway keeps previous deployments; redeploy one from the service's history.

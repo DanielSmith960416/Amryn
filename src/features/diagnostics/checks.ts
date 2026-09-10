@@ -25,9 +25,10 @@ import { createClient } from '@/lib/supabase/server';
 import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
 import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
-import { databaseUrl, readPending, readWorkerHeartbeat } from '@/lib/db/setup';
+import { databaseUrl, readLatestBackup, readPending, readWorkerHeartbeat } from '@/lib/db/setup';
 import { missingHandlers, workerHealth } from '@/features/operations/heartbeat';
 import { describeDrift } from '@/features/operations/schema-drift';
+import { backupHealth, capturedNothing } from '@/features/operations/backups';
 import { registeredKinds } from '@/lib/jobs/registry';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { isKeyRejection, isPermissionDenied, isSchemaCacheMiss } from './errors';
@@ -218,6 +219,7 @@ export async function runDiagnostics(
     checkBootstrapFunction(),
     checkPendingMigrations(options.directConnection ?? false),
     checkWorker(options.directConnection ?? false),
+    checkBackups(options.directConnection ?? false),
     checkRowLevelSecurity(),
     checkSession(),
     checkMembership(),
@@ -801,6 +803,80 @@ function buildInfo(): DiagnosticsReport['build'] {
  * sixteen hours a day by design — see features/operations/heartbeat.ts for why
  * silence in job_runs cannot be alerted on.
  */
+/**
+ * Whether there is anything to restore from.
+ *
+ * The one check here whose subject is not running code. Everything else asks
+ * whether the platform is working; this asks what survives if it stops.
+ *
+ * It is reported even when it is bad news on a system that is otherwise
+ * perfect, because that is precisely the situation in which nobody would
+ * otherwise look. This project has no automatic backups and no point-in-time
+ * recovery — the runbook says so — which makes the manual procedure the only
+ * one there is, and an unwatched manual procedure indistinguishable from none.
+ */
+async function checkBackups(allowed: boolean): Promise<Check> {
+  const name = 'Database backups';
+
+  if (!allowed) {
+    return {
+      name,
+      status: 'skipped',
+      detail: 'Not checked here — it needs a direct database connection.',
+    };
+  }
+
+  const reading = await readLatestBackup();
+  if (reading.problem) {
+    return {
+      name,
+      status: 'warn',
+      detail: `Could not reach the database to ask when the last backup was — ${reading.problem}`,
+      remedy: 'Check SUPABASE_DB_URL on this service. This says nothing about the backups.',
+    };
+  }
+
+  const health = backupHealth(reading.backup, new Date());
+  const takeOne =
+    'Take one from a machine that keeps its files: `node scripts/backup.mjs`. It records ' +
+    'itself here when the dump completes and verifies.';
+
+  if (health.state === 'never') {
+    return { name, status: 'fail', detail: health.detail, remedy: takeOne };
+  }
+
+  if (health.state === 'critical') {
+    return { name, status: 'fail', detail: health.detail, remedy: takeOne };
+  }
+
+  /*
+   * Complete, checksummed, the right size, and a backup of nothing.
+   *
+   * Ranked above freshness: a fresh dump that captured no organisation is
+   * worse than an old one that did, and it is the failure most likely to be
+   * mistaken for success — the file exists and every other signal is green.
+   */
+  if (reading.backup && capturedNothing(reading.backup)) {
+    return {
+      name,
+      status: 'fail',
+      detail:
+        `The last backup, ${health.state === 'fresh' ? 'taken recently' : 'and it is old'}, ` +
+        'contains no organisations at all. A complete dump of the wrong database, or of an ' +
+        'empty one, restores exactly as cleanly as a good backup and leaves you with nothing.',
+      remedy:
+        'Check which database SUPABASE_DB_URL pointed at when it was taken — the record names ' +
+        'it — then take another.',
+    };
+  }
+
+  if (health.state === 'stale') {
+    return { name, status: 'warn', detail: health.detail, remedy: takeOne };
+  }
+
+  return { name, status: 'ok', detail: health.detail };
+}
+
 async function checkWorker(allowed: boolean): Promise<Check> {
   const name = 'Background worker';
 

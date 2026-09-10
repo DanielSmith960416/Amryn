@@ -370,6 +370,66 @@ export async function readWorkerHeartbeat(): Promise<WorkerHeartbeatReading> {
 }
 
 /**
+ * The newest backup this database has been told about.
+ *
+ * Told about, not found: the dumps live on whichever machine took them,
+ * because the deployment container's filesystem is discarded. So this reports
+ * what was recorded, and a record proves a complete dump existed at that
+ * moment — not that the file still does.
+ *
+ * Returns its problem rather than null on failure, for the same reason the
+ * heartbeat reader does: "no backup has ever been taken" and "this page could
+ * not reach the database" are different sentences, and printing the first for
+ * both would be an alarming and false one.
+ */
+export async function readLatestBackup(): Promise<{
+  backup: {
+    takenAt: string;
+    databaseLabel: string;
+    bytes: number;
+    rows: Record<string, number>;
+    storedAt: string;
+  } | null;
+  problem?: string;
+}> {
+  let client: Client | undefined;
+  try {
+    client = await connect();
+    const { rows } = await client.query<{
+      taken_at: string;
+      database_label: string;
+      bytes: string;
+      rows: Record<string, number> | null;
+      stored_at: string;
+    }>(
+      `select taken_at::text, database_label, bytes::text, rows, stored_at
+         from public.backups
+        order by taken_at desc
+        limit 1`,
+    );
+
+    const row = rows[0];
+    if (!row) return { backup: null };
+
+    return {
+      backup: {
+        takenAt: row.taken_at,
+        databaseLabel: row.database_label,
+        // bigint arrives as a string; the driver will not narrow it for us and
+        // a silent NaN here would read as a zero-byte backup.
+        bytes: Number(row.bytes),
+        rows: row.rows ?? {},
+        storedAt: row.stored_at,
+      },
+    };
+  } catch (error) {
+    return { backup: null, problem: safeMessage(error) };
+  } finally {
+    await client?.end().catch(() => {});
+  }
+}
+
+/**
  * What the database still needs, without changing anything.
  *
  * Used by /diagnostics, which reports and never writes.
