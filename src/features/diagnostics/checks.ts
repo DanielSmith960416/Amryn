@@ -69,6 +69,20 @@ function isUrl(value: string): boolean {
 const CHECK_TIMEOUT_MS = 4_000;
 
 /**
+ * The mail check's own budget, which is longer than everything else's.
+ *
+ * Its transport waits ten seconds for a connection and ten for a greeting, so
+ * anything under that guarantees this timeout fires first and the report says
+ * only "no answer" — true, and useless. Twelve seconds lets nodemailer finish
+ * and name the fault instead.
+ *
+ * Affordable only because this check no longer runs for anonymous callers. It
+ * is reached from the operator pages, where somebody is waiting for an answer
+ * and would rather wait twelve seconds for a useful one.
+ */
+const SMTP_CHECK_BUDGET_MS = 12_000;
+
+/**
  * Supabase sometimes returns an error with an empty message — a count query
  * against an unreachable host, for one. Reporting "Could not read the
  * catalogue:" followed by nothing is worse than saying so plainly.
@@ -94,17 +108,31 @@ const SCHEMA_TRIAGE =
   "notify pgrst, 'reload schema';  and reload this page.";
 
 /** Runs a check, bounded in time, turning any throw into a reportable failure. */
-async function attempt(name: string, run: () => Promise<Check>, onThrow?: string): Promise<Check> {
+async function attempt(
+  name: string,
+  run: () => Promise<Check>,
+  onThrow?: string,
+  /*
+   * Overridden by exactly one caller, and only because it does not talk to the
+   * database. The mail check's own transport waits ten seconds for a
+   * connection and ten for a greeting; bounding it at four means it is always
+   * this timeout that fires and never nodemailer's, so the report says "no
+   * answer" where it could have said which of the two the host did not give.
+   * That is the difference between an operator knowing the port is wrong and
+   * an operator knowing only that something is.
+   */
+  budgetMs: number = CHECK_TIMEOUT_MS,
+): Promise<Check> {
   const timeout = new Promise<Check>((resolve) => {
     setTimeout(() => {
       resolve({
         name,
         status: 'fail',
-        detail: `No answer within ${CHECK_TIMEOUT_MS / 1000} seconds.`,
+        detail: `No answer within ${budgetMs / 1000} seconds.`,
         remedy:
           'The database did not respond. Check the project is not paused, and that the URL points at the right project.',
       });
-    }, CHECK_TIMEOUT_MS);
+    }, budgetMs);
   });
 
   try {
@@ -198,7 +226,26 @@ export async function runDiagnostics(
     },
   ];
 
-  const optional: Check[] = [aiCheck(), await emailCheck()];
+  const optional: Check[] = [
+    aiCheck(),
+    /*
+     * Gated for the same reason the direct connection is, and discovered the
+     * same way: the first anonymous probe of this endpoint spent its whole
+     * four-second budget here and came back 503.
+     *
+     * Verifying SMTP opens a connection to a third party on every request. On
+     * a public, polled endpoint that is an outbound connection per caller to
+     * somebody else's mail server — the pooler argument, pointed outwards —
+     * and nodemailer's verify has no timeout of its own, so when the port is
+     * wrong it hangs rather than refusing.
+     *
+     * It is also not an outage. Mail that cannot be sent degrades invitations,
+     * which already work by passing the link on by hand; every schedule, every
+     * page and every calculation is unaffected. A monitor that goes red for it
+     * is a monitor somebody mutes, and this one emails the repository owner.
+     */
+    await emailCheck(options.directConnection ?? false),
+  ];
 
   if (configProblem) {
     const skipped: Check[] = [
@@ -282,9 +329,24 @@ export async function runDiagnostics(
  *
  * Optional: with no mail service the invitation link is shown to whoever
  * created it, which works, so this is a warning rather than a failure.
+ *
+ * Operator pages only. Opening a connection to a mail server on every
+ * anonymous request to /api/health is an outbound connection per caller to a
+ * third party, and the first probe of that endpoint spent its entire budget
+ * here — see the gate at the call site.
  */
-async function emailCheck(): Promise<Check> {
+async function emailCheck(allowed: boolean): Promise<Check> {
   const config = smtpConfig();
+
+  if (!allowed) {
+    return {
+      name: 'Email delivery',
+      status: 'skipped',
+      detail: config
+        ? 'Configured. Not verified here — that opens a connection to the mail server, which this endpoint is polled too often to do.'
+        : 'No mail service configured.',
+    };
+  }
 
   if (!config) {
     return {
@@ -297,31 +359,36 @@ async function emailCheck(): Promise<Check> {
     };
   }
 
-  return attempt('Email delivery', async () => {
-    const result = await verifySmtp();
-    return result.ok
-      ? {
-          name: 'Email delivery',
-          status: 'ok',
-          // Host and port are not secrets, and are the two settings most often
-          // wrong. The password never appears here or in any error above.
-          //
-          // The second sentence exists because this check going green while
-          // confirmation emails fail to arrive is a genuinely confusing state:
-          // Supabase generates those tokens itself and sends them itself, so
-          // they are configured in its dashboard and nothing here reaches them.
-          detail:
-            `Connected to ${config.host}:${config.port}${config.secure ? ' over TLS' : ' with STARTTLS'}, and it accepted the credentials. ` +
-            'Invitations are emailed. Sign-in and confirmation emails are Supabase’s own, set separately under Authentication → Emails.',
-        }
-      : {
-          name: 'Email delivery',
-          status: 'fail',
-          detail: `${config.host}:${config.port} did not accept the connection — ${describe(result.problem)}.`,
-          remedy:
-            'Check the host, port and credentials. Port 465 expects TLS from the first byte; 587 starts in the clear and upgrades, and using the wrong one produces a hang rather than a refusal.',
-        };
-  });
+  return attempt(
+    'Email delivery',
+    async () => {
+      const result = await verifySmtp();
+      return result.ok
+        ? {
+            name: 'Email delivery',
+            status: 'ok',
+            // Host and port are not secrets, and are the two settings most often
+            // wrong. The password never appears here or in any error above.
+            //
+            // The second sentence exists because this check going green while
+            // confirmation emails fail to arrive is a genuinely confusing state:
+            // Supabase generates those tokens itself and sends them itself, so
+            // they are configured in its dashboard and nothing here reaches them.
+            detail:
+              `Connected to ${config.host}:${config.port}${config.secure ? ' over TLS' : ' with STARTTLS'}, and it accepted the credentials. ` +
+              'Invitations are emailed. Sign-in and confirmation emails are Supabase’s own, set separately under Authentication → Emails.',
+          }
+        : {
+            name: 'Email delivery',
+            status: 'fail',
+            detail: `${config.host}:${config.port} did not accept the connection — ${describe(result.problem)}.`,
+            remedy:
+              'Check the host, port and credentials. Port 465 expects TLS from the first byte; 587 starts in the clear and upgrades, and using the wrong one produces a hang rather than a refusal.',
+          };
+    },
+    undefined,
+    SMTP_CHECK_BUDGET_MS,
+  );
 }
 
 function checkReachable(): Promise<Check> {

@@ -38,10 +38,18 @@ import { internalAccess } from '@/lib/auth/internal-access';
  * The gate was protecting the pooler rather than the information, and a cached
  * reading protects it better: see readWorkerHeartbeatCached.
  *
- * Backups stay behind the gate, deliberately. A backup that has gone stale is
- * worth an operator's attention and is not an outage, and a monitor that pages
- * somebody at three in the morning for one is muted within a week — after
- * which it reports nothing at all.
+ * Backups and mail stay behind the gate, deliberately. A backup that has gone
+ * stale is worth an operator's attention and is not an outage, and a monitor
+ * that pages somebody at three in the morning for one is muted within a week —
+ * after which it reports nothing at all. The same is true of a mail server
+ * that will not answer: invitations fall back to a link passed on by hand, and
+ * nothing else in the platform notices.
+ *
+ * Mail has a second reason. Verifying it opens a connection to somebody else's
+ * server, and doing that once per anonymous request to a polled endpoint is
+ * the pooler argument pointed outwards. The first probe of this endpoint after
+ * it was ungated came back 503 in 4.2 seconds — the whole check budget, spent
+ * waiting on SMTP.
  */
 
 // Always measured, never cached: a cached health check reports the past.
