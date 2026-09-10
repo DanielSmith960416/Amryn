@@ -13,6 +13,7 @@
  */
 import { composeBrief } from './handlers/compose-brief';
 import { pruneRateLimits } from './handlers/prune-rate-limits';
+import { verifyEmail } from './handlers/verify-email';
 import { measureTwinFidelity } from './handlers/measure-fidelity';
 import { nightlyBackup } from './handlers/nightly-backup';
 import { nightlyBriefTick } from './handlers/nightly-brief';
@@ -25,6 +26,10 @@ import type { Schedule } from './schedule';
 
 const HANDLERS: readonly JobHandler[] = [
   pruneRateLimits,
+  // Run on request rather than on a schedule: mail settings change when
+  // somebody changes them, and polling a third party hourly to learn nothing
+  // is a poor trade for a connection to their server.
+  verifyEmail,
   sweepJobs,
   runAnalysis,
   measureTwinFidelity,
