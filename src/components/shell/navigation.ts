@@ -181,6 +181,12 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'view_data_sources',
         hint: 'What is connected, and how healthy',
       },
+      {
+        label: 'Integrations',
+        href: '/data/integrations',
+        permission: 'view_data_sources',
+        hint: 'The systems Amryn can read directly',
+      },
     ],
   },
   {
