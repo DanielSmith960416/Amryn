@@ -147,13 +147,28 @@ below asks for one line of output rather than a green tick.
    long as it should be running, so liveness is a decision rather than a side
    effect. Keep the policy as it is; the fix belongs in the worker.
 6. **Settings → Networking**: no domain, no port. It serves nothing.
-7. Variables: **`SUPABASE_DB_URL`**, and nothing else. It holds a direct
-   connection rather than a session, so none of the `NEXT_PUBLIC_*` settings
-   apply to it, and it needs neither the anon key nor the service role key.
+7. Variables: **`SUPABASE_DB_URL`**, and the five **`SMTP_*`** settings.
 
-   Take the **session pooler** string from Supabase → Settings → Database.
-   Without it the worker exits immediately and says so — deliberately, rather
-   than idling while the host reports it healthy and nothing is processed.
+   `SUPABASE_DB_URL` holds a direct connection rather than a session, so none
+   of the `NEXT_PUBLIC_*` settings apply and it needs neither the anon key nor
+   the service role key. Take the **session pooler** string from Supabase →
+   Settings → Database. Without it the worker exits immediately and says so —
+   deliberately, rather than idling while the host reports it healthy and
+   nothing is processed.
+
+   `SMTP_HOST` `SMTP_FROM` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` are needed
+   because the morning brief is composed *and delivered* by the worker, not by
+   the web service. Without them `brief.compose` writes a correct brief and
+   records `email_skipped`: the brief exists, nobody is told about it, and
+   nothing is broken enough to notice. `SMTP_HOST` and `SMTP_FROM` are the two
+   that decide whether mail is attempted at all; the rest tune the connection.
+
+   These are set as Railway references to the web service's copies, so each
+   credential is defined once. That couples the two services in both
+   directions — the web service reads `SUPABASE_DB_URL` from the worker — so
+   **renaming either service breaks the other's variables.** If you would
+   rather they were independent, paste the literals instead; either way they
+   must stay declared in `.railway/railway.ts`, because omission deletes.
 8. **Settings → Deploy → Pre-Deploy Command**: `node scripts/migrate.mjs`.
 
    This is the ordering fix. Twice the worker deployed before its migrations
@@ -410,6 +425,7 @@ every signed-in role.
 - [ ] Both services name `Dockerfile` in their own build settings — confirm from a build log showing the Dockerfile's own stages, not from the builder field
 - [ ] `RAILWAY_TOKEN` project token set as a GitHub Actions secret, and `railway config plan` reports no pending changes
 - [ ] `/diagnostics` reports the background worker as *Running* rather than "cannot tell" — if it says it could not reach the database, `SUPABASE_DB_URL` on the web service is the thing to look at, not the worker
+- [ ] The worker has the five `SMTP_*` settings, not just `SUPABASE_DB_URL` — otherwise the morning brief is composed and silently never sent (`daily_briefs.email_skipped` says why)
 - [ ] Worker restart policy is `ON_FAILURE` (see 2b.5), and a beat is visible in `worker_heartbeats` within a minute of deploy
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)

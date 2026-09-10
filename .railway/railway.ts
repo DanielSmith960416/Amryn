@@ -144,6 +144,26 @@ export default defineRailway(() => {
     },
     variables: {
       SUPABASE_DB_URL: preserve(),
+      /*
+       * The mail settings, so the morning brief can actually be delivered.
+       *
+       * brief.compose runs on the worker, and a worker with no mail settings
+       * composes the brief correctly and then records email_skipped — the
+       * brief exists, nobody is told about it, and nothing is broken enough
+       * to notice. SMTP_HOST and SMTP_FROM are the two that decide it; the
+       * rest tune the connection.
+       *
+       * References to the web service's copies rather than second literals,
+       * so each credential is defined once. The cost is a coupling in both
+       * directions — the web service reads SUPABASE_DB_URL from this one —
+       * so renaming either service breaks the other's variables. Worth
+       * knowing before renaming anything.
+       */
+      SMTP_HOST: preserve(),
+      SMTP_FROM: preserve(),
+      SMTP_PORT: preserve(),
+      SMTP_USER: preserve(),
+      SMTP_PASSWORD: preserve(),
     },
   });
 
