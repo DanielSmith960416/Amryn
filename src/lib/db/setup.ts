@@ -303,15 +303,29 @@ export async function applySchema(): Promise<SetupResult> {
  * cannot render because one check could not connect is a page nobody can use
  * during exactly the outage they opened it for.
  */
-export async function readWorkerHeartbeat(): Promise<{
-  workerId: string;
-  lastSeenAt: string;
-  startedAt: string;
-  handlers: string[];
-  inFlight: number;
-  revision: string | null;
-  pendingMigrations: string[];
-} | null> {
+export interface WorkerHeartbeatReading {
+  beat: {
+    workerId: string;
+    lastSeenAt: string;
+    startedAt: string;
+    handlers: string[];
+    inFlight: number;
+    revision: string | null;
+    pendingMigrations: string[];
+  } | null;
+  /**
+   * Why the question could not be asked, when it could not be.
+   *
+   * `beat: null` on its own used to carry two meanings — "no worker has ever
+   * reported" and "this page could not reach the database" — and /diagnostics
+   * printed the first for both. That is a false alarm about a worker that may
+   * be perfectly healthy, and it is the same conflation the heartbeat exists
+   * to remove: "nothing to report" is not "nobody to ask".
+   */
+  problem?: string;
+}
+
+export async function readWorkerHeartbeat(): Promise<WorkerHeartbeatReading> {
   let client: Client | undefined;
   try {
     client = await connect();
@@ -332,22 +346,24 @@ export async function readWorkerHeartbeat(): Promise<{
     );
 
     const row = rows[0];
-    if (!row) return null;
+    if (!row) return { beat: null };
 
     return {
-      workerId: row.worker_id,
-      lastSeenAt: row.last_seen_at,
-      startedAt: row.started_at,
-      handlers: row.handlers ?? [],
-      inFlight: row.in_flight,
-      revision: row.revision,
-      // A worker on a build older than migration 34 never writes this. Absent
-      // is not the same as behind, and reading it as drift would report an
-      // outage on the one deploy where the column has just arrived.
-      pendingMigrations: row.pending_migrations ?? [],
+      beat: {
+        workerId: row.worker_id,
+        lastSeenAt: row.last_seen_at,
+        startedAt: row.started_at,
+        handlers: row.handlers ?? [],
+        inFlight: row.in_flight,
+        revision: row.revision,
+        // A worker on a build older than migration 34 never writes this.
+        // Absent is not the same as behind, and reading it as drift would
+        // report an outage on the one deploy where the column has arrived.
+        pendingMigrations: row.pending_migrations ?? [],
+      },
     };
-  } catch {
-    return null;
+  } catch (error) {
+    return { beat: null, problem: safeMessage(error) };
   } finally {
     await client?.end().catch(() => {});
   }

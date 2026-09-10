@@ -72,6 +72,15 @@ export default defineRailway(() => {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: preserve(),
       NEXT_PUBLIC_SUPABASE_URL: preserve(),
       PORT: preserve(),
+      // The direct connection, which is what /setup applies migrations over
+      // and what /diagnostics reads the worker's heartbeat over. Without it
+      // that page cannot tell whether the worker is running — it says so
+      // rather than guessing, but saying so is not the same as knowing.
+      //
+      // preserve() and never a literal: this is the database owner's
+      // connection string, and Row Level Security does not stand between it
+      // and anything.
+      SUPABASE_DB_URL: preserve(),
       SMTP_FROM: preserve(),
       SMTP_HOST: preserve(),
       SMTP_PASSWORD: preserve(),
@@ -100,6 +109,22 @@ export default defineRailway(() => {
     deploy: {
       startCommand: 'node dist/worker.mjs',
       preDeployCommand: ['node scripts/migrate.mjs'],
+      /*
+       * ON_FAILURE with ten attempts, and both halves matter.
+       *
+       * Railway applies restartPolicyMaxRetries only under ON_FAILURE; under
+       * ALWAYS the count is ignored outright. That was learned here: the
+       * worker exits immediately when SUPABASE_DB_URL is missing — correctly —
+       * and under ALWAYS that turned one absent setting into a container
+       * restarting every 0.7 seconds indefinitely, on a service billed by the
+       * second. A misconfiguration will never fix itself and should stop; a
+       * transient database outage should be survived.
+       *
+       * It was set nowhere: the service reported no policy at all, so the
+       * runbook's instruction had quietly never been true.
+       */
+      restartPolicyType: 'ON_FAILURE',
+      restartPolicyMaxRetries: 10,
       multiRegionConfig: { ams: { numReplicas: 1 } },
     },
     variables: {

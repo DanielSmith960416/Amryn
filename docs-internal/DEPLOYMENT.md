@@ -252,15 +252,26 @@ below asks for one line of output rather than a green tick.
 > the way to resolve any disagreement between the two — the live environment
 > wins, not this file.
 >
-> ### One known discrepancy, deliberately not fixed here
+> ### Two things settled after the migration, each as its own reviewed plan
 >
-> Section 2b.5 says the worker's restart policy should be `ON_FAILURE` with 10
-> retries. The service reports no restart policy set at all, so it is on the
-> platform default. `.railway/railway.ts` describes what is live rather than
-> what the runbook wishes were live, so it says nothing about the worker's
-> restart policy either. Decide that separately and change it in the file, so
-> the change arrives as a reviewed plan rather than smuggled inside a
-> migration.
+> **The worker's restart policy.** Section 2b.5 has always said `ON_FAILURE`
+> with 10 retries, and the service reported no policy at all — the instruction
+> had quietly never been true. It is now declared in `.railway/railway.ts`,
+> which is where to change it.
+>
+> **`SUPABASE_DB_URL` on the web service.** Set, so `/diagnostics` can read the
+> worker's heartbeat and `/setup` can apply migrations, both of which need the
+> direct connection rather than the Supabase client.
+>
+> It is a Railway *reference* to the worker's copy — `${{Amryn Worker.SUPABASE_DB_URL}}`
+> — rather than a second literal, so the connection string exists once. Two
+> consequences worth knowing: renaming the worker service breaks it, and the
+> value shown on the web service is resolved by Railway rather than stored
+> there.
+>
+> It is also declared as `preserve()` in `.railway/railway.ts`, and **must
+> stay declared**. Omission deletes: a variable set in the dashboard but absent
+> from that file is one the next apply removes.
 
 Running more than one worker is safe. They never take the same job — the claim
 is a single statement using `for update skip locked` — and a worker that is
@@ -383,6 +394,7 @@ every signed-in role.
 - [ ] Worker service pre-deploy command is `node scripts/migrate.mjs`, and its output appears in the deploy log of a real deployment — a redeploy of an existing one does not prove it
 - [ ] Both services name `Dockerfile` in their own build settings — confirm from a build log showing the Dockerfile's own stages, not from the builder field
 - [ ] `RAILWAY_TOKEN` project token set as a GitHub Actions secret, and `railway config plan` reports no pending changes
+- [ ] `/diagnostics` reports the background worker as *Running* rather than "cannot tell" — if it says it could not reach the database, `SUPABASE_DB_URL` on the web service is the thing to look at, not the worker
 - [ ] Worker restart policy is `ON_FAILURE` (see 2b.5), and a beat is visible in `worker_heartbeats` within a minute of deploy
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)

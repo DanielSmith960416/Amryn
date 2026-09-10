@@ -822,8 +822,28 @@ async function checkWorker(allowed: boolean): Promise<Check> {
     };
   }
 
-  const beat = await readWorkerHeartbeat();
-  const health = workerHealth(beat, new Date());
+  const reading = await readWorkerHeartbeat();
+  const beat = reading.beat;
+  const health = workerHealth(reading, new Date());
+
+  /*
+   * Could not ask, which is not the same as nothing to report.
+   *
+   * The commonest cause is the direct connection string being absent or wrong
+   * on *this* service, which says nothing at all about the worker — so this
+   * is reported as a limit of the page rather than as an outage.
+   */
+  if (health.state === 'unreachable') {
+    return {
+      name,
+      status: 'warn',
+      detail: health.detail,
+      remedy:
+        'This is about this page rather than about the worker. Check SUPABASE_DB_URL on this ' +
+        'service: it needs the session pooler string from Settings → Database, which is the ' +
+        'same connection the worker writes its heartbeat over.',
+    };
+  }
 
   if (health.state === 'never') {
     return {
