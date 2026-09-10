@@ -128,6 +128,18 @@ below asks for one line of output rather than a green tick.
    A misconfiguration will never fix itself and should stop; a transient
    database outage should be survived. Ten attempts under `ON_FAILURE` does
    both, and setting the variable triggers a redeploy that starts it cleanly.
+
+   One consequence worth knowing, because it caused a real fault: under
+   `ON_FAILURE` an exit status of **0 is not a failure**, so a worker that
+   ends cleanly is never restarted. That is correct for a worker asked to
+   stop, and was a hazard for a worker that ended cleanly by accident — every
+   timer in its polling loop is deliberately unref'd, so the process was being
+   held alive only by whichever database socket the pool happened to have
+   idle. A failed query destroys its client rather than returning it, so a
+   worker that could not write its heartbeat had an empty pool, no handles,
+   and exited reporting success. The loop now holds an explicit handle for as
+   long as it should be running, so liveness is a decision rather than a side
+   effect. Keep the policy as it is; the fix belongs in the worker.
 6. **Settings → Networking**: no domain, no port. It serves nothing.
 7. Variables: **`SUPABASE_DB_URL`**, and nothing else. It holds a direct
    connection rather than a session, so none of the `NEXT_PUBLIC_*` settings
@@ -136,7 +148,38 @@ below asks for one line of output rather than a green tick.
    Take the **session pooler** string from Supabase → Settings → Database.
    Without it the worker exits immediately and says so — deliberately, rather
    than idling while the host reports it healthy and nothing is processed.
-8. Confirm it can actually reach the database and claim:
+8. **Settings → Deploy → Pre-Deploy Command**: `node scripts/migrate.mjs`.
+
+   This is the ordering fix. Twice the worker deployed before its migrations
+   were applied, came up healthy, claimed `twin.nightly` and failed on a table
+   that did not exist — three times, until the job had spent every attempt it
+   was allowed. The migration landed minutes later and the queue had already
+   given up on work that would then have succeeded; the row had to be reset by
+   hand.
+
+   The command runs between the build and the start, so nothing starts against
+   a schema it is ahead of. Three properties make it safe to run on every
+   release:
+
+   - It exits 0 when there is nothing to do, so a deploy that changes no
+     migration is unaffected.
+   - It takes an advisory lock, so two runs queue rather than race. Both
+     services deploy from the same push in the same second; without the lock
+     the loser fails partway through a `create table` that already exists — a
+     failed deployment caused by nothing being wrong.
+   - A failed migration stops the deploy before the worker starts, which is
+     the outcome you want. Note this includes the backup rule: a migration
+     that is not purely additive, on a database with organisations in it and
+     no recent backup, will refuse — and so block the deploy — until a backup
+     is taken. That is deliberate. See **Backups** below.
+
+   The migration output appears in the deploy log.
+
+   The worker also checks for itself and refuses to claim while the database
+   is behind it, so the gap is safe even if this command is ever removed. But
+   the command is what keeps the gap from opening.
+
+9. Confirm it can actually reach the database and claim:
 
    ```
    railway run node dist/worker.mjs --once
@@ -277,6 +320,8 @@ every signed-in role.
 - [ ] Authentication URLs point at `https://app.amryn.ai`
 - [ ] Railway service deployed, `/api/health/live` returns 200, and `/api/health` reaches 200 once Supabase is configured
 - [ ] Worker service deployed with start command `node dist/worker.mjs`, and `railway run node dist/worker.mjs --once` claims and runs something
+- [ ] Worker service pre-deploy command is `node scripts/migrate.mjs`, and its output appears in the deploy log of a real deployment — a redeploy of an existing one does not prove it
+- [ ] Worker restart policy is `ON_FAILURE` (see 2b.5), and a beat is visible in `worker_heartbeats` within a minute of deploy
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)
 - [ ] `www.amryn.ai` serves the marketing site
