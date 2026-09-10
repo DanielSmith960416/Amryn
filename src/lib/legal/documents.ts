@@ -45,17 +45,31 @@ export const REGULATOR = {
   email: 'complaints.IR@justice.gov.za',
 } as const;
 
-/** Where personal information goes, and why. Rendered as a table in the policy. */
+/**
+ * Where personal information goes, and why. Rendered as a table in the policy.
+ *
+ * Every location here was written as "depends on the region chosen" until the
+ * deployment existed and somebody looked. They are now the regions actually in
+ * use, read from the providers rather than assumed:
+ *
+ *   · Supabase project region  eu-west-1  (Ireland)
+ *   · Railway service region   ams        (Netherlands)
+ *
+ * "Depends" is an honest answer for a product that has not been deployed and a
+ * useless one for a customer asking where their invoices are kept. If a region
+ * changes, this table changes with it — that is the whole reason the policy
+ * reads from here instead of restating it in prose.
+ */
 export const PROCESSORS = [
   {
     name: 'Supabase',
     purpose: 'Database, authentication and file storage',
-    location: 'European Union / United States, depending on project region',
+    location: 'Ireland (European Union)',
   },
   {
     name: 'Railway',
-    purpose: 'Application hosting — the server that runs the platform',
-    location: 'Depends on the region chosen for the deployment',
+    purpose: 'Application hosting — the server that runs the platform, and backups',
+    location: 'Netherlands (European Union)',
   },
   {
     name: 'Cloudflare',
@@ -64,9 +78,18 @@ export const PROCESSORS = [
     location: 'Global edge network; the nearest location to the visitor answers',
   },
   {
-    name: 'Your chosen email provider',
-    purpose: 'Sending invitations, sign-in links and password resets',
-    location: 'Depends on the provider configured',
+    name: 'Resend',
+    purpose: 'Sending invitations, sign-in links, password resets and the daily brief',
+    // Not asserted. Resend's own processing region has not been confirmed
+    // against their documentation, and a privacy policy is the last place to
+    // guess. It says what it knows and no more.
+    location: 'To be confirmed with the provider',
+  },
+  {
+    name: 'Nango',
+    purpose:
+      'Holds the credentials for systems you connect — your accounting, payments and sales tools — and refreshes them.',
+    location: 'European Union',
   },
   {
     name: 'Your chosen AI provider',
@@ -75,6 +98,32 @@ export const PROCESSORS = [
     location: 'United States',
   },
 ] as const;
+
+/**
+ * Where the data actually lives, in a sentence a customer can act on.
+ *
+ * POPIA section 72 governs sending personal information outside the Republic.
+ * It permits it — a recipient bound by a law with substantially similar
+ * protection is one of the grounds, and the EU's regime is the usual example —
+ * but permission is not the same as silence. A South African business is
+ * entitled to know that its invoices, bank transactions and staff records are
+ * held in Ireland before it uploads them, not after it asks.
+ *
+ * Kept beside the processor table rather than written into a page, because
+ * three pages say this and three copies of a sentence about data residency is
+ * how one of them comes to be wrong.
+ */
+export const DATA_RESIDENCY = {
+  /** Named for the reader, not the region code. */
+  countries: ['Ireland', 'the Netherlands'] as const,
+  summary:
+    'Your information is stored on servers in Ireland and the Netherlands, inside the European Union. ' +
+    'Amryn is a South African company and this is a cross-border transfer under POPIA — permitted, ' +
+    'because European data protection law offers protection comparable to South Africa\u2019s, and ' +
+    'worth telling you plainly rather than leaving in a policy nobody opens.',
+  /** The one sentence a signup or an upload screen has room for. */
+  short: 'Stored in the EU (Ireland and the Netherlands).',
+} as const;
 
 /**
  * What is collected, why, and on what lawful basis.

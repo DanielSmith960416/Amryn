@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { requireWorkspace } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { formatDate } from '@/lib/utils/format';
-import { LEGAL_VERSION, RESPONSIBLE_PARTY } from '@/lib/legal/documents';
+import { DATA_RESIDENCY, LEGAL_VERSION, RESPONSIBLE_PARTY } from '@/lib/legal/documents';
 import { DataRequestForm } from '@/features/privacy/request-form';
 import { acceptCurrentDocuments } from '@/features/privacy/actions';
 import type { Enums } from '@/types/database';
@@ -64,6 +64,35 @@ export default async function PrivacySettingsPage() {
         title="Your privacy"
         description="What we hold about you, what you agreed to, and how to change either."
       />
+
+      {/*
+        Where the data is, said before anything else on the page.
+
+        A South African business uploading its invoices is entitled to know
+        they will be held in Ireland before it uploads them, not after it thinks
+        to ask. Buried in a policy is the same as not said — so it is here, in
+        the product, above the controls, in one sentence.
+      */}
+      <Card className="mb-5 max-w-4xl">
+        <div className="px-5 py-4">
+          <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+            Where your information is kept
+          </p>
+          <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-[var(--text-primary)]">
+            {DATA_RESIDENCY.summary}
+          </p>
+          <p className="mt-2 text-[0.8125rem] text-[var(--text-secondary)]">
+            The full list of who processes your information, and what each one does, is in the{' '}
+            <Link
+              href="/legal/privacy"
+              className="text-[var(--brand)] underline-offset-2 hover:underline"
+            >
+              privacy policy
+            </Link>
+            .
+          </p>
+        </div>
+      </Card>
 
       <div className="grid max-w-4xl gap-5 lg:grid-cols-2">
         <Card>
