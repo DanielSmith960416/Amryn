@@ -895,7 +895,7 @@ async function checkWorker(allowed: boolean): Promise<Check> {
         (beat?.revision ? ` (worker at ${beat.revision})` : '') +
         '. Any job of those kinds will fail every attempt.',
       remedy:
-        'Redeploy the worker service. Both services build from one image, so this means one of the two builds did not take.',
+        'Redeploy the worker service. Both build the same Dockerfile from the same commit, but as two separate builds, so this means one of the two did not take.',
     };
   }
 
