@@ -120,7 +120,9 @@ below asks for one line of output rather than a green tick.
 4. **Settings → Deploy → Health Check**: leave empty. There is no endpoint to
    check — the worker serves no HTTP at all, so a healthcheck could never pass
    and the deploy would be rolled back on a service that was working perfectly.
-5. **Settings → Deploy → Restart Policy**: `ON_FAILURE`, 10 retries.
+5. **Settings → Deploy → Restart Policy**: `ON_FAILURE`, 10 retries — which
+   is Railway's default, so leaving it alone is the correct action. A service
+   reporting no policy already has this one.
 
    Not `ALWAYS`, and this was learned the hard way on the first deploy. Railway
    applies `restartPolicyMaxRetries` only to `ON_FAILURE`; under `ALWAYS` the
@@ -254,10 +256,23 @@ below asks for one line of output rather than a green tick.
 >
 > ### Two things settled after the migration, each as its own reviewed plan
 >
-> **The worker's restart policy.** Section 2b.5 has always said `ON_FAILURE`
-> with 10 retries, and the service reported no policy at all — the instruction
-> had quietly never been true. It is now declared in `.railway/railway.ts`,
-> which is where to change it.
+> **The worker's restart policy was never wrong.** The service reports no
+> policy, which reads like a gap and is not one: Railway's default is
+> `ON_FAILURE` with a maximum of 10 restarts, which is exactly what 2b.5 asks
+> for. A field left at its default is simply not stored, and the read API does
+> not echo it.
+>
+> It is deliberately **not** declared in `.railway/railway.ts`, and the reason
+> generalises: **do not declare a value that equals the platform default.**
+> Railway stores nothing, so the next plan compares the declared value against
+> nothing and reports the same change again — forever. Measured rather than
+> assumed: #85 applied `~ Update Amryn deploy.restartPolicyType` successfully
+> and the next plan asked for it again.
+>
+> A plan that is never empty is a review gate people stop reading, which costs
+> far more than the setting was worth. Declare what differs — the web
+> service's `restartPolicyMaxRetries: 3` is declared precisely because 3 is
+> not 10.
 >
 > **`SUPABASE_DB_URL` on the web service.** Set, so `/diagnostics` can read the
 > worker's heartbeat and `/setup` can apply migrations, both of which need the

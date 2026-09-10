@@ -27,6 +27,16 @@
  * Generated *.up.railway.app domains are deliberately absent — Railway does
  * not manage those through this file, so naming one here would be inventing a
  * resource rather than describing one.
+ *
+ * ── do not declare a value that equals the platform default ───────────────
+ *
+ * Railway does not store a field left at its default, so a plan compares the
+ * declared value against nothing and reports the same change on every run.
+ * The apply succeeds and the next plan asks for it again. Measured, not
+ * guessed: that is what `deploy.restartPolicyType` did after #85.
+ *
+ * A plan that is never empty is a review gate people stop reading, which
+ * costs more than the setting was ever worth. Declare what differs.
  */
 import { defineRailway, github, preserve, project, service } from 'railway/iac';
 
@@ -62,7 +72,9 @@ export default defineRailway(() => {
       // deployment is not held back by Supabase being unreachable.
       healthcheckPath: '/api/health/live',
       healthcheckTimeout: 120,
-      restartPolicyType: 'ON_FAILURE',
+      // Three attempts rather than the default ten. Declared because it
+      // differs from the default; see the note below on why the policy *type*
+      // is not declared beside it.
       restartPolicyMaxRetries: 3,
       multiRegionConfig: { ams: { numReplicas: 1 } },
     },
@@ -110,21 +122,24 @@ export default defineRailway(() => {
       startCommand: 'node dist/worker.mjs',
       preDeployCommand: ['node scripts/migrate.mjs'],
       /*
-       * ON_FAILURE with ten attempts, and both halves matter.
+       * No restart policy declared, and that is the correct entry.
        *
-       * Railway applies restartPolicyMaxRetries only under ON_FAILURE; under
-       * ALWAYS the count is ignored outright. That was learned here: the
-       * worker exits immediately when SUPABASE_DB_URL is missing — correctly —
-       * and under ALWAYS that turned one absent setting into a container
-       * restarting every 0.7 seconds indefinitely, on a service billed by the
-       * second. A misconfiguration will never fix itself and should stop; a
-       * transient database outage should be survived.
+       * The runbook asks for ON_FAILURE with ten attempts. Railway's default
+       * is ON_FAILURE with ten attempts, so the service already has exactly
+       * that — "no policy reported" is the default being in force, not the
+       * absence of one.
        *
-       * It was set nowhere: the service reported no policy at all, so the
-       * runbook's instruction had quietly never been true.
+       * Declaring it anyway does not make it more true. A field whose value
+       * equals the platform default is not stored, so the next plan compares
+       * a declared value against nothing and reports the same change again,
+       * forever. That was measured: #85 applied
+       * `~ Update Amryn deploy.restartPolicyType` successfully and the very
+       * next plan asked for it again.
+       *
+       * A plan that always shows a phantom change is worse than no plan. It
+       * is the review gate for every future change to this file, and a gate
+       * that is never empty is one people stop reading.
        */
-      restartPolicyType: 'ON_FAILURE',
-      restartPolicyMaxRetries: 10,
       multiRegionConfig: { ams: { numReplicas: 1 } },
     },
     variables: {
