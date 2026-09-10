@@ -72,8 +72,22 @@ export default defineRailway(() => {
    * and the retention window keeps fourteen. Growing a volume is a live,
    * zero-downtime operation; shrinking one is not supported at all, so the
    * asymmetry says start small rather than large.
+   *
+   * ── why the name is not simply `backups` ──────────────────────────────
+   *
+   * The first apply of this file reported success and created a volume named
+   * `backups` that never attached to anything and does not appear in the
+   * environment — visible only as a name collision when another volume tried
+   * to take it. The working volume was created directly and named
+   * `amryn-backups`, and this file names that one.
+   *
+   * The alternative was to declare `backups` and let a future plan reconcile
+   * the two. That plan could reasonably have proposed detaching or deleting
+   * the volume holding the backups, which is the one change nobody should be
+   * asked to approve in a hurry. A name nothing else claims avoids the
+   * question entirely.
    */
-  const backups = volume('backups', {
+  const backups = volume('amryn-backups', {
     // Where the services run. A volume in another region would work and would
     // add a round trip to every write for no benefit.
     region: 'ams',
