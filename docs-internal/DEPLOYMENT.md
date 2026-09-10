@@ -508,6 +508,14 @@ The job shells out to `scripts/backup.mjs` — the same file you run by hand —
 rather than dumping for itself, so there is one dump path and the migration
 gate trusts what the schedule produces.
 
+The volume is named **`amryn-backups`**, not `backups`. The first apply of
+`.railway/railway.ts` reported success and created a `backups` volume that
+never attached to anything and does not appear in the environment — visible
+only as a name collision when another volume tried to take the name. The
+working volume was created directly and the file names that one, so no future
+plan is ever in a position to propose detaching or deleting the volume holding
+the backups.
+
 **Two consequences of using a volume, both deliberate:**
 
 - **The worker runs as root.** Railway mounts volumes as root, and an image
