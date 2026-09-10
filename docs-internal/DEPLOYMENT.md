@@ -426,6 +426,8 @@ every signed-in role.
 - [ ] `RAILWAY_TOKEN` project token set as a GitHub Actions secret, and `railway config plan` reports no pending changes
 - [ ] `/diagnostics` reports the background worker as *Running* rather than "cannot tell" — if it says it could not reach the database, `SUPABASE_DB_URL` on the web service is the thing to look at, not the worker
 - [ ] The worker has the five `SMTP_*` settings, not just `SUPABASE_DB_URL` — otherwise the morning brief is composed and silently never sent (`daily_briefs.email_skipped` says why)
+- [ ] Worker has `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` set — without both, every scanned document fails with "This worker cannot reach file storage". The worker fetches the file from Supabase Storage over HTTP; the database connection cannot give it the bytes.
+- [ ] `railway run --service "Amryn Worker" tesseract --version` and `pdftoppm -v` both answer. If either is missing the image built without it, and `/diagnostics` will show scans failing rather than silently returning nothing.
 - [ ] Worker restart policy is `ON_FAILURE` (see 2b.5), and a beat is visible in `worker_heartbeats` within a minute of deploy
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)

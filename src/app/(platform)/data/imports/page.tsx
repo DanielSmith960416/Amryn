@@ -48,7 +48,7 @@ export default async function DataImportsPage() {
       // Named rather than '*'. The extracted text lives in its own table for
       // this reason, and the habit is what keeps it that way.
       .select(
-        'id, filename, handling, byte_size, row_count, columns_found, sheet_names, page_count, text_chars, read_error, note, created_at',
+        'id, filename, handling, byte_size, row_count, columns_found, sheet_names, page_count, text_chars, text_source, ocr_state, read_error, note, created_at',
       )
       .eq('organisation_id', workspace.organisation.id)
       .is('deleted_at', null)
@@ -104,15 +104,38 @@ export default async function DataImportsPage() {
                           PDFs under a heading about analysis would be claiming
                           work nobody did.
                         */}
-                        <Badge
-                          tone={file.handling === 'document' ? 'neutral' : 'positive'}
-                        >
-                          {file.handling === 'table'
-                            ? 'Rows read'
-                            : file.handling === 'text'
-                              ? 'Text read'
-                              : 'Held, not read'}
-                        </Badge>
+                        {/*
+                          Four states, and the fourth is the point. "Text read"
+                          and "Read from a scan" are not the same claim: one is
+                          what the document says, the other is a machine's
+                          reading of a picture of what it says, and it is wrong
+                          often enough that presenting them identically would
+                          be the beginning of somebody trusting a figure that
+                          was never on the page.
+                        */}
+                        {file.ocr_state === 'queued' || file.ocr_state === 'running' ? (
+                          <Badge tone="info">
+                            {file.ocr_state === 'running' ? 'Reading the pages…' : 'Queued to read'}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            tone={
+                              file.handling === 'document'
+                                ? 'neutral'
+                                : file.text_source === 'ocr'
+                                  ? 'warning'
+                                  : 'positive'
+                            }
+                          >
+                            {file.handling === 'table'
+                              ? 'Rows read'
+                              : file.handling === 'text'
+                                ? file.text_source === 'ocr'
+                                  ? 'Read from a scan'
+                                  : 'Text read'
+                                : 'Held, not read'}
+                          </Badge>
+                        )}
                       </div>
 
                       {file.note ? (
@@ -125,6 +148,7 @@ export default async function DataImportsPage() {
                           {file.page_count > 0
                             ? ` from ${file.page_count} ${file.page_count === 1 ? 'page' : 'pages'}`
                             : ''}
+                          {file.text_source === 'ocr' ? ' · read by character recognition' : ''}
                         </p>
                       ) : null}
 

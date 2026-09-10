@@ -193,6 +193,7 @@ export async function uploadDocument(
       sheet_names: sheetNames,
       columns_found: columns,
       row_count: rowCount,
+      text_source: text === '' ? 'none' : 'embedded',
       page_count: pages,
       text_chars: text.length,
       text_truncated: truncated,
@@ -269,6 +270,26 @@ export async function uploadDocument(
         })
         .eq('id', document.id);
     }
+  }
+
+  /*
+   * A scan goes to the worker.
+   *
+   * Not read here. Character recognition is roughly a third of a second a
+   * page, so a fifty-page bundle is half a minute — which is a fine amount of
+   * time for a background job and an unreasonable amount to hold a request
+   * open for while somebody watches a spinner.
+   *
+   * Failing to queue is not failing to upload. The file is stored, the row
+   * describes it, and the page offers to try again; throwing away a document
+   * because the queue was briefly unavailable would be the wrong trade by a
+   * distance.
+   */
+  if (scanned) {
+    const { error: queueError } = await supabase.rpc('request_document_ocr', {
+      p_document: document.id,
+    });
+    if (queueError) ourFault('documents', queueError, '');
   }
 
   await recordEvent(workspace.organisation.id, 'document.uploaded', {

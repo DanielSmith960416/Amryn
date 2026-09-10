@@ -166,6 +166,69 @@ select pg_temp.check(
      'check constraint')) = 0,
   'and all three of the values the interface uses are storable');
 
+-- ── asking for a scan to be read ──────────────────────────────────────────
+--
+-- job_runs is not writable from a session, so this function is the only way in
+-- and it has to hold the line on its own. The organisation comes from the
+-- document rather than from the caller, which is what stops a well-formed call
+-- naming an organisation it does not belong to.
+
+set local role authenticated;
+select pg_temp.act_as('e3333333-3333-3333-3333-333333333333');
+
+select pg_temp.check(
+  pg_temp.refused(
+    $$select public.request_document_ocr('aa000000-0000-0000-0000-0000000000a1')$$,
+    'permission'),
+  'Beta cannot queue work against a document belonging to Alpha');
+
+select pg_temp.act_as('e2222222-2222-2222-2222-222222222222');
+
+select pg_temp.check(
+  pg_temp.refused(
+    $$select public.request_document_ocr('aa000000-0000-0000-0000-0000000000a1')$$,
+    'permission'),
+  'and someone who may only read files cannot spend a worker''s time on one');
+
+select pg_temp.act_as('e1111111-1111-1111-1111-111111111111');
+
+select pg_temp.check(
+  public.request_document_ocr('aa000000-0000-0000-0000-0000000000a1') is not null,
+  'the organisation''s own administrator can');
+
+select pg_temp.check(
+  (select ocr_state from public.data_documents
+    where id = 'aa000000-0000-0000-0000-0000000000a1') = 'queued',
+  'and the document says so, so the page can show it rather than looking idle');
+
+-- Pressing the button twice is not a mistake worth an error, and it must not
+-- put two readings of one document into the queue.
+select pg_temp.check(
+  public.request_document_ocr('aa000000-0000-0000-0000-0000000000a1') is null,
+  'asking again while it is queued returns quietly instead of queueing it twice');
+
+set local role postgres;
+
+select pg_temp.check(
+  (select count(*) from public.job_runs
+    where kind = 'document.ocr'
+      and organisation_id = 'f0000000-0000-0000-0000-0000000000a1') = 1,
+  'and exactly one job exists for it');
+
+select pg_temp.check(
+  (select payload ->> 'documentId' from public.job_runs where kind = 'document.ocr')
+    = 'aa000000-0000-0000-0000-0000000000a1',
+  'carrying the document it is for, and nothing else the worker must trust');
+
+set local role authenticated;
+select pg_temp.act_as('e1111111-1111-1111-1111-111111111111');
+
+select pg_temp.check(
+  pg_temp.refused(
+    $$select public.request_document_ocr('00000000-0000-0000-0000-000000000000')$$,
+    'does not exist'),
+  'a document id from nowhere is refused rather than queued and left to fail');
+
 -- ── deleting a file takes its words with it ───────────────────────────────
 --
 -- The cascade is the only thing standing between "remove this contract" and a

@@ -1320,6 +1320,8 @@ export interface Database {
           page_count: number;
           text_chars: number;
           text_truncated: boolean;
+          text_source: string;
+          ocr_state: string;
         };
         Insert: {
           id?: string;
@@ -1342,6 +1344,8 @@ export interface Database {
           page_count?: number;
           text_chars?: number;
           text_truncated?: boolean;
+          text_source?: string;
+          ocr_state?: string;
         };
         Update: {
           id?: string;
@@ -1364,6 +1368,8 @@ export interface Database {
           page_count?: number;
           text_chars?: number;
           text_truncated?: boolean;
+          text_source?: string;
+          ocr_state?: string;
         };
         Relationships: [
           {
@@ -4572,6 +4578,12 @@ export interface Database {
           p_hashes: string[];
         };
         Returns: undefined;
+      };
+      request_document_ocr: {
+        Args: {
+          p_document: string;
+        };
+        Returns: string;
       };
       request_simulation: {
         Args: {

@@ -104,9 +104,11 @@ export function UploadForm() {
                 ? `We extracted ${state.textChars.toLocaleString('en-ZA')} characters` +
                   (state.pages > 0 ? ` from ${state.pages} ${state.pages === 1 ? 'page' : 'pages'}.` : '.') +
                   ' Having the words is not the same as understanding them — open the file to see exactly what was read.'
-                : state.readError
-                  ? state.readError
-                  : 'It is kept as it is — Amryn has not read what is inside it.'}
+                : state.scanned
+                  ? 'That is a scan, so there is nothing in the file to lift out. A worker is reading the pages with character recognition now — refresh the file in a moment to see what it found.'
+                  : state.readError
+                    ? state.readError
+                    : 'It is kept as it is — Amryn has not read what is inside it.'}
           </p>
           <a
             href={`/data/documents/${state.id}`}

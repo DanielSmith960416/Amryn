@@ -88,6 +88,21 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
         </Card>
       ) : null}
 
+      {document.ocr_state === 'queued' || document.ocr_state === 'running' ? (
+        <Card tone="brand" className="mb-5">
+          <CardBody className="text-[0.875rem] leading-relaxed text-[var(--text-primary)]">
+            <strong>
+              {document.ocr_state === 'running'
+                ? 'Reading the pages now.'
+                : 'Queued to be read.'}
+            </strong>{' '}
+            This is a scan, so there is no text in the file to lift out — a worker is running
+            character recognition over the pages instead. It takes about a third of a second a
+            page. Refresh in a moment.
+          </CardBody>
+        </Card>
+      ) : null}
+
       {document.read_error ? (
         <Card tone="warning" className="mb-5">
           <CardBody className="text-[0.875rem] leading-relaxed text-[var(--text-primary)]">
@@ -152,7 +167,8 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
               document.handling === 'table'
                 ? `${document.row_count.toLocaleString('en-ZA')} rows across ${document.columns_found.length} columns`
                 : document.handling === 'text'
-                  ? `${document.text_chars.toLocaleString('en-ZA')} characters${document.text_truncated ? ', cut at the limit' : ''}`
+                  ? `${document.text_chars.toLocaleString('en-ZA')} characters${document.text_truncated ? ', cut at the limit' : ''}` +
+                    (document.text_source === 'ocr' ? ' · read off the image' : '')
                   : 'Nothing — this file is kept as it is'
             }
           />
@@ -188,11 +204,30 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
                 </pre>
               </div>
               <CardBody className="border-t border-[var(--border)]">
+                {document.text_source === 'ocr' ? (
+                  /*
+                   * The stronger warning, and it is not boilerplate.
+                   *
+                   * Running the same engine over one invoice rendered two ways
+                   * produced two different sets of errors: one pass dropped a
+                   * quantity of 140 outright, the other turned R42.50 into
+                   * "RA250". Both looked equally confident. Somebody about to
+                   * act on a figure from this panel needs that in front of
+                   * them, not in a commit message.
+                   */
+                  <p className="text-[0.75rem] leading-relaxed text-[var(--warning)]">
+                    <strong>This was read off an image, not lifted from the file.</strong> Character
+                    recognition misreads figures — a quantity can vanish and a price can come back
+                    as something that is not a price — and it does so without any sign that it has.
+                    Treat every number here as a prompt to look at the page above, never as the
+                    number itself.
+                  </p>
+                ) : null}
                 <p className="text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
-                  These are the words in the file, extracted so they can be searched and quoted.
-                  Nobody has read them and nothing has been concluded from them — no term noted,
-                  no figure taken. Layout is lost in extraction, so a table or a two-column page
-                  will read out of order here while being perfectly correct in the file above.
+                  These are the words in the file, {document.text_source === 'ocr' ? 'as far as they could be recognised' : 'extracted'} so they can be searched and
+                  quoted. Nobody has read them and nothing has been concluded from them — no term
+                  noted, no figure taken. Layout is lost, so a table or a two-column page will read
+                  out of order here while being perfectly correct in the file above.
                 </p>
               </CardBody>
             </>

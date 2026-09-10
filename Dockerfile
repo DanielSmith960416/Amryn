@@ -92,6 +92,31 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 # one Dockerfile; only the worker runs the dump.
 RUN apk add --no-cache postgresql17-client
 
+# Tesseract and poppler, for reading a scanned document.
+#
+# The worker runs these; the web service carries them because both services are
+# this one image. ~40 MB with the English language data, which is the price of
+# not sending every customer's invoices and bank statements to a third party
+# for about $1.50 per thousand pages.
+#
+# The language data is a separate package and is not optional: tesseract-ocr
+# without tesseract-ocr-data-eng installs, runs, and fails on every page with
+# a message about a missing traineddata file. Both named here so that a build
+# either has recognition or does not, rather than shipping half of it.
+#
+# poppler-utils supplies pdftoppm, which turns the PDF into the images
+# Tesseract reads. src/lib/files/ocr.ts checks for both at run time and reports
+# which is missing rather than failing every scan with a spawn error.
+#
+# These three names were not verified against an Alpine index — the environment
+# this was written in could reach neither the package search nor a mirror. If
+# one is wrong the build fails here, loudly, in the deploy log, which is the
+# same bargain the line above makes about postgresql17-client and the right
+# place to find out. The run-time check is the second net, for the case where
+# the packages install and the language data still is not where Tesseract
+# looks.
+RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-eng poppler-utils
+
 # `output: 'standalone'` emits a server with only the dependencies it actually
 # uses — a few hundred megabytes of node_modules do not travel with it. The
 # two directories beside it are not included and have to be copied by hand:

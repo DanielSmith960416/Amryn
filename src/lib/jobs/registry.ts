@@ -18,6 +18,7 @@ import { measureTwinFidelity } from './handlers/measure-fidelity';
 import { nightlyBackup } from './handlers/nightly-backup';
 import { nightlyBriefTick } from './handlers/nightly-brief';
 import { nightlyTwinTick } from './handlers/nightly-twin';
+import { readScan } from './handlers/read-scan';
 import { runAnalysis } from './handlers/run-analysis';
 import { simulateTwin } from './handlers/simulate-twin';
 import { sweepJobs } from './handlers/sweep-jobs';
@@ -32,6 +33,9 @@ const HANDLERS: readonly JobHandler[] = [
   verifyEmail,
   sweepJobs,
   runAnalysis,
+  // Queued by an upload that turned out to be a scan, never on a schedule:
+  // there is no such thing as a document to re-read at four in the morning.
+  readScan,
   measureTwinFidelity,
   nightlyTwinTick,
   simulateTwin,
