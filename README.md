@@ -345,9 +345,11 @@ The whole procedure, with DNS records and a cutover checklist, is in
    running one after the other is safe and neither repeats a migration that is
    already in place.
 
-2. **Railway.** Deploy from the repository; `railway.json` points it at
-   `Dockerfile` and there is nothing else to configure about the build. Set the
-   settings, and add `app.amryn.ai` as a custom domain.
+2. **Railway.** Deploy from the repository and point the service's build
+   settings at `Dockerfile`. Set the settings, and add `app.amryn.ai` as a
+   custom domain. `.railway/railway.ts` describes both services, but it is
+   applied with the Railway CLI rather than read during a build — see
+   docs-internal/DEPLOYMENT.md.
 
 3. **Allow the auth redirect.** Site URL `https://app.amryn.ai`, and
    `https://app.amryn.ai/auth/callback` on the redirect list. Skipping this is
@@ -378,9 +380,10 @@ docs/                → everything GitHub Pages serves
   app.js             → workspace data, Command Centre behaviour, APP_URL
   brand/             → supplied brand artwork (see BRAND-USAGE.txt)
   .nojekyll          → a leftover from the GitHub Pages era; harmless
-.github/workflows/  → check.yml (typecheck, lint, test, build), image.yml
-Dockerfile          → the application image Railway builds
-railway.json        → what Railway does with it
+.github/workflows/  → check.yml (typecheck, lint, test, build), image.yml,
+                      railway-config.yml (plans .railway/ on a pull request)
+Dockerfile          → the application image Railway builds, for both services
+.railway/railway.ts → both Railway services as one file, applied by the CLI
 ```
 
 For orientation, the platform beside it:
