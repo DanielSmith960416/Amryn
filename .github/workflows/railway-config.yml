@@ -1,0 +1,115 @@
+# Plans the Railway configuration on a pull request, and applies it on merge.
+#
+# The plan is the point. `.railway/railway.ts` is "omit means delete" — a
+# resource or variable not named in it is one the next apply removes — so the
+# change set has to be read by a person before it runs. This workflow puts that
+# diff in the pull request as a comment, and merging is the approval.
+#
+# Nothing here reads the file at deploy time. Railway deploys do not evaluate
+# `.railway/railway.ts` at all; only these two jobs do.
+#
+# Action majors are pinned for the same reason as check.yml: GitHub forces
+# actions targeting Node 20 onto Node 24 and warns, and a workflow left on the
+# old majors stops running rather than warning once Node 20 support is removed.
+name: Railway config
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - '.railway/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+  id-token: write
+
+jobs:
+  plan:
+    # Fork pull requests do not receive repository secrets, so a plan there
+    # could only fail. Skipped rather than run and reported red.
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      # The plan job evaluates .railway/railway.ts, which imports the railway
+      # package. It is a devDependency of this repository for exactly that.
+      - name: Install dependencies
+        run: npm ci
+
+      # ── why this guard exists ──────────────────────────────────────────
+      #
+      # Applying needs a Railway project token that only an operator can
+      # create, and until it exists every pull request touching .railway/
+      # would fail on a missing secret — including the one that introduced
+      # this workflow. A red check that means "not configured yet" is a check
+      # people learn to ignore, so this says so and passes instead.
+      #
+      # The moment RAILWAY_TOKEN is set, the plan runs for real with no change
+      # here. Secrets cannot be read in a job-level `if`, which is why the
+      # test is a step.
+      - name: Is the Railway token configured?
+        id: token
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'No RAILWAY_TOKEN secret is set, so there is nothing to plan against.'
+            echo 'See docs-internal/DEPLOYMENT.md for how to create the project token.'
+          else
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Plan the Railway configuration
+        if: steps.token.outputs.present == 'true'
+        uses: railwayapp/config@v1
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+  apply:
+    if: github.event.action == 'closed' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the merged commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Is the Railway token configured?
+        id: token
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'No RAILWAY_TOKEN secret is set. Nothing was applied.'
+          else
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply the reviewed plan
+        if: steps.token.outputs.present == 'true'
+        uses: railwayapp/config@v1
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}

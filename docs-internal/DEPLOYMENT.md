@@ -58,15 +58,18 @@ domain is ever pointed properly.
 
 ## 2. Railway
 
-1. New project → Deploy from GitHub repo. Railway reads `railway.json` and
-   builds `Dockerfile`; there is nothing to configure about the build.
+1. New project → Deploy from GitHub repo. Set **Settings → Build** to the
+   Dockerfile builder with path `Dockerfile`. Do not rely on a file in the
+   repository to supply that: `.railway/railway.ts` is applied by the CLI, not
+   read at deploy time, and `railway.json` no longer exists.
 2. Set the variables from the table below on the service.
 3. **Settings → Networking → Custom Domain**: `app.amryn.ai`. Railway gives
    you a CNAME target.
 4. There are two health endpoints, and Railway is pointed at the right one:
 
    - **`/api/health/live`** — did the server start? Always 200 while the
-     process is answering. This is `healthcheckPath` in `railway.json`.
+     process is answering. This is `healthcheckPath` on the service, and
+     `deploy.healthcheckPath` in `.railway/railway.ts`.
    - **`/api/health`** — is the deployment *well*? Asks the database, the mail
      service and the model provider, and returns 503 when something is
      failing. Point your uptime monitor here.
@@ -105,11 +108,12 @@ below asks for one line of output rather than a green tick.
 1. In the same Railway project: **New → GitHub Repo**, the same repository.
 2. **Settings → Build → Dockerfile Path**: `Dockerfile`.
 
-   Not optional, and the reason is the deprecation below. `railway.json` sets
-   the builder for the web service, and a new service cannot read it — so
-   without this the worker is built by Railpack, which knows nothing about
-   `npm run build:worker` and produces an image with no `dist/worker.mjs` in
-   it. Naming the Dockerfile forces the same image both services share, which
+   Not optional, and the reason is the note below. Nothing in the repository
+   supplies this at deploy time any more — `.railway/railway.ts` is applied by
+   the CLI, not read during a build — so without it set here the worker is
+   built by Railpack, which knows nothing about `npm run build:worker` and
+   produces an image with no `dist/worker.mjs` in it. Naming the Dockerfile
+   here is what keeps both services on the same build, which
    is what stops the worker running last week's handlers against this week's
    schema.
 3. **Settings → Deploy → Custom Start Command**: `node dist/worker.mjs`.
@@ -188,33 +192,75 @@ below asks for one line of output rather than a green tick.
    One pass, then it exits. It should name the handlers it knows and either run
    something or say there was nothing to run.
 
-> **`railway.json` is deprecated, and this is dated.** Railway has replaced
-> Config as Code with Infrastructure as Code (`.railway/railway.ts`). Existing
-> `railway.json` files keep working **only until 2026-12-01**, and **new
-> services cannot opt into them at all** — which is why the worker's settings
-> above are set on the service rather than committed to a file beside
-> `railway.json`.
+> **Config as Code is gone from this repository.** `railway.json` was deleted
+> and replaced by `.railway/railway.ts`, Railway's Infrastructure as Code. The
+> old file stopped being read on 2026-12-01 anyway, and on that day a service
+> whose builder came only from it would have fallen back to Railpack — which
+> builds this repository's Next.js app perfectly well while producing an image
+> with no `dist/worker.mjs`, no `scripts/` and no `supabase/migrations/` in it.
 >
-> The first consequence has been dealt with. The web service's build settings
-> — builder, Dockerfile path, start command, healthcheck and restart policy —
-> are now set **on the service as well as** in `railway.json`, matching it
-> field for field. Until 2026-12-01 `railway.json` still wins; after it, the
-> service settings are already there and nothing changes. Before this, the
-> dashboard reported the builder as Railpack and only `railway.json` was
-> holding the service on the Dockerfile, so the file's removal would have
-> silently produced an image with no `dist/worker.mjs`, no `scripts/` and no
-> `supabase/migrations/` in it.
+> Both services are described in that one file, which is what the old
+> arrangement could not do: `railway.json` was per-service and only the web
+> service ever used it.
 >
-> That the dashboard said Railpack while the build logs showed buildkit running
-> our Dockerfile is worth remembering: the stored builder field reports the
-> platform default when nothing overrides it, so **it is not evidence of how a
-> service actually builds**. The build log is. Anyone auditing this should read
-> the log, not the setting.
+> ### What the file is, and what it is not
 >
-> The second consequence stands: the two services are configured in two
-> different ways, which is the drift that file existed to prevent. Migrating
-> both to `.railway/railway.ts` fixes it and is not urgent until it suddenly
-> is.
+> **No deploy reads it.** Railway evaluates `.railway/railway.ts` only through
+> the CLI, on `plan` and `apply`. Committing it changes nothing; applying it
+> does. Between the two, both services run on the settings stored against them,
+> which is why those were set explicitly first.
+>
+> **Omit means delete.** A resource or variable not named in the file is one
+> the next apply removes. Every variable on both services is therefore listed,
+> as `preserve()` — "keep the value Railway already has" — so nothing secret is
+> written into this repository and nothing is dropped. Generated
+> `*.up.railway.app` domains are deliberately absent: Railway does not manage
+> those through this file.
+>
+> ### The cutover, which needs an operator
+>
+> The plan and apply need a Railway **project token**, which cannot be created
+> from CI or from a repository. Until one exists, the workflow at
+> `.github/workflows/railway-config.yml` reports that and passes rather than
+> failing every pull request that touches `.railway/`.
+>
+> 1. Railway → project → **Settings → Tokens** → create a project token scoped
+>    to the **production** environment.
+> 2. GitHub → repository → **Settings → Secrets and variables → Actions** → add
+>    it as `RAILWAY_TOKEN`.
+> 3. Open a pull request touching `.railway/` — the plan runs and comments the
+>    diff on the pull request.
+> 4. **Read the plan before merging.** It is safe when it shows only settings
+>    you meant to move. It must not show service deletes, variable deletes,
+>    bucket deletes, or changes to a service you did not touch. If it does,
+>    close the pull request rather than merging it: merging is the approval,
+>    and the apply job runs on merge.
+> 5. The first plan is expected to show little or nothing, because the file was
+>    written to describe what is already live rather than to change it. "Your
+>    Railway configuration is already up to date" is the ideal first result.
+>
+> To run it by hand instead, from a machine with the CLI:
+>
+> ```
+> railway login
+> railway link                # choose this project and the production environment
+> railway config plan         # read this carefully
+> railway config apply
+> ```
+>
+> `railway config pull --force` will rewrite the file from live state, which is
+> the way to resolve any disagreement between the two — the live environment
+> wins, not this file.
+>
+> ### One known discrepancy, deliberately not fixed here
+>
+> Section 2b.5 says the worker's restart policy should be `ON_FAILURE` with 10
+> retries. The service reports no restart policy set at all, so it is on the
+> platform default. `.railway/railway.ts` describes what is live rather than
+> what the runbook wishes were live, so it says nothing about the worker's
+> restart policy either. Decide that separately and change it in the file, so
+> the change arrives as a reviewed plan rather than smuggled inside a
+> migration.
 
 Running more than one worker is safe. They never take the same job — the claim
 is a single statement using `for update skip locked` — and a worker that is
@@ -335,7 +381,8 @@ every signed-in role.
 - [ ] Railway service deployed, `/api/health/live` returns 200, and `/api/health` reaches 200 once Supabase is configured
 - [ ] Worker service deployed with start command `node dist/worker.mjs`, and `railway run node dist/worker.mjs --once` claims and runs something
 - [ ] Worker service pre-deploy command is `node scripts/migrate.mjs`, and its output appears in the deploy log of a real deployment — a redeploy of an existing one does not prove it
-- [ ] Both services name `Dockerfile` in their own build settings, not only in `railway.json` — confirm from a build log showing the Dockerfile's own stages, not from the builder field
+- [ ] Both services name `Dockerfile` in their own build settings — confirm from a build log showing the Dockerfile's own stages, not from the builder field
+- [ ] `RAILWAY_TOKEN` project token set as a GitHub Actions secret, and `railway config plan` reports no pending changes
 - [ ] Worker restart policy is `ON_FAILURE` (see 2b.5), and a beat is visible in `worker_heartbeats` within a minute of deploy
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)
