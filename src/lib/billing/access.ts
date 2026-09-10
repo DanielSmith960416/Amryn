@@ -50,6 +50,28 @@ export const ENTITLEMENTS = [
   'ai_credits',
   'audit_retention_days',
   'branches',
+  /*
+   * Added with the connector work (migration 36). Six more keys the brief
+   * asked for are deliberately absent because they already exist above under
+   * Amryn's own names: opportunity_pipeline is the Opportunity Radar,
+   * custom_reports is advanced reporting, ai_assistant and ai_credits are the
+   * AI tier, and branches, api_access and sso are themselves. A second key
+   * for any of them would split enforcement in two, and the half of the
+   * application still checking the old name would go on working while the
+   * other half diverged — which is the kind of bug nobody finds until a
+   * customer is charged for something they cannot open.
+   *
+   * There is no max_connections for the same reason: data_sources already
+   * counts how many systems may feed the platform.
+   */
+  'digital_twin',
+  'microsoft_365',
+  'google_workspace',
+  'power_bi',
+  'enterprise_connectors',
+  'custom_connectors',
+  'workflows',
+  'ai_agents',
 ] as const;
 
 export type Entitlement = (typeof ENTITLEMENTS)[number];

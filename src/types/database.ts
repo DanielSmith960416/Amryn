@@ -536,6 +536,49 @@ export interface Database {
           },
         ];
       };
+      backups: {
+        Row: {
+          id: string;
+          taken_at: string;
+          database_digest: string;
+          database_label: string;
+          bytes: number;
+          sha256: string;
+          pg_dump_version: string;
+          rows: Json;
+          stored_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          taken_at: string;
+          database_digest: string;
+          database_label: string;
+          bytes: number;
+          sha256: string;
+          pg_dump_version: string;
+          rows?: Json;
+          stored_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          taken_at?: string;
+          database_digest?: string;
+          database_label?: string;
+          bytes?: number;
+          sha256?: string;
+          pg_dump_version?: string;
+          rows?: Json;
+          stored_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+        ];
+      };
       billing_records: {
         Row: {
           id: string;
@@ -3833,6 +3876,9 @@ export interface Database {
           sort_order: number;
           created_at: string;
           updated_at: string;
+          price_cents_monthly_max: number | null;
+          implementation_fee_cents_min: number | null;
+          implementation_fee_cents_max: number | null;
         };
         Insert: {
           plan: Enums['subscription_plan'];
@@ -3850,6 +3896,9 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          price_cents_monthly_max?: number | null;
+          implementation_fee_cents_min?: number | null;
+          implementation_fee_cents_max?: number | null;
         };
         Update: {
           plan?: Enums['subscription_plan'];
@@ -3867,6 +3916,9 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+          price_cents_monthly_max?: number | null;
+          implementation_fee_cents_min?: number | null;
+          implementation_fee_cents_max?: number | null;
         };
         Relationships: [
         ];
@@ -4213,6 +4265,43 @@ export interface Database {
             referencedRelation: 'users';
             referencedColumns: ['id'];
           },
+        ];
+      };
+      worker_heartbeats: {
+        Row: {
+          worker_id: string;
+          last_seen_at: string;
+          started_at: string;
+          handlers: string[];
+          in_flight: number;
+          revision: string | null;
+          created_at: string;
+          updated_at: string;
+          pending_migrations: string[];
+        };
+        Insert: {
+          worker_id: string;
+          last_seen_at?: string;
+          started_at?: string;
+          handlers?: string[];
+          in_flight?: number;
+          revision?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          pending_migrations?: string[];
+        };
+        Update: {
+          worker_id?: string;
+          last_seen_at?: string;
+          started_at?: string;
+          handlers?: string[];
+          in_flight?: number;
+          revision?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          pending_migrations?: string[];
+        };
+        Relationships: [
         ];
       };
     };

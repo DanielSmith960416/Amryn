@@ -80,11 +80,51 @@ select pg_temp.check(
   (select count(*) from public.subscription_plans) = 4,
   'four tiers are published');
 
+-- The 2026 price list (migration 36). Restated here deliberately: this is the
+-- assertion that catches a repricing done in one place and forgotten in the
+-- other, and it did exactly that when these numbers changed.
 select pg_temp.check(
-  (select price_cents_monthly from public.subscription_plans where plan = 'starter') = 99900
-  and (select price_cents_monthly from public.subscription_plans where plan = 'growth') = 399900
-  and (select price_cents_monthly from public.subscription_plans where plan = 'professional') = 999900,
+  (select price_cents_monthly from public.subscription_plans where plan = 'starter') = 149900
+  and (select price_cents_monthly from public.subscription_plans where plan = 'growth') = 499900
+  and (select price_cents_monthly from public.subscription_plans where plan = 'professional') = 1299900,
   'Starter, Growth and Professional carry the published rand prices');
+
+-- Enterprise is a band, not a figure, and the ceiling has to be above the
+-- floor or the page prints a range that reads backwards.
+select pg_temp.check(
+  (select price_cents_monthly from public.subscription_plans where plan = 'enterprise') = 2500000
+  and (select price_cents_monthly_max from public.subscription_plans where plan = 'enterprise') = 7500000,
+  'Enterprise carries a negotiated band rather than one number');
+
+-- Every tier is quoted a setup fee, and a range with no floor cannot be
+-- quoted from.
+select pg_temp.check(
+  (select count(*) from public.subscription_plans
+    where implementation_fee_cents_min is not null
+      and implementation_fee_cents_max is not null) = 4,
+  'every tier carries an implementation fee range');
+
+-- Connections per tier: 2 / 8 / 20 / unlimited. Professional stopped being
+-- unlimited in migration 36 and this is where that is recorded.
+select pg_temp.check(
+  (select limit_value from public.plan_entitlements
+    where plan = 'professional' and entitlement_key = 'data_sources') = 20
+  and (select limit_value from public.plan_entitlements
+    where plan = 'growth' and entitlement_key = 'data_sources') = 8
+  and (select limit_value from public.plan_entitlements
+    where plan = 'starter' and entitlement_key = 'data_sources') = 2
+  and (select limit_value from public.plan_entitlements
+    where plan = 'enterprise' and entitlement_key = 'data_sources') is null,
+  'connection ceilings are 2, 8, 20 and unlimited');
+
+-- The connector tiers must not be given away. enterprise_connectors and
+-- custom_connectors gate SAP, Dynamics and Salesforce, and a default that let
+-- them through would be discovered by a customer rather than by us.
+select pg_temp.check(
+  (select count(*) from public.plan_entitlements
+    where entitlement_key in ('enterprise_connectors', 'custom_connectors')
+      and included) = 2,
+  'enterprise and custom connectors belong to Enterprise alone');
 
 select pg_temp.check(
   (select contact_sales from public.subscription_plans where plan = 'enterprise'),
@@ -157,11 +197,25 @@ select pg_temp.check(
 
 -- The distinction the design turns on: unlimited and not-sold are different
 -- answers, and a single nullable number could not tell them apart.
+--
+-- Professional used to be the unlimited example here. Migration 36 gave it a
+-- ceiling of 20, so the example moved to Enterprise — which is the only tier
+-- where "as many as the contract says" is the honest answer. The distinction
+-- being tested has not changed; only the tier that demonstrates it.
 select pg_temp.check(
   amryn.entitlement_limit(current_setting('amryn_test.starter')::uuid, 'data_sources') = 2
-  and amryn.entitlement_limit(current_setting('amryn_test.paid')::uuid, 'data_sources') is null
+  and amryn.entitlement_limit(current_setting('amryn_test.paid')::uuid, 'data_sources') = 20
   and amryn.has_entitlement(current_setting('amryn_test.paid')::uuid, 'data_sources'),
-  'Professional data sources are unlimited, not absent');
+  'Professional data sources are capped at twenty, and sold');
+
+-- And the null still means unlimited rather than absent, which is the half of
+-- the distinction Professional can no longer demonstrate.
+select pg_temp.check(
+  (select limit_value from public.plan_entitlements
+    where plan = 'enterprise' and entitlement_key = 'data_sources') is null
+  and (select included from public.plan_entitlements
+    where plan = 'enterprise' and entitlement_key = 'data_sources'),
+  'Enterprise data sources are unlimited, not absent');
 
 -- A cancelled subscription keeps its feature set. It is the payment that has
 -- lapsed, not the purchase, and telling someone their competitor radar has
