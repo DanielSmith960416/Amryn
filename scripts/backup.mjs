@@ -28,7 +28,8 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // Shared with the migration runner, so the fingerprint the backup records is
 // exactly the one the guard checks.
-import { databaseFingerprint } from './backup-manifest.mjs';
+import pg from 'pg';
+import { countRows, databaseFingerprint } from './backup-manifest.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -139,25 +140,16 @@ if (!contents.includes('PostgreSQL database dump complete')) {
   process.exit(1);
 }
 
+let recorded = false;
 const bytes = statSync(dumpPath).size;
 const sha256 = createHash('sha256').update(contents).digest('hex');
 
-// Counted from the dump rather than from the database, so the figures describe
-// what was actually captured. Zero organisations in a backup of a live system
-// is the number worth noticing before applying anything.
-const countCopies = (table) => {
-  const match = new RegExp(`^COPY public\\.${table} .*$`, 'm').exec(contents);
-  if (!match) return 0;
-  const start = contents.indexOf('\n', match.index) + 1;
-  const end = contents.indexOf('\n\\.', start);
-  const body = contents.slice(start, end === -1 ? start : end);
-  return body.trim() === '' ? 0 : body.split('\n').length;
-};
-
+// Counted from the dump itself, so the figures describe the file rather than
+// the intention. See countRows() for the empty-table trap it avoids.
 const rows = Object.fromEntries(
   ['organisations', 'organisation_members', 'financial_records', 'user_profiles'].map((t) => [
     t,
-    countCopies(t),
+    countRows(contents, t),
   ]),
 );
 
@@ -179,10 +171,63 @@ writeFileSync(
   )}\n`,
 );
 
+/*
+ * Tell the platform this happened.
+ *
+ * The dump itself stays on this machine — that is the whole reason this script
+ * is not run in the deployment container. But a backup nobody can see is a
+ * backup nobody knows the age of, and "we have backups" then rests on somebody
+ * remembering. /diagnostics reads this row and reports how long ago it was.
+ *
+ * Written after the completion check and the checksum, never before: a row
+ * means a verified dump existed at that moment. It records where the file was
+ * put, which the platform cannot check and does not pretend to.
+ *
+ * A failure here is reported and does not fail the backup. The dump on disk is
+ * valid whether or not the database was reachable to be told about it, and
+ * exiting non-zero would send somebody looking for a broken backup that is
+ * fine.
+ */
+const recorder = new pg.Client({
+  connectionString: url,
+  ssl: /[?&]sslmode=disable(&|$)/.test(url) ? false : { rejectUnauthorized: false },
+  connectionTimeoutMillis: 15_000,
+});
+
+try {
+  await recorder.connect();
+  await recorder.query(
+    `insert into public.backups
+       (taken_at, database_digest, database_label, bytes, sha256, pg_dump_version, rows, stored_at)
+     values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+     on conflict (database_digest, taken_at) do nothing`,
+    [
+      takenAt.toISOString(),
+      fingerprint.digest,
+      fingerprint.label,
+      bytes,
+      sha256,
+      dumpVersion,
+      JSON.stringify(rows),
+      resolve(dumpPath),
+    ],
+  );
+  recorded = true;
+} catch (error) {
+  console.warn(
+    `\nNote: the backup is complete, but it could not be recorded in the database — ` +
+      `${safe(error instanceof Error ? error.message : String(error), url)}`,
+  );
+  console.warn('/diagnostics will still report the previous backup as the newest one.');
+} finally {
+  await recorder.end().catch(() => {});
+}
+
 const mb = (bytes / 1024 / 1024).toFixed(1);
 console.log(`\nDone. ${mb} MB, complete, sha256 ${sha256.slice(0, 16)}…`);
 console.log('Rows captured:');
 for (const [table, count] of Object.entries(rows)) console.log(`  ${table}: ${count}`);
 console.log(`\nManifest: ${manifestPath}`);
+if (recorded) console.log('Recorded in the database, so /diagnostics can report its age.');
 console.log('Apply the migration with:');
 console.log(`  node scripts/migrate.mjs --backup ${manifestPath}`);

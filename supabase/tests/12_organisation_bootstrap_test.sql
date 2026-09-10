@@ -168,16 +168,27 @@ select pg_temp.check(
     = array['audit_logs', 'mfa_recovery_codes', 'subscription_activations']::text[],
   'row level security is forced on every table but the one documented exception');
 
+-- Named rather than counted, for the same reason as the assertion above, and
+-- because these two had already drifted: they read "all 65 tables" and "62 of
+-- them" while asserting 69 and 66. Every migration that adds a table made the
+-- message less true, and a message nobody can trust is worse than no message.
+--
+-- The empty-array form never goes stale, and when it fails it names the table
+-- that is missing row level security instead of the arithmetic.
 select pg_temp.check(
-  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity) = 69,
-  'all 65 tables have RLS enabled');
+  (select coalesce(array_agg(c.relname::text order by c.relname), array[]::text[])
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity)
+    = array[]::text[],
+  'every table in public has row level security enabled');
 
 select pg_temp.check(
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r'
-      and c.relrowsecurity and c.relforcerowsecurity) = 66,
-  'and 62 of them force it against the owner as well');
+      and c.relrowsecurity and c.relforcerowsecurity)
+  = (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind = 'r') - 3,
+  'and every table but the three named above forces it against the owner as well');
 
 reset role;
 rollback;

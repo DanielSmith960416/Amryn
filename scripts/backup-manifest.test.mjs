@@ -3,7 +3,12 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { databaseFingerprint, manifestProblems, MAX_AGE_HOURS } from './backup-manifest.mjs';
+import {
+  countRows,
+  databaseFingerprint,
+  manifestProblems,
+  MAX_AGE_HOURS,
+} from './backup-manifest.mjs';
 
 const SUPABASE = 'postgresql://postgres.abc:pw@aws-0-eu-west-1.pooler.supabase.com:6543/postgres';
 // Written out rather than derived by replacing '/postgres' — that substring
@@ -129,5 +134,62 @@ describe('manifestProblems', () => {
     const path = join(dir, 'junk.json');
     writeFileSync(path, 'not json at all');
     expect(manifestProblems(path, SUPABASE, now)[0]).toMatch(/not readable as a manifest/);
+  });
+});
+
+describe('countRows', () => {
+  /*
+   * pg_dump's shape, reduced to the part that matters: a header, a body, and a
+   * `\.` terminator on its own line.
+   */
+  const dump = (blocks) =>
+    blocks
+      .map(([table, rows]) => `COPY public.${table} (id, name) FROM stdin;\n${rows.map((r) => r).join('\n')}${rows.length ? '\n' : ''}\\.\n`)
+      .join('\n');
+
+  it('counts the rows a table captured', () => {
+    const contents = dump([['organisations', ['1\tAcme', '2\tBeta', '3\tGamma']]]);
+    expect(countRows(contents, 'organisations')).toBe(3);
+  });
+
+  /*
+   * The regression. An empty table puts its terminator on the line straight
+   * after the header, and a search starting past the header steps over it and
+   * counts the next table's rows as this one's. Measured against a real dump,
+   * an empty organisations table read as 39.
+   *
+   * It is the one count that has to be right: a dump of nothing is complete,
+   * correctly checksummed, the right size and worthless, and this figure is
+   * the only thing that says so.
+   */
+  it('counts an empty table as zero, not as the next table', () => {
+    const contents = dump([
+      ['organisations', []],
+      ['financial_records', ['1\tone', '2\ttwo', '3\tthree', '4\tfour']],
+    ]);
+    expect(countRows(contents, 'organisations')).toBe(0);
+    expect(countRows(contents, 'financial_records')).toBe(4);
+  });
+
+  it('counts every table as zero in a dump of an empty database', () => {
+    const contents = dump([
+      ['organisations', []],
+      ['organisation_members', []],
+      ['user_profiles', []],
+    ]);
+    for (const table of ['organisations', 'organisation_members', 'user_profiles']) {
+      expect(countRows(contents, table)).toBe(0);
+    }
+  });
+
+  /* A schema-only dump has no COPY block at all, which is zero rows, not a throw. */
+  it('reports a table with no COPY block at all as zero', () => {
+    expect(countRows('-- schema only\n', 'organisations')).toBe(0);
+  });
+
+  /* organisation_members must not be mistaken for organisations. */
+  it('does not match a table whose name merely starts the same', () => {
+    const contents = dump([['organisation_members', ['1\ta', '2\tb']]]);
+    expect(countRows(contents, 'organisations')).toBe(0);
   });
 });

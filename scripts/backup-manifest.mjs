@@ -106,3 +106,34 @@ export function manifestProblems(path, url, now = new Date()) {
 export function readManifest(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
+
+/**
+ * How many rows a plain-text dump captured for one table.
+ *
+ * Counted from the dump rather than from the database, so the figure describes
+ * what was actually written to the file. Zero organisations in a backup of a
+ * live system is the number worth noticing before trusting it.
+ *
+ * ── the off-by-one that made this worth extracting ────────────────────────
+ *
+ * pg_dump writes each table as a COPY header, the rows, then a `\.` on its own
+ * line. An *empty* table puts that terminator on the line immediately after
+ * the header — so a search for it that starts after the header steps straight
+ * over it, runs on to some later table's terminator, and counts every row in
+ * between as this table's.
+ *
+ * Measured, not theorised: an empty organisations table read as 39. That is
+ * the one number that had to be right, because a dump of nothing is complete,
+ * correctly checksummed, the right size, and worthless — and these counts are
+ * the only thing that says so. Hence searching from the newline that ends the
+ * header, and hence a test.
+ */
+export function countRows(contents, table) {
+  const match = new RegExp(`^COPY public\\.${table} .*$`, 'm').exec(contents);
+  if (!match) return 0;
+
+  const start = contents.indexOf('\n', match.index) + 1;
+  const end = contents.indexOf('\n\\.', start - 1);
+  const body = contents.slice(start, end === -1 ? start : end);
+  return body.trim() === '' ? 0 : body.split('\n').length;
+}

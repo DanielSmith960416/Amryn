@@ -39,3 +39,15 @@ next-env.d.ts.timestamp
 
 # The bundled worker, built by scripts/build-worker.mjs.
 dist/
+
+# Database dumps, written here by scripts/backup.mjs.
+#
+# The most dangerous thing in this file. A dump is every row of every table,
+# customer data included, in one plain-text file — and it lands in the working
+# tree of a repository where `git add -A` is routine. The scratch-file note
+# above records how .commitmsg.txt reached main; this would be the same
+# accident with a data breach at the end of it.
+#
+# The manifests are ignored with them. They carry no rows, but they name paths
+# and row counts, and there is no reason for them to travel either.
+/backups/
