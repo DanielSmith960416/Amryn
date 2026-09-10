@@ -437,7 +437,71 @@ every signed-in role.
 - [ ] The Vercel GitHub integration is disconnected (see below)
 - [ ] The exposed OpenAI key from the earlier deployment has been revoked
 - [ ] The `[BRACKETED]` placeholders in `src/lib/legal/documents.ts` are filled in and an Information Officer is registered with the Information Regulator
-- [ ] A backup has been taken and restored once into a scratch database, so the file is known to be a backup rather than assumed to be one
+- [x] The backup *mechanism* is proven — CI takes a dump and restores it on every run (see "Proving a restore" below)
+- [ ] A **production** dump has been restored once into a scratch database, because CI proves the machinery on its own two rows and says nothing about last night's real dump
+
+## Proving a restore
+
+Backups have been taken nightly since #89 — verified for their completion
+marker, checksummed, counted, and recorded where `/diagnostics` reads their
+age. All of that proves a file exists and is intact. **None of it proves the
+file can become a database again**, which is the only property anybody
+actually wants from a backup.
+
+`scripts/restore-check.mjs` closes that gap:
+
+```bash
+node scripts/restore-check.mjs --manifest /backups/amryn-….manifest.json
+```
+
+It verifies the dump's checksum *before* restoring, creates a scratch database
+named for the moment, restores into it, counts the tables the manifest counted,
+and drops the scratch database whatever happens. Any disagreement exits
+non-zero.
+
+> **It restores somewhere else, always, and there is no flag to change that.**
+> A restore check that could be pointed at a live database is a loaded gun in
+> a drawer marked "tools", and the one time somebody reaches for it in a hurry
+> is the one time it matters.
+
+### What it catches that nothing else did
+
+**A restore that succeeds and delivers nothing.** `psql` loading a truncated
+dump creates the schema, skips the rows it never received, and exits zero. The
+result has all the tables and none of the data — healthy from every angle
+except the arithmetic. Demonstrated deliberately: a dump with its rows stripped
+passed the checksum, restored without an error, and was caught on the counts:
+
+```
+The restored database does not match the backup: organisations expected 2, found 0.
+```
+
+**A dump truncated after it was written**, by a full disk or a run that died —
+caught by the checksum in a second, before a restore is attempted, and reported
+as the file being wrong rather than the database.
+
+### CI runs it every time
+
+The `database` job inserts two organisations into the schema it has just built,
+dumps it, and restores that. No customer data is involved. It proves the
+machinery — `backup.mjs` writes something `restore-check.mjs` can read back.
+
+**It does not prove last night's production dump restores.** That is a
+different claim about a different file, and it needs somebody to run the
+command above against a real manifest. Worth doing once a quarter, and after
+any change to the schema's shape.
+
+### One thing it established by failing
+
+The first version ran `supabase/tests/00_supabase_shim.sql` before the dump, on
+the assumption that a Supabase dump would need the `auth` schema prepared. It
+does not — `pg_dump` captured it, and the two collided on `schema "auth"
+already exists`.
+
+Worth more than the fix: **the dump is self-contained.** A backup that needs a
+machine prepared in a particular way before it will load is a backup that
+restores on our laptops and not on a rented server at two in the morning. That
+is now a tested property rather than a hope.
 
 ## Disconnecting Vercel
 
