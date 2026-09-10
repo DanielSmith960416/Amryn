@@ -12,8 +12,8 @@ import { connector, type ConnectorDefinition } from './catalogue';
 function stub(id: string): ConnectorProvider {
   return {
     id,
-    authorise: async () => ({ url: 'https://example.invalid/oauth', state: 'x' }),
-    complete: async () => ({ credentialRef: 'ref' }),
+    invite: async () => ({ url: 'https://example.invalid/connect', expiresAt: new Date() }),
+    adopt: async () => ({ credentialRef: 'ref' }),
     fetch: async () => ({ records: [], cursor: null }),
     revoke: async () => {},
   };

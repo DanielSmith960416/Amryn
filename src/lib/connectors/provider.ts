@@ -48,21 +48,38 @@ export class ProviderError extends Error {
   }
 }
 
-/** Where to send the customer, and what to remember while they are away. */
-export interface Authorisation {
-  /** The provider's consent screen. */
-  url: string;
+/**
+ * Where to send the customer to authorise, and what identifies the attempt.
+ *
+ * ── this interface was wrong, and the documentation corrected it ─────────
+ *
+ * The first version had authorise() return a URL and a state, and complete()
+ * take a code and a state — the classic redirect-with-code dance. That is what
+ * OAuth looks like when you implement it yourself, and it is not what happens
+ * here.
+ *
+ * The provider holds the whole flow. Amryn asks for a session, sends the
+ * customer to a link, and is told the outcome by webhook: there is no
+ * authorisation code that reaches this application, and no state parameter for
+ * it to check, because the redirect never lands on our domain.
+ *
+ * Which is the better arrangement — an authorisation code in our request logs
+ * is a credential in our request logs — but it is a different shape, and the
+ * shape was guessed before the facts arrived. Recorded rather than quietly
+ * rewritten, because "the abstraction was designed against an imagined API"
+ * is the failure most likely to repeat.
+ */
+export interface Invitation {
   /**
-   * Opaque, single-use, and checked when they come back.
-   *
-   * Not optional and not a convenience: without it a third party can complete
-   * an authorisation on a customer's behalf by sending them a crafted callback,
-   * which is CSRF against the one flow where the prize is an accounting system.
+   * Where to send the customer. Short-lived — thirty minutes for Nango — so it
+   * is generated per attempt and never stored.
    */
-  state: string;
+  url: string;
+  /** When it stops working, so the interface can say so rather than fail. */
+  expiresAt: Date;
 }
 
-/** What a completed authorisation gives Amryn. */
+/** What a completed authorisation gives Amryn, once the provider reports it. */
 export interface Established {
   /**
    * Opaque handle the adapter can exchange for a working credential later.
@@ -76,6 +93,20 @@ export interface Established {
   accountLabel?: string;
   /** Scopes actually granted, where the provider says. */
   grantedScopes?: readonly string[];
+}
+
+/**
+ * Who the invitation is for, so the provider's callback can be reconciled.
+ *
+ * The provider does not model which organisation owns a connection — Nango's
+ * own guide says so plainly, "Nango doesn't model that ownership" — so these
+ * travel out with the invitation and come back with the notification. They are
+ * the only thing tying a completed authorisation to a row in data_connections.
+ */
+export interface ConnectionSubject {
+  organisationId: string;
+  userId: string;
+  userEmail: string;
 }
 
 /** One record pulled from a provider, before Amryn maps it to its own tables. */
@@ -125,11 +156,18 @@ export interface ConnectorProvider {
   /** Which catalogue entry this serves. */
   readonly id: string;
 
-  /** Begin an authorisation. `redirectUri` is where the provider sends them back. */
-  authorise(definition: ConnectorDefinition, redirectUri: string): Promise<Authorisation>;
+  /** Ask for a link that lets one person authorise one system. */
+  invite(definition: ConnectorDefinition, subject: ConnectionSubject): Promise<Invitation>;
 
-  /** Finish one. Throws ProviderError when the state does not match. */
-  complete(definition: ConnectorDefinition, code: string, state: string): Promise<Established>;
+  /**
+   * Turn a completed authorisation into something Amryn can store.
+   *
+   * Called when the provider says an authorisation succeeded, with whatever
+   * identifier it reported. Throws ProviderError if that identifier does not
+   * resolve to a live connection — a notification is a claim, and a claim from
+   * outside the application is checked before it is written down.
+   */
+  adopt(definition: ConnectorDefinition, reference: string): Promise<Established>;
 
   /** Pull one page. */
   fetch(request: FetchRequest): Promise<FetchPage>;
