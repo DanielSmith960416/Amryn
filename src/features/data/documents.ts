@@ -35,10 +35,12 @@ import { checkLimit } from '@/lib/auth/rate-limit';
 import { recordEvent } from '@/lib/audit';
 import { ourFault } from '@/lib/errors';
 import { readTable, SpreadsheetError } from '@/lib/files/table';
+import { extractDocumentText, ExtractionError } from '@/lib/files/extract';
 import { DOCUMENTS_BUCKET } from './bucket';
 import {
   describeBytes,
   extensionOf,
+  hasText,
   isRefused,
   isTable,
   kindOf,
@@ -51,10 +53,14 @@ export type UploadState =
   | { status: 'error'; message: string }
   | {
       status: 'stored';
+      id: string;
       filename: string;
-      handling: 'table' | 'document';
+      handling: 'table' | 'text' | 'document';
       rowCount: number;
       columns: string[];
+      pages: number;
+      textChars: number;
+      scanned: boolean;
       readError: string;
     };
 
@@ -109,10 +115,19 @@ export async function uploadDocument(
   // Read before storing. A spreadsheet we cannot open is still worth keeping —
   // it is the customer's file — but the row has to say we tried and failed
   // rather than leaving it looking like an ordinary document nobody opened.
-  let handling: 'table' | 'document' = isTable(file.name) ? 'table' : 'document';
+  let handling: 'table' | 'text' | 'document' = isTable(file.name)
+    ? 'table'
+    : hasText(file.name)
+      ? 'text'
+      : 'document';
+
   let sheetNames: string[] = [];
   let columns: string[] = [];
   let rowCount = 0;
+  let pages = 0;
+  let text = '';
+  let truncated = false;
+  let scanned = false;
   let readError = '';
 
   if (handling === 'table') {
@@ -127,6 +142,35 @@ export async function uploadDocument(
         error instanceof SpreadsheetError
           ? error.message
           : ourFault('documents', error, 'We could not read the rows in that file, so it has been kept as it is.');
+    }
+  } else if (handling === 'text') {
+    try {
+      const extracted = await extractDocumentText(file.name, bytes);
+      pages = extracted.pages;
+      text = extracted.text;
+      truncated = extracted.truncated;
+      scanned = extracted.scanned;
+
+      if (extracted.scanned) {
+        // Pages, and not one word on any of them. That is a photograph of
+        // paper, and it is most of what a small business actually holds — a
+        // supplier invoice scanned and emailed. Recorded as its own outcome
+        // rather than as a document with no text in it, because the two look
+        // identical in a list and have completely different remedies.
+        handling = 'document';
+        readError =
+          `That PDF is ${pages === 1 ? 'a scan' : 'scanned'} — ${pages === 1 ? 'its page is' : 'its pages are'} pictures rather than text, ` +
+          'so there is nothing to extract. The file is kept and can be opened; reading a scan needs character recognition, which Amryn does not do yet.';
+      } else if (text === '') {
+        handling = 'document';
+        readError = 'There are no words in that file to extract. It is kept as it is.';
+      }
+    } catch (error) {
+      handling = 'document';
+      readError =
+        error instanceof ExtractionError
+          ? error.message
+          : ourFault('documents', error, 'We could not read the text in that file, so it has been kept as it is.');
     }
   }
 
@@ -149,6 +193,9 @@ export async function uploadDocument(
       sheet_names: sheetNames,
       columns_found: columns,
       row_count: rowCount,
+      page_count: pages,
+      text_chars: text.length,
+      text_truncated: truncated,
       read_error: readError,
       note: note.data ?? '',
       uploaded_by: workspace.user.id,
@@ -200,6 +247,30 @@ export async function uploadDocument(
     };
   }
 
+  if (text !== '') {
+    const { error: textError } = await supabase.from('data_document_text').insert({
+      document_id: document.id,
+      organisation_id: workspace.organisation.id,
+      content: text,
+    });
+
+    // Not fatal, and deliberately so. The file is stored and the row describes
+    // it; losing the extracted words costs a search, not a document. Failing
+    // the whole upload here would throw away something the customer has that
+    // we do not.
+    if (textError) {
+      ourFault('documents', textError, '');
+      await supabase
+        .from('data_documents')
+        .update({
+          handling: 'document',
+          text_chars: 0,
+          read_error: 'We read the words in this file and could not save them. The file itself is kept.',
+        })
+        .eq('id', document.id);
+    }
+  }
+
   await recordEvent(workspace.organisation.id, 'document.uploaded', {
     entityType: 'data_document',
     entityId: document.id,
@@ -209,7 +280,18 @@ export async function uploadDocument(
   revalidatePath('/data/imports');
   revalidatePath('/data');
 
-  return { status: 'stored', filename: file.name, handling, rowCount, columns, readError };
+  return {
+    status: 'stored',
+    id: document.id,
+    filename: file.name,
+    handling,
+    rowCount,
+    columns,
+    pages,
+    textChars: text.length,
+    scanned,
+    readError,
+  };
 }
 
 export type RemoveState = { status: 'idle' } | { status: 'error'; message: string } | { status: 'removed' };

@@ -1262,6 +1262,42 @@ export interface Database {
           },
         ];
       };
+      data_document_text: {
+        Row: {
+          document_id: string;
+          organisation_id: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          document_id: string;
+          organisation_id: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          document_id?: string;
+          organisation_id?: string;
+          content?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'data_document_text_document_id_fkey';
+            columns: ['document_id'];
+            isOneToOne: true;
+            referencedRelation: 'data_documents';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_document_text_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       data_documents: {
         Row: {
           id: string;
@@ -1281,6 +1317,9 @@ export interface Database {
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
+          page_count: number;
+          text_chars: number;
+          text_truncated: boolean;
         };
         Insert: {
           id?: string;
@@ -1300,6 +1339,9 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          page_count?: number;
+          text_chars?: number;
+          text_truncated?: boolean;
         };
         Update: {
           id?: string;
@@ -1319,6 +1361,9 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          page_count?: number;
+          text_chars?: number;
+          text_truncated?: boolean;
         };
         Relationships: [
           {

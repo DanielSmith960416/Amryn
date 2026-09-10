@@ -7,6 +7,7 @@ import { Label, Textarea } from '@/components/ui/field';
 import {
   describeBytes,
   extensionOf,
+  hasText,
   isRefused,
   isTable,
   kindOf,
@@ -52,8 +53,9 @@ export function UploadForm() {
         />
         <p className="mt-1.5 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
           Anything up to {describeBytes(MAX_DOCUMENT_BYTES)} — a PDF, a Word document, a
-          photograph of a delivery note, an Excel workbook. Programs and installers are the one
-          exception, and they are refused rather than quietly ignored.
+          photograph of a delivery note, an Excel workbook. Spreadsheets have their rows read and
+          documents have their words extracted; the rest is kept as it is. Programs and installers
+          are the one exception, and they are refused rather than quietly ignored.
         </p>
       </div>
 
@@ -93,17 +95,25 @@ export function UploadForm() {
 
       {state.status === 'stored' ? (
         <div role="status" className="space-y-1">
-          <p className="text-[0.8125rem] text-[var(--positive)]">
-            {state.filename} stored.
-          </p>
+          <p className="text-[0.8125rem] text-[var(--positive)]">{state.filename} stored.</p>
           <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
             {state.handling === 'table'
               ? `We read ${state.rowCount.toLocaleString('en-ZA')} ${state.rowCount === 1 ? 'row' : 'rows'}` +
                 (state.columns.length > 0 ? ` across ${state.columns.length} columns.` : '.')
-              : state.readError
-                ? `We tried to read its rows and could not: ${state.readError} It is kept as it is.`
-                : 'It is kept as it is — Amryn has not read what is inside it.'}
+              : state.handling === 'text'
+                ? `We extracted ${state.textChars.toLocaleString('en-ZA')} characters` +
+                  (state.pages > 0 ? ` from ${state.pages} ${state.pages === 1 ? 'page' : 'pages'}.` : '.') +
+                  ' Having the words is not the same as understanding them — open the file to see exactly what was read.'
+                : state.readError
+                  ? state.readError
+                  : 'It is kept as it is — Amryn has not read what is inside it.'}
           </p>
+          <a
+            href={`/data/documents/${state.id}`}
+            className="inline-block text-[0.75rem] text-[var(--brand)] underline underline-offset-2"
+          >
+            Open it
+          </a>
         </div>
       ) : null}
 
@@ -139,10 +149,24 @@ function describe(file: { name: string; size: number }): { text: string; blocked
   const kind = kindOf(file.name);
   const label = kind ? kind.label : `${extensionOf(file.name) || 'That'} file`;
 
+  if (isTable(file.name)) {
+    return {
+      text: `${label}, ${describeBytes(file.size)}. Its columns and rows will be read.`,
+      blocked: false,
+    };
+  }
+
+  if (hasText(file.name)) {
+    return {
+      text:
+        `${label}, ${describeBytes(file.size)}. The words in it will be extracted so they can be ` +
+        'searched — which is not the same as anybody reading it. A scan has no words in it and will say so.',
+      blocked: false,
+    };
+  }
+
   return {
-    text: isTable(file.name)
-      ? `${label}, ${describeBytes(file.size)}. Its columns and rows will be read.`
-      : `${label}, ${describeBytes(file.size)}. It will be stored and given back when you ask for it. Amryn will not read what is inside it.`,
+    text: `${label}, ${describeBytes(file.size)}. It will be stored and given back when you ask for it. Amryn will not read what is inside it.`,
     blocked: false,
   };
 }

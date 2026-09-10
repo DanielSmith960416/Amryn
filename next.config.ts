@@ -70,6 +70,24 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: '12mb' },
   },
 
+  /**
+   * Left as a real package rather than bundled into a server chunk.
+   *
+   * unpdf carries Mozilla's pdf.js, which loads pieces of itself at run time.
+   * Webpack will happily inline all 1.6 MB of it, and the result compiles,
+   * passes every test that imports it directly, and can still fail on the
+   * deployed container when pdf.js reaches for a file the bundler did not
+   * emit — a failure that would appear for the first time on somebody's
+   * upload.
+   *
+   * Listing it here makes Next trace the package into the standalone output
+   * instead, so what runs in production is the published package rather than
+   * a re-assembly of it. Verified by the presence of
+   * .next/standalone/node_modules/unpdf after a build, which is a thing that
+   * can be looked at rather than reasoned about.
+   */
+  serverExternalPackages: ['unpdf'],
+
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: false,

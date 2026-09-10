@@ -8,26 +8,32 @@
  * and when those three disagree the symptom is a file that can be chosen and
  * cannot be sent, with no explanation. So they are all generated from this.
  *
- * ── the two things Amryn can do with a file ──────────────────────────────
- *
- * Read it, or keep it. That distinction is the honest one and it is the whole
- * design:
+ * ── the three things Amryn can do with a file ────────────────────────────
  *
  *   'table'     a spreadsheet. Its columns and rows are read, and what is in
  *               them can become stock lines, records, figures.
  *
- *   'document'  everything else. It is stored, listed, and given back when
- *               asked for. Amryn does not read it, and no page may imply it
- *               does — a PDF of a supplier contract sitting in the file list
- *               has not been understood, and a product that suggested
- *               otherwise would be inviting somebody to rely on an analysis
- *               nobody performed.
+ *   'text'      a PDF, a Word document, a presentation, a text file. The
+ *               words in it are extracted and stored beside it, so they can
+ *               be searched and quoted.
  *
- * That second paragraph is the same rule that stops the Twin filling a numeric
- * gap from memory, applied to files.
+ *   'document'  everything else — an image, an archive, a format nobody here
+ *               has a reader for. Stored, listed, and given back when asked
+ *               for, and not read.
+ *
+ * ── what 'text' does not mean ────────────────────────────────────────────
+ *
+ * Extracting the words is not understanding them. A contract whose text has
+ * been pulled out is a contract nobody has read: no term has been noted, no
+ * risk assessed, no figure taken from it. The distinction survives in the
+ * interface deliberately, because "we have the words" and "we know what it
+ * says" are one careless sentence apart, and a business relying on the second
+ * when only the first is true is the failure this whole column exists to
+ * prevent. Same rule as the one that stops the Twin filling a numeric gap
+ * from memory.
  */
 
-export type Handling = 'table' | 'document';
+export type Handling = 'table' | 'text' | 'document';
 
 export interface FileKind {
   /** Lower case, with the dot. */
@@ -59,22 +65,28 @@ export const FILE_KINDS: readonly FileKind[] = [
     contentTypes: ['application/vnd.ms-excel.sheet.macroEnabled.12'],
   },
   { extension: '.csv', label: 'CSV', handling: 'table', contentTypes: ['text/csv'] },
-  { extension: '.tsv', label: 'Tab-separated text', handling: 'document', contentTypes: ['text/tab-separated-values'] },
-  { extension: '.pdf', label: 'PDF', handling: 'document', contentTypes: ['application/pdf'] },
+  { extension: '.tsv', label: 'Tab-separated text', handling: 'table', contentTypes: ['text/tab-separated-values'] },
+  { extension: '.pdf', label: 'PDF', handling: 'text', contentTypes: ['application/pdf'] },
   {
     extension: '.docx',
     label: 'Word document',
-    handling: 'document',
+    handling: 'text',
     contentTypes: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   },
+  // The pre-2007 binary formats. Their text is inside an OLE compound
+  // document, which is a different reader again, and the remedy — Save As —
+  // takes ten seconds. Named so the interface can say that rather than
+  // leaving somebody to wonder why one Word file was read and another was not.
   { extension: '.doc', label: 'Word document (older)', handling: 'document', contentTypes: ['application/msword'] },
   {
     extension: '.pptx',
     label: 'PowerPoint',
-    handling: 'document',
+    handling: 'text',
     contentTypes: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
   },
-  { extension: '.txt', label: 'Plain text', handling: 'document', contentTypes: ['text/plain'] },
+  { extension: '.txt', label: 'Plain text', handling: 'text', contentTypes: ['text/plain'] },
+  { extension: '.md', label: 'Markdown', handling: 'text', contentTypes: ['text/markdown'] },
+  { extension: '.rtf', label: 'Rich text', handling: 'text', contentTypes: ['application/rtf'] },
   { extension: '.png', label: 'Image', handling: 'document', contentTypes: ['image/png'] },
   { extension: '.jpg', label: 'Image', handling: 'document', contentTypes: ['image/jpeg'] },
   { extension: '.jpeg', label: 'Image', handling: 'document', contentTypes: ['image/jpeg'] },
@@ -133,6 +145,22 @@ export function kindOf(filename: string): FileKind | null {
 /** Whether the file's rows can be read, as opposed to the file being kept. */
 export function isTable(filename: string): boolean {
   return kindOf(filename)?.handling === 'table';
+}
+
+/** Whether words can be pulled out of it. */
+export function hasText(filename: string): boolean {
+  return kindOf(filename)?.handling === 'text';
+}
+
+/**
+ * Whether a browser will show it rather than download it.
+ *
+ * The two Amryn can embed in a page. Everything else is a download, and
+ * offering a viewer that renders a grey box would be worse than not offering
+ * one.
+ */
+export function isViewable(filename: string): boolean {
+  return ['.pdf', '.png', '.jpg', '.jpeg', '.txt', '.md'].includes(extensionOf(filename));
 }
 
 export function isRefused(filename: string): boolean {

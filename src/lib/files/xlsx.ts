@@ -38,6 +38,7 @@
  * detected by name and refused with the remedy rather than a stack trace.
  */
 import { ArchiveError, unzip } from './zip';
+import { attribute, unescapeXml } from './xml';
 
 export class SpreadsheetError extends Error {
   constructor(message: string) {
@@ -406,36 +407,6 @@ function positionOf(reference: string): { row: number; column: number } | null {
   }
 
   return { row: Number(match[2]), column: column - 1 };
-}
-
-// ── small shared parts ──────────────────────────────────────────────────────
-
-function attribute(attributes: string, name: string): string | null {
-  const match = new RegExp(`\\b${name.replace(':', '\\:')}\\s*=\\s*"([^"]*)"`).exec(attributes);
-  return match?.[1] ?? null;
-}
-
-function unescapeXml(value: string): string {
-  return value.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g, (whole, entity: string) => {
-    switch (entity) {
-      case 'amp':
-        return '&';
-      case 'lt':
-        return '<';
-      case 'gt':
-        return '>';
-      case 'quot':
-        return '"';
-      case 'apos':
-        return "'";
-      default: {
-        const code = entity.startsWith('#x') || entity.startsWith('#X')
-          ? Number.parseInt(entity.slice(2), 16)
-          : Number.parseInt(entity.slice(1), 10);
-        return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
-      }
-    }
-  });
 }
 
 function decode(bytes: Uint8Array | undefined): string | null {

@@ -72,6 +72,14 @@ values
    'f0000000-0000-0000-0000-0000000000b2/bb000000-0000-0000-0000-0000000000b2',
    'e3333333-3333-3333-3333-333333333333');
 
+-- The extracted words, which are the document's contents by another name and
+-- need exactly the same wall around them.
+insert into public.data_document_text (document_id, organisation_id, content) values
+  ('aa000000-0000-0000-0000-0000000000a1', 'f0000000-0000-0000-0000-0000000000a1',
+   'Alpha pays its supplier R412,000 a month under clause 7.'),
+  ('bb000000-0000-0000-0000-0000000000b2', 'f0000000-0000-0000-0000-0000000000b2',
+   'Beta holds an overdraft of R1,800,000.');
+
 insert into storage.objects (bucket_id, name, owner) values
   ('documents', 'f0000000-0000-0000-0000-0000000000a1/aa000000-0000-0000-0000-0000000000a1',
    'e1111111-1111-1111-1111-111111111111'),
@@ -96,6 +104,23 @@ select pg_temp.check(
     values ('f0000000-0000-0000-0000-0000000000b2', 'planted.pdf', 10, 'document', 'x/y')
   $$, 'row-level security'),
   'and cannot file a document into somebody else''s organisation');
+
+-- ── the words, which are the document by another name ─────────────────────
+--
+-- Extracted text is the most quotable form a customer's contract ever takes.
+-- A wall around the file and none around its text would be no wall at all.
+
+select pg_temp.check(
+  (select count(*) from public.data_document_text) = 1
+  and (select content from public.data_document_text) like 'Alpha pays%',
+  'the text extracted from a file is walled exactly as the file is');
+
+select pg_temp.check(
+  not exists (
+    select 1 from public.data_document_text
+     where document_id = 'bb000000-0000-0000-0000-0000000000b2'
+  ),
+  'and Beta''s overdraft is not readable by asking for it directly');
 
 select pg_temp.act_as('e2222222-2222-2222-2222-222222222222');
 
@@ -126,6 +151,32 @@ select pg_temp.check(
     values ('f0000000-0000-0000-0000-0000000000a1', 'x.pdf', 10, 'analysed', 'a/c')
   $$, 'check constraint'),
   'a file is read or kept, and nothing may claim a third thing happened to it');
+
+-- Widened by migration 38 and not loosened: 'text' joined the two that were
+-- already legal, and nothing else did.
+select pg_temp.check(
+  (select count(*) from (
+     select unnest(array['table', 'text', 'document']) as h
+   ) as legal
+   where pg_temp.refused(
+     format($$insert into public.data_documents
+                (organisation_id, filename, byte_size, handling, storage_path)
+              values ('f0000000-0000-0000-0000-0000000000a1', 'x', 1, %L, 'a/' || gen_random_uuid())$$,
+            legal.h),
+     'check constraint')) = 0,
+  'and all three of the values the interface uses are storable');
+
+-- ── deleting a file takes its words with it ───────────────────────────────
+--
+-- The cascade is the only thing standing between "remove this contract" and a
+-- searchable copy of the contract still sitting in the database.
+
+delete from public.data_documents where id = 'aa000000-0000-0000-0000-0000000000a1';
+
+select pg_temp.check(
+  not exists (select 1 from public.data_document_text
+               where document_id = 'aa000000-0000-0000-0000-0000000000a1'),
+  'removing a document removes the text extracted from it, not just the file');
 
 -- ── the bytes ─────────────────────────────────────────────────────────────
 

@@ -45,7 +45,11 @@ export default async function DataImportsPage() {
   const [documents, imports] = await Promise.all([
     supabase
       .from('data_documents')
-      .select('*')
+      // Named rather than '*'. The extracted text lives in its own table for
+      // this reason, and the habit is what keeps it that way.
+      .select(
+        'id, filename, handling, byte_size, row_count, columns_found, sheet_names, page_count, text_chars, read_error, note, created_at',
+      )
       .eq('organisation_id', workspace.organisation.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
@@ -100,13 +104,28 @@ export default async function DataImportsPage() {
                           PDFs under a heading about analysis would be claiming
                           work nobody did.
                         */}
-                        <Badge tone={file.handling === 'table' ? 'positive' : 'neutral'}>
-                          {file.handling === 'table' ? 'Rows read' : 'Held, not read'}
+                        <Badge
+                          tone={file.handling === 'document' ? 'neutral' : 'positive'}
+                        >
+                          {file.handling === 'table'
+                            ? 'Rows read'
+                            : file.handling === 'text'
+                              ? 'Text read'
+                              : 'Held, not read'}
                         </Badge>
                       </div>
 
                       {file.note ? (
                         <p className="mt-1 text-[0.8125rem] text-[var(--text-secondary)]">{file.note}</p>
+                      ) : null}
+
+                      {file.handling === 'text' && file.text_chars > 0 ? (
+                        <p className="mt-1 text-[0.75rem] text-[var(--text-tertiary)]">
+                          {file.text_chars.toLocaleString('en-ZA')} characters
+                          {file.page_count > 0
+                            ? ` from ${file.page_count} ${file.page_count === 1 ? 'page' : 'pages'}`
+                            : ''}
+                        </p>
                       ) : null}
 
                       {file.handling === 'table' && file.row_count > 0 ? (
@@ -235,10 +254,27 @@ export default async function DataImportsPage() {
                 is in it can be used.
               </p>
               <p>
-                <strong className="text-[var(--text-primary)]">Everything else is kept.</strong> A
-                PDF, a contract, a photograph — stored, listed, and handed back when you ask for
-                it. Nobody has read it and nothing has been concluded from it. If a page ever
-                suggests otherwise, that is a bug worth reporting.
+                <strong className="text-[var(--text-primary)]">A document is read too.</strong> A
+                PDF, a Word document, a presentation: the words in it are pulled out and stored
+                beside it, so they can be searched and quoted. Open the file to see exactly what
+                was extracted.
+              </p>
+              <p>
+                <strong className="text-[var(--text-primary)]">Having the words is not
+                understanding them.</strong> A contract whose text has been extracted is a
+                contract nobody has read — no term noted, no risk assessed, no figure taken from
+                it. If a page ever suggests otherwise, that is a bug worth reporting.
+              </p>
+              <p>
+                <strong className="text-[var(--text-primary)]">A scan has no words in it.</strong>{' '}
+                A photographed invoice is a picture of a page, so there is nothing to extract and
+                the file says so rather than looking empty. Reading one needs character
+                recognition, which Amryn does not do yet.
+              </p>
+              <p>
+                <strong className="text-[var(--text-primary)]">Everything else is kept.</strong> An
+                image, an archive, a format nobody here has a reader for — stored, listed, and
+                handed back when you ask for it.
               </p>
               <p>
                 <strong className="text-[var(--text-primary)]">Turning rows into records.</strong>{' '}
