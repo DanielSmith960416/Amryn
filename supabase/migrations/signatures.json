@@ -31,5 +31,6 @@
   "20260907140000_30_request_simulation.sql": "to_regprocedure('public.request_simulation(uuid, uuid)') is not null",
   "20260907160000_31_daily_brief.sql": "to_regclass('public.brief_items') is not null",
   "20260909200000_32_proposals.sql": "to_regclass('public.proposals') is not null",
-  "20260909210000_33_worker_heartbeat.sql": "to_regclass('public.worker_heartbeats') is not null"
+  "20260909210000_33_worker_heartbeat.sql": "to_regclass('public.worker_heartbeats') is not null",
+  "20260909220000_34_schema_drift.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'worker_heartbeats' and column_name = 'pending_migrations')"
 }

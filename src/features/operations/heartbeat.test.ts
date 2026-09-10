@@ -17,6 +17,7 @@ function beat(secondsAgo: number, over: Partial<Heartbeat> = {}): Heartbeat {
     handlers: ['analysis.run', 'brief.compose', 'jobs.sweep', 'rate_limits.prune'],
     inFlight: 0,
     revision: '86aec28',
+    pendingMigrations: [],
     ...over,
   };
 }

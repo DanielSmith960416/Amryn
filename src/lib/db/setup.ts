@@ -310,6 +310,7 @@ export async function readWorkerHeartbeat(): Promise<{
   handlers: string[];
   inFlight: number;
   revision: string | null;
+  pendingMigrations: string[];
 } | null> {
   let client: Client | undefined;
   try {
@@ -321,8 +322,10 @@ export async function readWorkerHeartbeat(): Promise<{
       handlers: string[];
       in_flight: number;
       revision: string | null;
+      pending_migrations: string[] | null;
     }>(
-      `select worker_id, last_seen_at::text, started_at::text, handlers, in_flight, revision
+      `select worker_id, last_seen_at::text, started_at::text, handlers, in_flight, revision,
+              pending_migrations
          from public.worker_heartbeats
         order by last_seen_at desc
         limit 1`,
@@ -338,6 +341,10 @@ export async function readWorkerHeartbeat(): Promise<{
       handlers: row.handlers ?? [],
       inFlight: row.in_flight,
       revision: row.revision,
+      // A worker on a build older than migration 34 never writes this. Absent
+      // is not the same as behind, and reading it as drift would report an
+      // outage on the one deploy where the column has just arrived.
+      pendingMigrations: row.pending_migrations ?? [],
     };
   } catch {
     return null;

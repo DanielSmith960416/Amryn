@@ -25,6 +25,8 @@ import { JobQueue } from '@/lib/jobs/queue';
 import { retryDelaySeconds } from '@/lib/jobs/backoff';
 import { handlerFor, registeredKinds } from '@/lib/jobs/registry';
 import { PermanentJobError, type Job, type JobResult } from '@/lib/jobs/types';
+import { MIGRATION_FILES } from '@/lib/db/setup-sql';
+import { describeDrift, migrationsBehind } from '@/features/operations/schema-drift';
 
 /**
  * One pass and stop, rather than a loop.
@@ -209,6 +211,56 @@ async function runJob(job: Job): Promise<void> {
 }
 
 /**
+ * Migrations this build carries that the database has not recorded.
+ *
+ * Read on every poll rather than once at boot: the interesting case is exactly
+ * the one where this changes underneath a running process, because the
+ * migration lands a minute after the deploy did.
+ */
+let behind: string[] = [];
+
+/** The last thing said about drift, so a standing condition is said once. */
+let driftReported = '';
+
+/**
+ * Asks the ledger what it has seen.
+ *
+ * ── an absent ledger is not the same as an empty one ──────────────────────
+ *
+ * supabase/setup.sql builds the whole schema in one transaction and records
+ * nothing in amryn.schema_migrations — it predates the ledger and is still
+ * what the SQL-editor route uses. So a database with no ledger at all may be
+ * perfectly, completely migrated.
+ *
+ * Treating that as "behind by everything" would stop the queue on a healthy
+ * fresh install, which is a worse failure than the one this guards against. A
+ * present ledger missing specific files is unambiguous; an absent one is not,
+ * and this only ever acts on the unambiguous case.
+ *
+ * The same reasoning covers failing to read it at all: a check that cannot run
+ * must not be able to halt the thing it checks.
+ */
+async function readDrift(): Promise<string[]> {
+  try {
+    const { rows } = await pool.query<{ present: boolean }>(
+      "select to_regclass('amryn.schema_migrations') is not null as present",
+    );
+    if (!rows[0]?.present) return [];
+
+    const { rows: applied } = await pool.query<{ file: string }>(
+      'select file from amryn.schema_migrations',
+    );
+    return migrationsBehind(
+      MIGRATION_FILES,
+      applied.map((row) => row.file),
+    );
+  } catch (error) {
+    log(`could not read the migration ledger — ${safeMessage(error, connectionString)}`);
+    return [];
+  }
+}
+
+/**
  * Says the worker is alive, on every poll including the empty ones.
  *
  * Deliberately before the claim rather than after: the useful signal is "this
@@ -224,14 +276,15 @@ async function beat(): Promise<void> {
   try {
     await pool.query(
       `insert into public.worker_heartbeats
-         (worker_id, last_seen_at, started_at, handlers, in_flight, revision)
-       values ($1, now(), $2, $3, $4, $5)
+         (worker_id, last_seen_at, started_at, handlers, in_flight, revision, pending_migrations)
+       values ($1, now(), $2, $3, $4, $5, $6)
        on conflict (worker_id) do update
-         set last_seen_at = now(),
-             handlers     = excluded.handlers,
-             in_flight    = excluded.in_flight,
-             revision     = excluded.revision`,
-      [WORKER_ID, STARTED_AT, registeredKinds(), inFlight.size, REVISION],
+         set last_seen_at       = now(),
+             handlers           = excluded.handlers,
+             in_flight          = excluded.in_flight,
+             revision           = excluded.revision,
+             pending_migrations = excluded.pending_migrations`,
+      [WORKER_ID, STARTED_AT, registeredKinds(), inFlight.size, REVISION, behind],
     );
   } catch (error) {
     log(`heartbeat failed — ${safeMessage(error, connectionString)}`);
@@ -239,7 +292,43 @@ async function beat(): Promise<void> {
 }
 
 async function tick(): Promise<void> {
+  behind = await readDrift();
   await beat();
+
+  /*
+   * Ahead of the schema: report, and claim nothing.
+   *
+   * This has happened twice in production. The worker deployed before its
+   * migrations were applied, came up healthy, claimed twin.nightly and failed
+   * on a table that did not exist — three times, until the job had spent every
+   * attempt it was allowed. The migration landed a few minutes later, by which
+   * point the queue had permanently failed work that would then have
+   * succeeded, and the row had to be reset by hand.
+   *
+   * Waiting costs the job a few seconds. Claiming costs it its attempts, and
+   * costs somebody an evening working out why a correct handler failed against
+   * a correct schema.
+   *
+   * Nothing is lost by not enqueuing either: a schedule that comes due during
+   * the gap is still due on the tick after it closes.
+   */
+  if (behind.length > 0) {
+    const report = describeDrift(behind);
+    // Once per change, not once per poll. A line every five seconds is how a
+    // real message becomes something people scroll past.
+    if (report !== driftReported) {
+      log(`claiming nothing — ${report}`);
+      log('no job will be claimed until the database catches up. Nothing needs restarting.');
+      driftReported = report;
+    }
+    return;
+  }
+
+  if (driftReported) {
+    log('the database has caught up — claiming again');
+    driftReported = '';
+  }
+
   await queue.enqueueDue();
 
   const capacity = CONCURRENCY - inFlight.size;
@@ -272,11 +361,42 @@ async function main(): Promise<void> {
   );
   log(`handlers: ${registeredKinds().join(', ')}`);
 
+  /*
+   * Why this process stays alive.
+   *
+   * Every timer in the polling path is deliberately unref'd — the per-job
+   * heartbeat so it cannot delay shutdown, the poll sleep so a stop does not
+   * have to wait out the last interval. What was left holding the event loop
+   * open was whichever socket the pg pool happened to have idle, which is not
+   * a decision anybody made, and is not true in exactly the case that matters:
+   * a query that fails destroys its client rather than returning it to the
+   * pool, so a worker that cannot write its heartbeat has an empty pool, no
+   * handles, and nothing to keep it running.
+   *
+   * It then exits — with status 0, which a host reads as "finished" rather
+   * than "died", and which a restart-on-failure policy does not restart.
+   *
+   * That is measured rather than reasoned about: run against a database
+   * missing the heartbeat column, this worker exited on its first tick, having
+   * logged the problem and claimed nothing. A silent, successful death is the
+   * precise failure this phase exists to remove, so liveness is now explicit —
+   * one ref'd handle, held for exactly as long as the loop should be running.
+   */
+  const alive = setInterval(() => {}, 60_000);
+
   if (RUN_ONCE) {
     // Not wrapped: a single pass that cannot reach the database should exit
     // non-zero, because something is waiting to hear whether it worked.
     await tick();
     stopping = true;
+
+    // The same applies to a database behind this build. `--once` is how a
+    // deployment is checked, and answering "nothing to do" when the reason is
+    // that nothing could be done would be the wrong answer.
+    if (behind.length > 0) {
+      await pool.end().catch(() => {});
+      process.exit(1);
+    }
   }
 
   while (!stopping) {
@@ -307,6 +427,7 @@ async function main(): Promise<void> {
   // lapses shortly after this process is gone. Its job returns to the queue
   // and is tried again — which is why every handler has to tolerate being run
   // twice, and why that is stated in types.ts rather than assumed.
+  clearInterval(alive);
   await pool.end().catch(() => {});
   log('stopped');
 }

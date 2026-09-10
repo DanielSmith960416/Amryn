@@ -24,6 +24,7 @@
     "db:test": "bash supabase/tests/run.sh",
     "db:migrate": "node scripts/migrate.mjs",
     "db:migrate:dry": "node scripts/migrate.mjs --dry-run",
+    "db:migrate:check": "node scripts/migrate.mjs --check",
     "db:backup": "node scripts/backup.mjs",
     "db:types": "node scripts/generate-db-types.mjs > src/types/database.ts"
   },

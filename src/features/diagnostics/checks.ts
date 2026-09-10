@@ -27,6 +27,7 @@ import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
 import { databaseUrl, readPending, readWorkerHeartbeat } from '@/lib/db/setup';
 import { missingHandlers, workerHealth } from '@/features/operations/heartbeat';
+import { describeDrift } from '@/features/operations/schema-drift';
 import { registeredKinds } from '@/lib/jobs/registry';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { isKeyRejection, isPermissionDenied, isSchemaCacheMiss } from './errors';
@@ -846,6 +847,33 @@ async function checkWorker(allowed: boolean): Promise<Check> {
 
   if (health.state === 'stale') {
     return { name, status: 'warn', detail: health.detail };
+  }
+
+  /*
+   * Running, and deliberately doing nothing.
+   *
+   * The worker compares the migrations its build carries against the ledger on
+   * every poll, and while the database is behind it claims nothing rather than
+   * claiming work it cannot do. That is the correct behaviour and it is still
+   * an outage: every schedule is stopped for as long as it lasts, and the only
+   * thing that ends it is somebody applying the migrations.
+   *
+   * Ranked above a stale handler list because this one is actively holding the
+   * queue, and because the remedy is a single command.
+   */
+  if (beat && beat.pendingMigrations.length > 0) {
+    return {
+      name,
+      status: 'fail',
+      detail:
+        'The worker is running but claiming nothing: it is ahead of the database. ' +
+        describeDrift(beat.pendingMigrations) +
+        ' Every schedule is stopped until they are applied.',
+      remedy:
+        'Apply them — `railway run node scripts/migrate.mjs` against the worker service, or ' +
+        'open /setup. The worker picks up within one poll; nothing needs restarting and no ' +
+        'queued job is lost.',
+    };
   }
 
   /*
