@@ -22,7 +22,14 @@ import 'server-only';
  * never by value.
  */
 import { createClient } from '@/lib/supabase/server';
-import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
+import {
+  aiConfig,
+  connectorVaultConfigured,
+  redact,
+  resolveSupabaseUrl,
+  siteUrl,
+  supabaseConfigError,
+} from '@/lib/env';
 import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
 import {
@@ -34,6 +41,8 @@ import {
 import { missingHandlers, workerHealth } from '@/features/operations/heartbeat';
 import { describeDrift } from '@/features/operations/schema-drift';
 import { backupHealth, capturedNothing } from '@/features/operations/backups';
+import { CONNECTORS, isConnectable } from '@/lib/connectors/catalogue';
+import { implementedProviders } from '@/lib/connectors/provider';
 import { registeredKinds } from '@/lib/jobs/registry';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { isKeyRejection, isPermissionDenied, isSchemaCacheMiss } from './errors';
@@ -228,6 +237,7 @@ export async function runDiagnostics(
 
   const optional: Check[] = [
     aiCheck(),
+    connectorsCheck(),
     /*
      * Gated for the same reason the direct connection is, and discovered the
      * same way: the first anonymous probe of this endpoint spent its whole
@@ -764,6 +774,51 @@ function checkMembership(): Promise<Check> {
       remedy: active.length > 0 ? undefined : 'Go to /imprint to create one.',
     };
   });
+}
+
+/**
+ * Whether a customer could connect a system today.
+ *
+ * Two separate facts, and the page says which is missing, because they have
+ * different owners: the credential holder is a deployment setting somebody
+ * configures once, and a confirmed connector is engineering work.
+ */
+function connectorsCheck(): Check {
+  const name = 'Connected systems';
+  const vault = connectorVaultConfigured();
+  const built = implementedProviders().length;
+  const ready = CONNECTORS.filter(isConnectable).length;
+
+  if (!vault) {
+    return {
+      name,
+      status: 'warn',
+      detail:
+        `No credential holder is configured, so nothing can be connected. ` +
+        `${CONNECTORS.length} systems are in the catalogue and figures come in by file import.`,
+      remedy: 'Set NANGO_SECRET_KEY on both services to hold and refresh connection credentials.',
+    };
+  }
+
+  if (ready === 0) {
+    return {
+      name,
+      status: 'warn',
+      detail:
+        `Credential holder configured. ${built} connector${built === 1 ? '' : 's'} implemented and ` +
+        `none confirmed against its provider, so nothing is open for connections yet.`,
+      remedy:
+        built === 0
+          ? 'No connector has been built yet. File imports work in the meantime.'
+          : 'A connector is checked against its provider\u2019s own documentation before it is switched on.',
+    };
+  }
+
+  return {
+    name,
+    status: 'ok',
+    detail: `${ready} of ${CONNECTORS.length} systems are open for connections.`,
+  };
 }
 
 function aiCheck(): Check {

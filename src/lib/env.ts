@@ -403,6 +403,20 @@ const DEFAULT_MODEL: Record<'openai' | 'anthropic', string> = {
  * The AI layer is optional by design. With no key configured the platform runs
  * its deterministic engines instead of a model, and says so in the interface.
  */
+/**
+ * Whether a credential holder is configured for connected systems.
+ *
+ * A boolean rather than the key, deliberately. Nothing outside the connector
+ * adapters has any business holding the secret, and a function that returned
+ * it would be imported by something that only wanted to know whether to show a
+ * button — which is how a secret ends up somewhere it is logged.
+ *
+ * The adapter that needs the value reads it itself, once, at the point of use.
+ */
+export function connectorVaultConfigured(): boolean {
+  return Boolean(process.env.NANGO_SECRET_KEY?.trim());
+}
+
 export function aiConfig(): AiConfig {
   const apiKey = process.env.AI_API_KEY?.trim() || null;
   const requested = process.env.AI_PROVIDER?.trim().toLowerCase();

@@ -97,6 +97,16 @@ export const SETTINGS: readonly Setting[] = [
     withoutIt: 'Operator pages are reachable only by a signed-in administrator.',
   },
   {
+    name: 'NANGO_SECRET_KEY',
+    stage: 'runtime',
+    required: false,
+    secret: true,
+    purpose:
+      'Holds and refreshes the credentials for systems a customer connects — their accounting, payments and sales tools.',
+    withoutIt:
+      'No system can be connected. Figures come in by file import, which works and is manual.',
+  },
+  {
     name: 'SMTP_HOST',
     stage: 'runtime',
     required: false,
