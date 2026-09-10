@@ -6,7 +6,13 @@ import { EmptyState } from '@/components/ui/states';
 import { requirePermission } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { bankDetails } from '@/lib/env';
-import { annualSaving, describeLimit, loadPlans } from '@/lib/billing/plans';
+import {
+  annualSaving,
+  describeImplementationFee,
+  describeLimit,
+  describePrice,
+  loadPlans,
+} from '@/lib/billing/plans';
 import { isEntitlement } from '@/lib/billing/entitlements';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatMoney, humanise } from '@/lib/utils/format';
@@ -70,6 +76,8 @@ export default async function BillingPage({
     name: plan.name,
     tagline: plan.tagline,
     priceCentsMonthly: plan.priceCentsMonthly,
+    priceMonthlyLabel: describePrice(plan),
+    implementationFee: describeImplementationFee(plan),
     priceCentsAnnual: plan.priceCentsAnnual,
     currency: plan.currency,
     contactSales: plan.contactSales,

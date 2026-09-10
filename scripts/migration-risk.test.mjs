@@ -93,14 +93,20 @@ describe('riskyStatements', () => {
 describe('the migrations in this repository', () => {
   const files = readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
 
-  it('are classified, and only the two that rewrite rows are flagged', () => {
+  it('are classified, and only the three that rewrite rows are flagged', () => {
     // Pinned deliberately. A migration becoming risky is a real event that
     // should change this list rather than pass unnoticed — and a new migration
     // that trips the classifier by accident is worth seeing in a diff.
+    //
+    // 36 is here on purpose: repricing four tiers means updating rows that
+    // already exist, so migrate.mjs will refuse to apply it without a recent
+    // verified backup. That is the gate doing its job, not a fault to route
+    // around — the entry below is the record that it was considered.
     const risky = files.filter((f) => riskyStatements(readFileSync(join(migrations, f), 'utf8')).length > 0);
     expect(risky).toEqual([
       '20260830080000_07_sector_policy.sql',
       '20260901090000_16_subscription_entitlements.sql',
+      '20260910120000_36_pricing_and_connector_entitlements.sql',
     ]);
   });
 

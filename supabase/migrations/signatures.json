@@ -33,5 +33,6 @@
   "20260909200000_32_proposals.sql": "to_regclass('public.proposals') is not null",
   "20260909210000_33_worker_heartbeat.sql": "to_regclass('public.worker_heartbeats') is not null",
   "20260909220000_34_schema_drift.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'worker_heartbeats' and column_name = 'pending_migrations')",
-  "20260910070000_35_backups.sql": "to_regclass('public.backups') is not null"
+  "20260910070000_35_backups.sql": "to_regclass('public.backups') is not null",
+  "20260910120000_36_pricing_and_connector_entitlements.sql": "(select count(*) from information_schema.columns where table_schema='public' and table_name='subscription_plans' and column_name='implementation_fee_cents_min') = 1"
 }

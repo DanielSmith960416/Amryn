@@ -10,24 +10,13 @@ import 'server-only';
  */
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
-import { ENTITLEMENTS, isEntitlement, type Entitlement, type Plan } from './entitlements';
+import { ENTITLEMENTS, isEntitlement, type Entitlement } from './entitlements';
+import type { PlanOffer } from './pricing';
 import type { Row } from '@/types/database';
 
-export interface PlanOffer {
-  plan: Plan;
-  name: string;
-  tagline: string;
-  /** Null where the price is negotiated rather than published. */
-  priceCentsMonthly: number | null;
-  priceCentsAnnual: number | null;
-  currency: string;
-  trialDays: number;
-  contactSales: boolean;
-  /** Feature keys this tier includes, in catalogue order. */
-  includes: Entitlement[];
-  /** Quota ceilings; null for no limit. */
-  limits: Partial<Record<Entitlement, number | null>>;
-}
+// Re-exported so a server caller still has one import to make, exactly as
+// entitlements.ts re-exports access.ts.
+export * from './pricing';
 
 const ORDER = new Map(ENTITLEMENTS.map((key, index) => [key as string, index]));
 
@@ -63,7 +52,10 @@ export const loadPlans = cache(async (): Promise<PlanOffer[]> => {
       name: plan.name,
       tagline: plan.tagline,
       priceCentsMonthly: plan.price_cents_monthly,
+      priceCentsMonthlyMax: plan.price_cents_monthly_max,
       priceCentsAnnual: plan.price_cents_annual,
+      implementationFeeCentsMin: plan.implementation_fee_cents_min,
+      implementationFeeCentsMax: plan.implementation_fee_cents_max,
       currency: plan.currency_code,
       trialDays: plan.trial_days,
       contactSales: plan.contact_sales,
@@ -72,16 +64,3 @@ export const loadPlans = cache(async (): Promise<PlanOffer[]> => {
     };
   });
 });
-
-/** What twelve months costs, and what that saves against paying monthly. */
-export function annualSaving(offer: PlanOffer): number | null {
-  if (offer.priceCentsAnnual === null || offer.priceCentsMonthly === null) return null;
-  const saving = offer.priceCentsMonthly * 12 - offer.priceCentsAnnual;
-  return saving > 0 ? saving : null;
-}
-
-/** "Unlimited" is a real answer and has to be said, not left blank. */
-export function describeLimit(value: number | null | undefined): string {
-  if (value === null || value === undefined) return 'Unlimited';
-  return new Intl.NumberFormat('en-ZA').format(value);
-}

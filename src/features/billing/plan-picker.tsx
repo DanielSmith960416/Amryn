@@ -14,6 +14,14 @@ export interface PickerPlan {
   name: string;
   tagline: string;
   priceCentsMonthly: number | null;
+  /**
+   * The monthly price already in words, because it is not always a number:
+   * Enterprise is a negotiated band. Formatted server-side by describePrice so
+   * this card, the marketing site and any quote say it identically.
+   */
+  priceMonthlyLabel: string;
+  /** Setup fee, already in words. Null where nothing is charged. */
+  implementationFee: string | null;
   priceCentsAnnual: number | null;
   currency: string;
   contactSales: boolean;
@@ -67,15 +75,28 @@ export function PlanPicker({
               </div>
 
               <p className="numeric mt-2 text-[1.25rem] font-semibold text-[var(--text-primary)]">
-                {price === null
-                  ? 'By arrangement'
-                  : formatMoney(price, plan.currency, { compact: false, decimals: 0 })}
-                {price === null ? null : (
+                {term === 12
+                  ? price === null
+                    ? 'By arrangement'
+                    : formatMoney(price, plan.currency, { compact: false, decimals: 0 })
+                  : plan.priceMonthlyLabel}
+                {term === 12 && price === null ? null : (
                   <span className="font-sans text-[0.75rem] font-normal text-[var(--text-tertiary)]">
                     {term === 12 ? ' / year' : ' / month'}
                   </span>
                 )}
               </p>
+
+              {plan.implementationFee ? (
+                /*
+                 * Said on the card rather than discovered in a quote. A setup
+                 * fee that first appears on an invoice is the fastest way to
+                 * lose a customer who had already decided to buy.
+                 */
+                <p className="mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
+                  {plan.implementationFee} once-off to set up
+                </p>
+              ) : null}
 
               {term === 12 && plan.savingCents ? (
                 <p className="mt-0.5 text-[0.75rem] text-[var(--positive)]">
