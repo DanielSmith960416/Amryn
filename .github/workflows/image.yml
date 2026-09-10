@@ -39,9 +39,45 @@ jobs:
         with:
           context: .
           push: false
-          load: false
+          # Loaded rather than discarded, so the step below can run it. The
+          # image is still never pushed anywhere.
+          load: true
+          tags: amryn:ci
           build-args: |
             NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
             NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # An image that builds is not an image that can take a backup.
+      #
+      # scripts/backup.mjs shells out to pg_dump, and pg_dump refuses a server
+      # newer than itself — so "the package installed" is not the assertion
+      # worth making. The version is. A client older than the server would
+      # produce dumps that silently omit what it does not know about, and the
+      # first place anybody would notice is a restore.
+      #
+      # Run as root because that is how the worker runs on Railway, which is
+      # what makes the volume writable. See the Dockerfile.
+      - name: Confirm the image can actually take a backup
+        run: |
+          set -euo pipefail
+          version="$(docker run --rm --user 0 amryn:ci pg_dump --version)"
+          echo "$version"
+          major="$(printf '%s' "$version" | grep -oE '[0-9]+' | head -1)"
+          if [ "$major" -lt 17 ]; then
+            echo "pg_dump is major $major; the server is 17. A dump taken by an older" >&2
+            echo "client can omit what it does not know about, which is worse than none." >&2
+            exit 1
+          fi
+          echo "pg_dump is major $major, at least as new as the server."
+
+      # The dump script is copied in beside it, and reaches its own checks.
+      - name: Confirm backup.mjs is in the image and runnable
+        run: |
+          set -euo pipefail
+          output="$(docker run --rm --user 0 -e SUPABASE_DB_URL= amryn:ci \
+            node scripts/backup.mjs 2>&1 || true)"
+          echo "$output"
+          printf '%s' "$output" | grep -q 'SUPABASE_DB_URL' \
+            || { echo 'backup.mjs did not reach its configuration check' >&2; exit 1; }

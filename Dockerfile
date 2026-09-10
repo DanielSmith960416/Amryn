@@ -71,7 +71,26 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Not root. A compromised render should not also be a compromised container.
+#
+# The worker service is the exception, and deliberately so: Railway mounts a
+# volume as root, and an image running as a non-root uid cannot write to one.
+# It sets RAILWAY_RUN_UID=0 to take the backups volume. That trade is confined
+# to the service with no HTTP surface at all — no requests, no sessions,
+# nothing rendered — and the web service, which is what this line is about,
+# keeps running as nextjs.
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+
+# The PostgreSQL client, for scripts/backup.mjs.
+#
+# 17 to match the server, and pinned rather than left to `postgresql-client`:
+# pg_dump refuses a server newer than itself, and a dump taken by an older one
+# can silently omit what it does not know about — which is the one failure a
+# backup must not have. If this package ever stops existing, the image build
+# fails in a pull request, which is the right place to find out.
+#
+# ~4 MB, in the runner stage only. Both services carry it because they share
+# one Dockerfile; only the worker runs the dump.
+RUN apk add --no-cache postgresql17-client
 
 # `output: 'standalone'` emits a server with only the dependencies it actually
 # uses — a few hundred megabytes of node_modules do not travel with it. The

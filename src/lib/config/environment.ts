@@ -209,6 +209,7 @@ export const SETTINGS: readonly Setting[] = [
   // computed with UTC accessors, because a schedule that moves twice a year is
   // a schedule that fails twice a year. Asserted in src/lib/jobs/schedule.test.ts.
   { name: 'TZ', stage: 'platform', required: false, secret: false, purpose: "The container's timezone, where the host sets one. The scheduled work is UTC regardless.", withoutIt: 'UTC, and nothing behaves differently.' },
+  { name: 'BACKUP_DIR', stage: 'runtime', required: false, secret: false, purpose: 'Where the nightly dump is written on the worker. The backups volume is mounted at /backups, which is the default.', withoutIt: 'Defaults to /backups. Set it only to point the job at a scratch directory without a volume.' },
   { name: 'RAILWAY_PUBLIC_DOMAIN', stage: 'platform', required: false, secret: false, purpose: 'What Railway calls this service, used where no site URL is configured.', withoutIt: 'Falls back to localhost.' },
   { name: 'RAILWAY_GIT_BRANCH', stage: 'platform', required: false, secret: false, purpose: 'The branch Railway deployed, shown on the operator pages.', withoutIt: 'The build stamp is blank.' },
   { name: 'RAILWAY_GIT_COMMIT_SHA', stage: 'platform', required: false, secret: false, purpose: 'The commit Railway deployed, shown on the operator pages.', withoutIt: 'The build stamp is blank.' },

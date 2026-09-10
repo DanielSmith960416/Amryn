@@ -38,7 +38,7 @@
  * A plan that is never empty is a review gate people stop reading, which
  * costs more than the setting was ever worth. Declare what differs.
  */
-import { defineRailway, github, preserve, project, service } from 'railway/iac';
+import { defineRailway, github, preserve, project, service, volume } from 'railway/iac';
 
 /**
  * Both services build the same Dockerfile from the same commit.
@@ -58,6 +58,28 @@ const DOCKER_BUILD = {
 const SOURCE = github('DanielSmith960416/Amryn', { branch: 'main', checkSuites: false });
 
 export default defineRailway(() => {
+  /**
+   * Where the nightly database dumps live.
+   *
+   * The deployment container's filesystem is discarded, so a dump written
+   * inside it exists for exactly as long as it is useless. This outlives the
+   * container, which is what makes an automated backup a backup at all.
+   *
+   * Attached to the worker, because that is what takes the dump. A volume can
+   * only be attached to one service, and it belongs to the one that writes it.
+   *
+   * Sized well beyond need: a dump of this database is under a megabyte today
+   * and the retention window keeps fourteen. Growing a volume is a live,
+   * zero-downtime operation; shrinking one is not supported at all, so the
+   * asymmetry says start small rather than large.
+   */
+  const backups = volume('backups', {
+    // Where the services run. A volume in another region would work and would
+    // add a round trip to every write for no benefit.
+    region: 'ams',
+    sizeMB: 512,
+  });
+
   /**
    * The web service. `node server.js` rather than `next start`: the CLI is
    * deliberately not in the image, and server.js is what `output: 'standalone'`
@@ -142,8 +164,29 @@ export default defineRailway(() => {
        */
       multiRegionConfig: { ams: { numReplicas: 1 } },
     },
+    volumeMounts: {
+      '/backups': backups,
+    },
     variables: {
       SUPABASE_DB_URL: preserve(),
+      /*
+       * Run as root — on this service only, and for one reason.
+       *
+       * Railway mounts a volume as root. An image running as a non-root uid
+       * cannot write to one, and there is no way around it: the mount shadows
+       * whatever ownership the image prepared, and uid 1001 cannot chown a
+       * root-owned mount. Railway documents this variable as the remedy.
+       *
+       * The Dockerfile's reason for running as nextjs is that a compromised
+       * *render* should not also be a compromised container. This service
+       * renders nothing and serves no HTTP at all — no requests, no sessions,
+       * no user input reaching a template. What it has is the database
+       * credentials it already needed to do its job.
+       *
+       * The web service, which does have a request surface, keeps running as
+       * nextjs. That is the half of the trade worth protecting.
+       */
+      RAILWAY_RUN_UID: '0',
       /*
        * The mail settings, so the morning brief can actually be delivered.
        *
@@ -168,6 +211,9 @@ export default defineRailway(() => {
   });
 
   return project('satisfied-stillness', {
-    resources: [web, worker],
+    // The volume is listed beside the services because omission deletes: a
+    // resource absent from here is one the next apply removes, and this one
+    // holds the backups.
+    resources: [web, worker, backups],
   });
 });

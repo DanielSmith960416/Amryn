@@ -496,6 +496,37 @@ database. There is deliberately no way to skip it — the requirement lifts
 itself when the database has no organisations in it, because then there is
 nothing to lose.
 
+### It runs nightly now
+
+`backup.nightly` takes the dump at **01:00 UTC**, on the worker, onto a Railway
+volume mounted at `/backups`. Before the Twin's run at 02:30 and the brief's at
+03:30, on purpose: a backup taken before the night's writes captures a settled
+day, and if the night's routine is what went wrong, a backup taken after it has
+already recorded the damage.
+
+The job shells out to `scripts/backup.mjs` — the same file you run by hand —
+rather than dumping for itself, so there is one dump path and the migration
+gate trusts what the schedule produces.
+
+**Two consequences of using a volume, both deliberate:**
+
+- **The worker runs as root.** Railway mounts volumes as root, and an image
+  running as a non-root uid cannot write to one; `RAILWAY_RUN_UID=0` is
+  Railway's documented remedy and there is no alternative. It is set on the
+  worker only. The Dockerfile runs as `nextjs` because a compromised *render*
+  should not be a compromised container — and the worker renders nothing,
+  serves no HTTP, and accepts no requests. The web service keeps its non-root
+  user.
+- **Deploying the worker now has a moment of downtime.** Railway will not run
+  two deployments mounted to the same volume, healthcheck or not. A single
+  replica already had this; it is now unavoidable rather than incidental.
+
+Retention keeps **14 days**, and never fewer than **3 dumps whatever their
+age**. That floor is the important half: a volume holding one ancient dump
+holds everything standing between the product and nothing, and deleting it for
+being old would be the most destructive thing here — quietly, on a schedule,
+with every other signal green.
+
 ### How you know whether any of this has happened
 
 All of the above protects *migrations*. None of it answers the question
