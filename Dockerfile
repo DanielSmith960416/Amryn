@@ -99,8 +99,16 @@ COPY --from=build --chown=nextjs:nodejs /app/supabase/migrations ./supabase/migr
 #
 # This image is both programs. Which one a container runs is the start command:
 # the web service keeps the default below, and the worker service overrides it
-# with `node dist/worker.mjs`. Building them as one image is what stops the
-# worker running yesterday's handlers against today's schema.
+# with `node dist/worker.mjs`. One Dockerfile for both is what stops the worker
+# running yesterday's handlers against today's schema.
+#
+# One Dockerfile, but two builds — each service builds it from the same commit
+# independently. So the two can still end up on different commits when one
+# build fails, which is why the heartbeat carries the handler list and
+# /diagnostics compares it. Both services must therefore name this file
+# explicitly in their own build settings: relying on railway.json to do it is
+# what makes that divergence possible in the first place, and railway.json
+# stops being read on 2026-12-01.
 COPY --from=build --chown=nextjs:nodejs /app/dist ./dist
 
 USER nextjs

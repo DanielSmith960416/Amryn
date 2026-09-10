@@ -195,12 +195,26 @@ below asks for one line of output rather than a green tick.
 > above are set on the service rather than committed to a file beside
 > `railway.json`.
 >
-> Two consequences worth acting on before that date. The web service's builder
-> comes from `railway.json` today, so on 2026-12-01 it would silently fall back
-> to Railpack and stop using the Dockerfile. And the two services are
-> configured in two different ways, which is exactly the drift that file
-> existed to prevent. Migrating both to `.railway/railway.ts` fixes both and is
-> not urgent until it suddenly is.
+> The first consequence has been dealt with. The web service's build settings
+> — builder, Dockerfile path, start command, healthcheck and restart policy —
+> are now set **on the service as well as** in `railway.json`, matching it
+> field for field. Until 2026-12-01 `railway.json` still wins; after it, the
+> service settings are already there and nothing changes. Before this, the
+> dashboard reported the builder as Railpack and only `railway.json` was
+> holding the service on the Dockerfile, so the file's removal would have
+> silently produced an image with no `dist/worker.mjs`, no `scripts/` and no
+> `supabase/migrations/` in it.
+>
+> That the dashboard said Railpack while the build logs showed buildkit running
+> our Dockerfile is worth remembering: the stored builder field reports the
+> platform default when nothing overrides it, so **it is not evidence of how a
+> service actually builds**. The build log is. Anyone auditing this should read
+> the log, not the setting.
+>
+> The second consequence stands: the two services are configured in two
+> different ways, which is the drift that file existed to prevent. Migrating
+> both to `.railway/railway.ts` fixes it and is not urgent until it suddenly
+> is.
 
 Running more than one worker is safe. They never take the same job — the claim
 is a single statement using `for update skip locked` — and a worker that is
@@ -321,6 +335,7 @@ every signed-in role.
 - [ ] Railway service deployed, `/api/health/live` returns 200, and `/api/health` reaches 200 once Supabase is configured
 - [ ] Worker service deployed with start command `node dist/worker.mjs`, and `railway run node dist/worker.mjs --once` claims and runs something
 - [ ] Worker service pre-deploy command is `node scripts/migrate.mjs`, and its output appears in the deploy log of a real deployment — a redeploy of an existing one does not prove it
+- [ ] Both services name `Dockerfile` in their own build settings, not only in `railway.json` — confirm from a build log showing the Dockerfile's own stages, not from the builder field
 - [ ] Worker restart policy is `ON_FAILURE` (see 2b.5), and a beat is visible in `worker_heartbeats` within a minute of deploy
 - [ ] `NEXT_PUBLIC_*` set on the service (check the sign-in page loads without an API-key error)
 - [ ] `app.amryn.ai` resolves through Cloudflare, SSL Full (strict)
