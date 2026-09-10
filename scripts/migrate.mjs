@@ -11,7 +11,19 @@
  *
  *   node scripts/migrate.mjs                      apply what is pending
  *   node scripts/migrate.mjs --dry-run            list it and stop
+ *   node scripts/migrate.mjs --check              ask, and exit non-zero if behind
  *   node scripts/migrate.mjs --backup <manifest>  apply, with a backup to hand
+ *
+ * ── safe to run on every deploy ───────────────────────────────────────────
+ * This is the worker service's pre-deploy command, so it runs unattended on
+ * each release and usually finds nothing to do. Two things make that safe: it
+ * exits 0 when the database is already current, and it takes an advisory lock
+ * so two runs — two services deploying at once, or a deploy overlapping with
+ * somebody at a terminal — queue rather than race.
+ *
+ * --check is the same question without the answer being acted on: 0 means
+ * current, non-zero means behind. --dry-run exits 0 either way, which is what
+ * you want when reading and not what you want when gating.
  *
  * ── the backup rule, enforced rather than written down ────────────────────
  * A migration that only adds — a table, a column, an index, a policy — cannot
@@ -40,6 +52,7 @@ import { MAX_AGE_HOURS, manifestProblems, readManifest } from './backup-manifest
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'supabase', 'migrations');
 const dryRun = process.argv.includes('--dry-run');
+const checkOnly = process.argv.includes('--check');
 const backupManifestPath = (() => {
   const index = process.argv.indexOf('--backup');
   return index !== -1 ? process.argv[index + 1] : undefined;
@@ -104,7 +117,59 @@ try {
   process.exit(1);
 }
 
+/*
+ * One migration run at a time, across every process that might start one.
+ *
+ * The ledger is read and then written, and the gap between is a whole file
+ * being applied. Two runs that both read "34 is pending" both try to apply it;
+ * the loser fails partway through a `create table` that already exists, rolls
+ * back, and exits non-zero — which, as a pre-deploy command, is a failed
+ * deployment caused by nothing being wrong.
+ *
+ * That is not hypothetical here: both services deploy from the same push at
+ * the same second, /setup applies migrations over its own connection, and a
+ * person can be at a terminal during either.
+ *
+ * A session-level advisory lock, so it is released when this connection ends —
+ * including when the process is killed, which a transaction-scoped lock would
+ * also do but a table of our own would not.
+ *
+ * The number is arbitrary and permanent. It means nothing beyond "the Amryn
+ * migration runner"; anything else taking it would have to have chosen the
+ * same integer on purpose.
+ */
+const LEDGER_LOCK = 615243901;
+
+async function takeTheLedgerLock() {
+  const { rows } = await client.query('select pg_try_advisory_lock($1) as got', [LEDGER_LOCK]);
+  if (rows[0]?.got === true) return;
+
+  console.log('Another migration run holds the lock — waiting for it to finish.');
+
+  // Bounded, because this runs inside a deployment. Waiting forever on a lock
+  // held by a process that has hung is a deploy that never completes and never
+  // says why.
+  await client.query("set lock_timeout = '120s'");
+  try {
+    await client.query('select pg_advisory_lock($1)', [LEDGER_LOCK]);
+  } catch (error) {
+    console.error(
+      '\nGave up after two minutes waiting for another migration run to finish.\n' +
+        'Nothing was applied. If no other run is in progress, a previous one may have left a\n' +
+        'connection open — check for idle sessions on this database, then run again.',
+    );
+    console.error(safe(error, url));
+    process.exit(1);
+  } finally {
+    await client.query("set lock_timeout = '0'").catch(() => {});
+  }
+
+  console.log('Lock acquired.');
+}
+
 try {
+  await takeTheLedgerLock();
+
   await client.query(`
     create schema if not exists amryn;
     create table if not exists amryn.schema_migrations (
@@ -157,6 +222,14 @@ try {
 
   console.log(`${pending.length} to apply:`);
   for (const file of pending) console.log(`  ${file}`);
+
+  // Asked rather than told. Non-zero, so a deploy step or a shell `if` can act
+  // on the answer — which is the whole difference from --dry-run, and the
+  // reason both exist.
+  if (checkOnly) {
+    console.log('\n--check: nothing was applied.');
+    process.exit(1);
+  }
 
   // ── the backup rule ─────────────────────────────────────────────────────
   //

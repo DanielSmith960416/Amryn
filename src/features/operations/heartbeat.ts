@@ -36,6 +36,12 @@ export interface Heartbeat {
   handlers: string[];
   inFlight: number;
   revision: string | null;
+  /**
+   * Migrations the worker's build carries that the database has not recorded.
+   * Non-empty means it is deliberately claiming nothing. Empty is healthy, and
+   * is also what a worker predating the column reports.
+   */
+  pendingMigrations: string[];
 }
 
 export type WorkerHealth =

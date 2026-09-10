@@ -82,4 +82,13 @@ export const EXEMPT_PATHS: readonly string[] = [
   // for JSON matching a schema is the only way to say it.
   'src/lib/ai/prompts.ts',
   'src/lib/ai/provider.ts',
+  // The worker renders nothing and has no reader but an operator watching a
+  // deployment log. Its whole job is to say which migration a database is
+  // missing and which table a handler could not find — the sentences this
+  // guard keeps away from a customer are the ones that make its logs useful.
+  'src/worker/',
+  // The same readership, one layer up: what the worker reports and what
+  // /diagnostics prints about it. Nothing here reaches a customer-facing page,
+  // and naming the migration somebody has to apply is the entire value of it.
+  'src/features/operations/',
 ];
