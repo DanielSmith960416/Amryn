@@ -25,6 +25,23 @@ import { internalAccess } from '@/lib/auth/internal-access';
  *
  * 200 while nothing is failing, 503 when something is, because that is the
  * part most monitors look at.
+ *
+ * ── what an anonymous caller is now told about the worker ─────────────────
+ *
+ * That it is running, or that it is not. This is the change that makes the
+ * endpoint honest: the worker check existed before and was gated behind the
+ * direct connection, so the only callers who could see it were the ones
+ * already looking at /diagnostics. An anonymous monitor — the audience this
+ * endpoint is for — got "ok" while every schedule was stopped, for
+ * thirty-five minutes, which is exactly what happened.
+ *
+ * The gate was protecting the pooler rather than the information, and a cached
+ * reading protects it better: see readWorkerHeartbeatCached.
+ *
+ * Backups stay behind the gate, deliberately. A backup that has gone stale is
+ * worth an operator's attention and is not an outage, and a monitor that pages
+ * somebody at three in the morning for one is muted within a week — after
+ * which it reports nothing at all.
  */
 
 // Always measured, never cached: a cached health check reports the past.
@@ -32,10 +49,14 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: Request) {
-  // Established before the checks run, not after: one of them opens a direct
-  // database connection, and this endpoint is polled by anything that can
-  // reach it. A connection per anonymous request would exhaust the pooler and
-  // cause the outage this endpoint exists to report.
+  // Established before the checks run, not after: several of them open a
+  // direct database connection, and this endpoint is polled by anything that
+  // can reach it. A connection per anonymous request would exhaust the pooler
+  // and cause the outage this endpoint exists to report.
+  //
+  // The worker check is the exception and is no longer gated on this — it is
+  // read through a thirty-second cache instead, so any rate of polling costs
+  // two connections a minute.
   const key = new URL(request.url).searchParams.get('key') ?? undefined;
   const detailed = (await internalAccess(key)) !== 'denied';
 

@@ -25,7 +25,12 @@ import { createClient } from '@/lib/supabase/server';
 import { aiConfig, redact, resolveSupabaseUrl, siteUrl, supabaseConfigError } from '@/lib/env';
 import { smtpConfig, verifySmtp } from '@/lib/email/smtp';
 import { judgeAnonKey } from '@/lib/supabase/key-info';
-import { databaseUrl, readLatestBackup, readPending, readWorkerHeartbeat } from '@/lib/db/setup';
+import {
+  databaseUrl,
+  readLatestBackup,
+  readPending,
+  readWorkerHeartbeatCached,
+} from '@/lib/db/setup';
 import { missingHandlers, workerHealth } from '@/features/operations/heartbeat';
 import { describeDrift } from '@/features/operations/schema-drift';
 import { backupHealth, capturedNothing } from '@/features/operations/backups';
@@ -218,7 +223,14 @@ export async function runDiagnostics(
     checkRoleGrants(),
     checkBootstrapFunction(),
     checkPendingMigrations(options.directConnection ?? false),
-    checkWorker(options.directConnection ?? false),
+    /*
+     * Not gated on the direct connection, unlike every other check that needs
+     * one. A monitor polling anonymously is the audience for this answer, and
+     * gating it is why /api/health said "ok" for thirty-five minutes while
+     * nothing was being processed. The reading is cached instead, which is
+     * what the gate was really protecting against.
+     */
+    checkWorker(),
     checkBackups(options.directConnection ?? false),
     checkRowLevelSecurity(),
     checkSession(),
@@ -877,16 +889,8 @@ async function checkBackups(allowed: boolean): Promise<Check> {
   return { name, status: 'ok', detail: health.detail };
 }
 
-async function checkWorker(allowed: boolean): Promise<Check> {
+async function checkWorker(): Promise<Check> {
   const name = 'Background worker';
-
-  if (!allowed) {
-    return {
-      name,
-      status: 'skipped',
-      detail: 'Not checked here — it needs a direct database connection.',
-    };
-  }
 
   if (!databaseUrl()) {
     return {
@@ -898,7 +902,7 @@ async function checkWorker(allowed: boolean): Promise<Check> {
     };
   }
 
-  const reading = await readWorkerHeartbeat();
+  const reading = await readWorkerHeartbeatCached();
   const beat = reading.beat;
   const health = workerHealth(reading, new Date());
 

@@ -1,0 +1,88 @@
+# Notices when the platform stops working, and tells somebody.
+#
+# Everything built for Phase 7 so far is *pull*: the heartbeat is written, the
+# schema drift is recorded, /diagnostics reads them — and all of it waits for a
+# person to open a page. The evening this was written for, the worker was down
+# for thirty-five minutes and the only reason anybody found out was that
+# somebody happened to look at the deployment dashboard.
+#
+# ── why this lives here rather than in the worker ─────────────────────────
+#
+# A dead worker cannot report that it is dead. Whatever watches it has to be
+# somewhere else, and preferably in a different failure domain — so a Railway
+# incident does not take out both the platform and the thing that would have
+# said so.
+#
+# GitHub Actions is that somewhere: outside Railway, outside Supabase, free,
+# and it already has a delivery mechanism. A failing scheduled workflow emails
+# the repository owner without anything being configured, which is the whole
+# alerting mechanism and the reason this needs no secret, no pager service and
+# no third party.
+#
+# ── what it costs, and what it does not ───────────────────────────────────
+#
+# It reads the public half of /api/health: a status word and an HTTP code,
+# naming nothing about the system's insides. No token, so nothing here can be
+# leaked by a workflow log.
+#
+# Two honest limitations, written down so nobody discovers them during an
+# incident:
+#
+#   · GitHub's scheduled runs are best-effort and are delayed under load,
+#     sometimes by many minutes. This narrows a thirty-five minute silence to
+#     roughly twenty; it does not make it instant, and it is not a pager.
+#   · GitHub disables scheduled workflows in a repository with no activity for
+#     sixty days. A repository nobody has touched in two months is not one
+#     whose alerting anybody is watching either, but it is worth knowing.
+name: Uptime
+
+on:
+  schedule:
+    # Every fifteen minutes. The worker's own thresholds are ninety seconds to
+    # stale and five minutes to gone, so this is the coarse half of the pair:
+    # it is not trying to catch a blip, it is trying to make sure a real outage
+    # cannot last a working day unnoticed.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the deployment whether it is well
+        env:
+          # A repository variable, so the address can change without a commit.
+          # Falls back to the Railway domain, which is where it answers today.
+          HEALTH_URL: ${{ vars.HEALTH_URL || 'https://amryn-production.up.railway.app/api/health' }}
+        run: |
+          set -uo pipefail
+
+          # Retried before it is believed. A single failed request is as likely
+          # to be a runner's network as a real outage, and an alert that cries
+          # wolf is one people turn off — which would leave this repository
+          # exactly where it started.
+          for attempt in 1 2 3; do
+            code="$(curl -sS --max-time 20 -o /tmp/health.json -w '%{http_code}' "$HEALTH_URL" || echo 000)"
+            body="$(cat /tmp/health.json 2>/dev/null || true)"
+            echo "attempt $attempt: HTTP $code $body"
+            [ "$code" = "200" ] && { echo "The deployment reports itself well."; exit 0; }
+            [ "$attempt" -lt 3 ] && sleep 20
+          done
+
+          echo
+          echo "::error::$HEALTH_URL is not reporting healthy after three attempts (last: HTTP $code)."
+          echo "A 503 means a check is failing — most often the background worker, which"
+          echo "stops every schedule: the nightly Twin run, the morning brief, the queue"
+          echo "sweep, the rate-limit prune and the nightly backup."
+          echo
+          echo "Open /diagnostics with INTERNAL_ACCESS_TOKEN for the named check, or read"
+          echo "the worker service's logs on Railway. HTTP 000 is no answer at all, which"
+          echo "is the web service rather than the worker."
+          exit 1
