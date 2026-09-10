@@ -14,6 +14,7 @@
 import { composeBrief } from './handlers/compose-brief';
 import { pruneRateLimits } from './handlers/prune-rate-limits';
 import { measureTwinFidelity } from './handlers/measure-fidelity';
+import { nightlyBackup } from './handlers/nightly-backup';
 import { nightlyBriefTick } from './handlers/nightly-brief';
 import { nightlyTwinTick } from './handlers/nightly-twin';
 import { runAnalysis } from './handlers/run-analysis';
@@ -31,6 +32,7 @@ const HANDLERS: readonly JobHandler[] = [
   simulateTwin,
   nightlyBriefTick,
   composeBrief,
+  nightlyBackup,
 ];
 
 const BY_KIND = new Map(HANDLERS.map((handler) => [handler.kind, handler]));
@@ -110,5 +112,25 @@ export const PLATFORM_SCHEDULES: readonly Schedule[] = [
     description: nightlyBriefTick.description,
     cadence: { dailyAtUtc: '03:30' },
     priority: 30,
+  },
+  {
+    /*
+     * The nightly dump.
+     *
+     * 01:00 UTC — before the Twin's run at 02:30 and the brief's at 03:30, on
+     * purpose. A backup taken before the night's writes captures the database
+     * as it stood at the end of a settled day; one taken after captures it
+     * mid-routine, and if the routine is what went wrong, the backup has
+     * already recorded the damage.
+     *
+     * Priority behind the housekeeping and ahead of nothing: it is the longest
+     * job here and holds a lease for as long as the dump takes, so it should
+     * not sit in front of work that finishes in milliseconds.
+     */
+    name: 'backup-nightly',
+    kind: nightlyBackup.kind,
+    description: nightlyBackup.description,
+    cadence: { dailyAtUtc: '01:00' },
+    priority: 40,
   },
 ];

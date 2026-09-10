@@ -82,8 +82,9 @@ try {
       'least the server\'s major version:\n' +
       '  macOS    brew install libpq && brew link --force libpq\n' +
       '  Debian   sudo apt-get install postgresql-client-17\n\n' +
-      'Do not run this inside the deployment container: its filesystem is discarded, so\n' +
-      'the dump would not survive long enough to be a backup.',
+      'Write the dump somewhere that outlives the process. The container\'s own filesystem\n' +
+      'is discarded with it, so a dump written there does not survive long enough to be a\n' +
+      'backup — which is why the worker writes to a mounted volume and not to /tmp.',
   );
   process.exit(1);
 }
