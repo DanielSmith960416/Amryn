@@ -488,10 +488,26 @@ thirty-second cache protects it better: any rate of polling now costs two
 connections a minute. A worker that has not beaten for five minutes makes
 `/api/health` return **503**.
 
-Backups deliberately stay behind the gate. A stale backup is worth an
-operator's attention and is not an outage, and a monitor that pages somebody at
-three in the morning for one is muted within a week — after which it reports
-nothing at all.
+Backups and mail delivery deliberately stay behind the gate. A stale backup is
+worth an operator's attention and is not an outage, and a monitor that pages
+somebody at three in the morning for one is muted within a week — after which
+it reports nothing at all. Mail is the same: invitations fall back to a link
+passed on by hand, and nothing else notices.
+
+> **What the first probe found, and why mail moved behind the gate.**
+> The very first run of `uptime.yml` came back `503` three times, each in
+> almost exactly 4.2 seconds against a 4-second per-check budget — the
+> signature of a check *hanging*, not erroring. Supabase's edge log showed all
+> four database reads answering normally in the same window, which left the one
+> check that does not talk to the database: SMTP verification.
+>
+> Verifying mail opens a connection to somebody else's server. Doing that once
+> per anonymous request to a polled endpoint is the connection-pool argument
+> pointed outwards, and `nodemailer`'s verify has no timeout of its own, so a
+> wrong port hangs rather than refuses. It is now operator-only — and, being
+> operator-only, it can afford a twelve-second budget, which is longer than the
+> transport's own ten, so the report names the fault instead of saying only
+> that there was one.
 
 **2. `.github/workflows/uptime.yml` polls it every fifteen minutes.** GitHub
 Actions is outside Railway and outside Supabase, so an incident cannot take out
