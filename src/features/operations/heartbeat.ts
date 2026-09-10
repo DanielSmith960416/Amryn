@@ -48,7 +48,22 @@ export type WorkerHealth =
   | { state: 'running'; workerId: string; secondsSince: number; handlers: string[]; inFlight: number }
   | { state: 'stale'; workerId: string; secondsSince: number; detail: string }
   | { state: 'gone'; workerId: string; secondsSince: number; detail: string }
-  | { state: 'never'; detail: string };
+  | { state: 'never'; detail: string }
+  | { state: 'unreachable'; detail: string };
+
+/**
+ * What came back from asking, which is not the same as what is true.
+ *
+ * `beat: null` alone carried two meanings — "no worker has ever reported" and
+ * "the question could not be asked" — and the reader printed the first for
+ * both. That is a false alarm about a worker that may be running perfectly,
+ * and it is the same conflation the heartbeat itself exists to remove.
+ */
+export interface HeartbeatReading {
+  beat: Heartbeat | null;
+  /** Why the question could not be asked, when it could not be. */
+  problem?: string;
+}
 
 /**
  * What the freshest beat says.
@@ -59,7 +74,22 @@ export type WorkerHealth =
  * apart from "it died an hour ago" is the difference between waiting and
  * investigating.
  */
-export function workerHealth(beat: Heartbeat | null, now: Date): WorkerHealth {
+export function workerHealth(reading: HeartbeatReading, now: Date): WorkerHealth {
+  /*
+   * Ranked first, because it is the only branch that says nothing about the
+   * worker at all. Everything below is a claim about a process; this is a
+   * claim about the reader's ability to see it.
+   */
+  if (reading.problem) {
+    return {
+      state: 'unreachable',
+      detail:
+        'Could not reach the database to ask whether the worker is running — ' + reading.problem,
+    };
+  }
+
+  const beat = reading.beat;
+
   if (!beat) {
     return {
       state: 'never',

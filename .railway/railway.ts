@@ -27,6 +27,16 @@
  * Generated *.up.railway.app domains are deliberately absent — Railway does
  * not manage those through this file, so naming one here would be inventing a
  * resource rather than describing one.
+ *
+ * ── do not declare a value that equals the platform default ───────────────
+ *
+ * Railway does not store a field left at its default, so a plan compares the
+ * declared value against nothing and reports the same change on every run.
+ * The apply succeeds and the next plan asks for it again. Measured, not
+ * guessed: that is what `deploy.restartPolicyType` did after #85.
+ *
+ * A plan that is never empty is a review gate people stop reading, which
+ * costs more than the setting was ever worth. Declare what differs.
  */
 import { defineRailway, github, preserve, project, service } from 'railway/iac';
 
@@ -62,7 +72,9 @@ export default defineRailway(() => {
       // deployment is not held back by Supabase being unreachable.
       healthcheckPath: '/api/health/live',
       healthcheckTimeout: 120,
-      restartPolicyType: 'ON_FAILURE',
+      // Three attempts rather than the default ten. Declared because it
+      // differs from the default; see the note below on why the policy *type*
+      // is not declared beside it.
       restartPolicyMaxRetries: 3,
       multiRegionConfig: { ams: { numReplicas: 1 } },
     },
@@ -72,6 +84,15 @@ export default defineRailway(() => {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: preserve(),
       NEXT_PUBLIC_SUPABASE_URL: preserve(),
       PORT: preserve(),
+      // The direct connection, which is what /setup applies migrations over
+      // and what /diagnostics reads the worker's heartbeat over. Without it
+      // that page cannot tell whether the worker is running — it says so
+      // rather than guessing, but saying so is not the same as knowing.
+      //
+      // preserve() and never a literal: this is the database owner's
+      // connection string, and Row Level Security does not stand between it
+      // and anything.
+      SUPABASE_DB_URL: preserve(),
       SMTP_FROM: preserve(),
       SMTP_HOST: preserve(),
       SMTP_PASSWORD: preserve(),
@@ -100,6 +121,25 @@ export default defineRailway(() => {
     deploy: {
       startCommand: 'node dist/worker.mjs',
       preDeployCommand: ['node scripts/migrate.mjs'],
+      /*
+       * No restart policy declared, and that is the correct entry.
+       *
+       * The runbook asks for ON_FAILURE with ten attempts. Railway's default
+       * is ON_FAILURE with ten attempts, so the service already has exactly
+       * that — "no policy reported" is the default being in force, not the
+       * absence of one.
+       *
+       * Declaring it anyway does not make it more true. A field whose value
+       * equals the platform default is not stored, so the next plan compares
+       * a declared value against nothing and reports the same change again,
+       * forever. That was measured: #85 applied
+       * `~ Update Amryn deploy.restartPolicyType` successfully and the very
+       * next plan asked for it again.
+       *
+       * A plan that always shows a phantom change is worse than no plan. It
+       * is the review gate for every future change to this file, and a gate
+       * that is never empty is one people stop reading.
+       */
       multiRegionConfig: { ams: { numReplicas: 1 } },
     },
     variables: {
