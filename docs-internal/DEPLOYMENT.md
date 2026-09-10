@@ -467,6 +467,53 @@ workaround rather than a disconnection — it leaves a Vercel configuration file
 in a project that deliberately has none — and it is not committed here because
 there is no way to test it from this side. The two steps above are the answer.
 
+## Alerting
+
+Everything else here is *pull*: the heartbeat is written, the drift is recorded,
+`/diagnostics` reads them, and all of it waits for somebody to open a page. The
+worker was once down for thirty-five minutes and the only reason anybody found
+out was that somebody happened to look at the deployment dashboard.
+
+**A dead worker cannot report that it is dead**, so the thing that notices has
+to be somewhere else. Two changes, and they work together:
+
+**1. `/api/health` now tells an anonymous caller about the worker.** The check
+existed before and was gated behind the direct connection, so the only people
+who could see it were the ones already looking at `/diagnostics`. A monitor —
+the audience the endpoint is for — got `ok` while every schedule was stopped.
+That is precisely what happened.
+
+The gate was protecting the connection pool rather than the information, and a
+thirty-second cache protects it better: any rate of polling now costs two
+connections a minute. A worker that has not beaten for five minutes makes
+`/api/health` return **503**.
+
+Backups deliberately stay behind the gate. A stale backup is worth an
+operator's attention and is not an outage, and a monitor that pages somebody at
+three in the morning for one is muted within a week — after which it reports
+nothing at all.
+
+**2. `.github/workflows/uptime.yml` polls it every fifteen minutes.** GitHub
+Actions is outside Railway and outside Supabase, so an incident cannot take out
+both the platform and the thing that would have said so. A failing scheduled
+workflow emails the repository owner with nothing configured, which is the
+entire alerting mechanism — no secret, no pager service, no third party. It
+reads only the public half of the endpoint, so nothing sensitive can reach a
+workflow log.
+
+It retries three times before believing a failure, because one failed request
+is as likely to be a runner's network as an outage, and an alert that cries
+wolf gets turned off.
+
+Set the repository variable `HEALTH_URL` when the domain changes; it falls back
+to the Railway address.
+
+> **Two limitations, written down so nobody meets them during an incident.**
+> GitHub's scheduled runs are best-effort and are delayed under load, sometimes
+> by many minutes — this narrows a thirty-five minute silence to roughly
+> twenty, and is not a pager. And GitHub disables scheduled workflows in a
+> repository with no activity for sixty days.
+
 ## Backups
 
 **There are none, other than the ones you take.** This project is on Supabase's

@@ -23,6 +23,7 @@ import 'server-only';
  *   · The connection string is never returned, logged, or put in an error.
  */
 import { Client } from 'pg';
+import { createTtlCache } from '@/lib/cache/ttl';
 import { SETUP_SQL, MIGRATION_FILES, EXPECTED_SCHEMA } from './setup-sql';
 import {
   applyPending,
@@ -367,6 +368,33 @@ export async function readWorkerHeartbeat(): Promise<WorkerHeartbeatReading> {
   } finally {
     await client?.end().catch(() => {});
   }
+}
+
+/**
+ * How long one reading of the worker's heartbeat is reused.
+ *
+ * /api/health is polled by anything that can reach it, and reading the
+ * heartbeat opens a direct connection. One per anonymous request would exhaust
+ * the pooler and cause the outage the endpoint exists to report — which is why
+ * that check used to be switched off for anonymous callers altogether, and why
+ * "/api/health said ok" all through the evening the worker was dead.
+ *
+ * Thirty seconds against thresholds of ninety and three hundred: it delays
+ * noticing by at most a third of the faster signal, and turns any rate of
+ * polling into two connections a minute.
+ */
+const WORKER_READING_TTL_MS = 30_000;
+
+const workerReadingCache = createTtlCache(readWorkerHeartbeat, WORKER_READING_TTL_MS);
+
+/** The heartbeat, at most one read every thirty seconds however many ask. */
+export function readWorkerHeartbeatCached(): Promise<WorkerHeartbeatReading> {
+  return workerReadingCache.read();
+}
+
+/** Test seam, and the way to force a fresh reading after a known change. */
+export function forgetWorkerReading(): void {
+  workerReadingCache.forget();
 }
 
 /**
