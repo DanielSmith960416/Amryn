@@ -24,7 +24,10 @@ import { createClient } from '@/lib/supabase/server';
 import { checkLimit } from '@/lib/auth/rate-limit';
 import { recordEvent } from '@/lib/audit';
 import { ourFault } from '@/lib/errors';
-import { findHeader, parseCsv } from '@/lib/inventory/csv';
+import { findHeader } from '@/lib/inventory/csv';
+import { COLUMNS, type ColumnKey } from '@/lib/inventory/columns';
+import { readTable, SpreadsheetError } from '@/lib/files/table';
+import { describeBytes, MAX_TABLE_BYTES } from '@/lib/files/kinds';
 import {
   actionFromText,
   centsFromText,
@@ -32,29 +35,6 @@ import {
   quantityFromText,
 } from '@/lib/inventory/mapping';
 import type { InsertRow } from '@/types/database';
-
-/**
- * What each column may be called.
- *
- * Spreadsheets in the wild name the same thing several ways, and insisting on
- * one spelling means the first thing a customer does is fail. Order matters:
- * the first match wins, so the most specific spelling comes first.
- */
-const COLUMNS = {
-  productName: ['product name', 'product', 'item name', 'item', 'description'],
-  sku: ['sku', 'code', 'product code', 'item code', 'barcode'],
-  batchNumber: ['batch number', 'batch', 'lot number', 'lot'],
-  department: ['department', 'section', 'category', 'aisle'],
-  location: ['location', 'shelf', 'bin', 'position'],
-  qty: ['qty', 'quantity', 'count', 'units', 'on hand'],
-  expiryDate: ['expiry date', 'expiry', 'expires', 'exp date', 'best before', 'use by'],
-  action: ['action', 'action taken', 'status', 'outcome'],
-  actionedBy: ['actioned by', 'checked by', 'by', 'staff'],
-  actionedOn: ['date actioned', 'actioned on', 'action date'],
-  notes: ['notes', 'comment', 'comments', 'remarks'],
-  unitCost: ['unit cost', 'cost', 'price', 'unit price', 'cost price'],
-  verified: ['verified', 'checked', 'confirmed'],
-} as const;
 
 const settingsSchema = z.object({
   siteName: z.string().trim().min(1, 'Name the site this stocktake covers').max(160),
@@ -70,8 +50,17 @@ export type ImportState =
   | { status: 'error'; message: string; rejected?: string[] }
   | { status: 'imported'; lines: number; auditId: string };
 
-/** 5 MB. A stocktake of a hundred thousand lines is a different product. */
-const MAX_BYTES = 5 * 1024 * 1024;
+/**
+ * 5 MB, and for the first time that is true.
+ *
+ * This limit was written when the importer was built and has never been the
+ * one that applied. Next caps a server action's body at 1 MB by default, so
+ * every stocktake above that was refused by the framework before this file
+ * ran — no error, no state change, a button that did nothing. next.config.ts
+ * now raises the framework's limit above this one; the comment there is the
+ * account of it. Raising this number means raising that one.
+ */
+const MAX_BYTES = MAX_TABLE_BYTES;
 
 export async function importStocktake(
   _previous: ImportState,
@@ -98,24 +87,45 @@ export async function importStocktake(
   if (file.size > MAX_BYTES) {
     return {
       status: 'error',
-      message: 'That file is larger than we can take here. Split it by site or by department.',
+      message:
+        `That file is ${describeBytes(file.size)} and the limit here is ${describeBytes(MAX_BYTES)}. ` +
+        'Split it by site or by department.',
     };
   }
 
   const limit = await checkLimit('stockImport', workspace.organisation.id);
   if (!limit.allowed) return { status: 'error', message: limit.message! };
 
-  const { headers, rows } = parseCsv(await file.text());
+  // Bytes, not text. A workbook read as text is ZIP data, and the failure it
+  // produced was a report that the file had no product name column — true,
+  // unhelpful, and pointing at the customer's spreadsheet rather than at us.
+  let headers: string[];
+  let rows: Record<string, string>[];
+  try {
+    const table = readTable(file.name, new Uint8Array(await file.arrayBuffer()));
+    headers = table.headers;
+    rows = table.rows;
+  } catch (error) {
+    if (error instanceof SpreadsheetError) return { status: 'error', message: error.message };
+    return {
+      status: 'error',
+      message: ourFault('inventory', error, 'We could not read that file. Please try again.'),
+    };
+  }
+
   if (rows.length === 0) {
     return {
       status: 'error',
-      message: 'That file has a header row and nothing under it.',
+      message:
+        headers.length === 0
+          ? 'There is nothing in that file — no header row and no lines under it.'
+          : 'That file has a header row and nothing under it.',
     };
   }
 
   const column = Object.fromEntries(
     Object.entries(COLUMNS).map(([key, accepted]) => [key, findHeader(headers, accepted)]),
-  ) as Record<keyof typeof COLUMNS, string | null>;
+  ) as Record<ColumnKey, string | null>;
 
   // The two without which a line cannot be evaluated at all.
   if (!column.productName || !column.expiryDate) {
@@ -123,15 +133,24 @@ export async function importStocktake(
       column.productName ? null : 'a product name',
       column.expiryDate ? null : 'an expiry date',
     ].filter(Boolean);
+    // Both halves matter. What we looked for, so the fix is a rename rather
+    // than a guess; what we found, so somebody who exported the wrong sheet
+    // can see that immediately.
+    const wanted = [
+      column.productName ? null : `product name (${COLUMNS.productName.join(', ')})`,
+      column.expiryDate ? null : `expiry date (${COLUMNS.expiryDate.join(', ')})`,
+    ].filter(Boolean);
+
     return {
       status: 'error',
       message:
         `We could not find ${missing.join(' or ')} in that file. ` +
-        `The columns we found were: ${headers.filter(Boolean).join(', ')}.`,
+        `The columns we found were: ${headers.filter(Boolean).join(', ')}. ` +
+        `Any of these headings would work for the ${wanted.join('; and for the ')}.`,
     };
   }
 
-  const cell = (row: Record<string, string>, key: keyof typeof COLUMNS): string => {
+  const cell = (row: Record<string, string>, key: ColumnKey): string => {
     const header = column[key];
     return header ? (row[header] ?? '') : '';
   };

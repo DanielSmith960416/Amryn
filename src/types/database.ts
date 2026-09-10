@@ -1262,6 +1262,81 @@ export interface Database {
           },
         ];
       };
+      data_documents: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          filename: string;
+          content_type: string;
+          byte_size: number;
+          handling: string;
+          storage_path: string;
+          checksum: string;
+          sheet_names: string[];
+          columns_found: string[];
+          row_count: number;
+          read_error: string;
+          note: string;
+          uploaded_by: string | null;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          filename: string;
+          content_type?: string;
+          byte_size: number;
+          handling: string;
+          storage_path: string;
+          checksum?: string;
+          sheet_names?: string[];
+          columns_found?: string[];
+          row_count?: number;
+          read_error?: string;
+          note?: string;
+          uploaded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          filename?: string;
+          content_type?: string;
+          byte_size?: number;
+          handling?: string;
+          storage_path?: string;
+          checksum?: string;
+          sheet_names?: string[];
+          columns_found?: string[];
+          row_count?: number;
+          read_error?: string;
+          note?: string;
+          uploaded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'data_documents_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_documents_uploaded_by_fkey';
+            columns: ['uploaded_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       data_health_checks: {
         Row: {
           id: string;

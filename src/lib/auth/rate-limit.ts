@@ -58,6 +58,11 @@ export const LIMITS = {
   // writes hundreds of rows. Generous enough for a bad first attempt and a
   // retry, tight enough that the import endpoint is not a way to fill a table.
   stockImport: { max: 10, window: '1 hour' },
+  // Files, unlike a stocktake, arrive in handfuls — a month-end pack is six
+  // PDFs and somebody drags them in one after another. Loose enough that
+  // normal use never meets it, and it is the only thing bounding how fast an
+  // organisation's storage can grow, which is why there is a number at all.
+  documentUpload: { max: 60, window: '1 hour' },
 } as const satisfies Record<string, Limit>;
 
 function hash(value: string): string {

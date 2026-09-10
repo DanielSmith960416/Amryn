@@ -182,6 +182,12 @@ export const NAV_GROUPS: NavGroup[] = [
         hint: 'What is connected, and how healthy',
       },
       {
+        label: 'Files and imports',
+        href: '/data/imports',
+        permission: 'view_data_sources',
+        hint: 'Upload a spreadsheet, a PDF, a statement',
+      },
+      {
         label: 'Integrations',
         href: '/data/integrations',
         permission: 'view_data_sources',

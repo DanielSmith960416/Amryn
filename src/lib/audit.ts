@@ -50,7 +50,9 @@ export type SecurityEvent =
   | 'twin.simulation_requested'
   | 'proposal.accepted'
   | 'proposal.declined'
-  | 'stocktake.imported';
+  | 'stocktake.imported'
+  | 'document.uploaded'
+  | 'document.removed';
 
 /**
  * Records something that happened to an organisation.

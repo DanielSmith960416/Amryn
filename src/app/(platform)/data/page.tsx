@@ -42,7 +42,7 @@ export default async function DataSourcesPage() {
         description="Where Amryn's picture of your business comes from. A source that has stopped syncing quietly degrades every finding drawn from it, so failures are stated first."
         actions={
           <Button asChild variant="primary" size="sm">
-            <Link href="/data/imports">Import a file</Link>
+            <Link href="/data/imports">Upload a file</Link>
           </Button>
         }
       />
@@ -69,10 +69,10 @@ export default async function DataSourcesPage() {
         {rows.length === 0 ? (
           <EmptyState
             title="No data connected yet"
-            description="Connect your first data source to allow your AI DigitalTwin® to begin learning about your business."
+            description="Connect a system, or upload what you already have — a spreadsheet, a PDF, a statement. A file is the fastest way to give your AI DigitalTwin® something real to work from."
             action={
               <Button asChild variant="primary">
-                <Link href="/data/imports">Import a spreadsheet</Link>
+                <Link href="/data/imports">Upload a file</Link>
               </Button>
             }
           />

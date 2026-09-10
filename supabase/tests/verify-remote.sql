@@ -30,19 +30,19 @@ with checks as (
          (to_regclass('amryn.schema_migrations') is not null) as ok
 
   union all
-  select 1 as ord, 'Tables' as item, count(*)::text as found, '70' as expected,
-         (count(*) = 70) as ok
+  select 1 as ord, 'Tables' as item, count(*)::text as found, '71' as expected,
+         (count(*) = 71) as ok
     from pg_tables where schemaname = 'public'
 
   union all
-  select 2, 'Tables with RLS enabled', count(*)::text, '70', count(*) = 70
+  select 2, 'Tables with RLS enabled', count(*)::text, '71', count(*) = 71
     from pg_tables t
     join pg_class c on c.relname = t.tablename
     join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
    where t.schemaname = 'public' and c.relrowsecurity
 
   union all
-  select 3, 'RLS policies', count(*)::text, '177', count(*) = 177
+  select 3, 'RLS policies', count(*)::text, '179', count(*) = 179
     from pg_policies where schemaname = 'public'
 
   union all
@@ -54,7 +54,7 @@ with checks as (
     from public.role_permissions
 
   union all
-  select 6, 'Functions in the amryn schema', count(*)::text, '27', count(*) = 27
+  select 6, 'Functions in the amryn schema', count(*)::text, '28', count(*) = 28
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'amryn'

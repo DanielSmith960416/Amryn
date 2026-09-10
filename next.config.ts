@@ -43,6 +43,33 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   ...(BASE_PATH ? { basePath: BASE_PATH } : {}),
 
+  /**
+   * How large a file a server action may receive.
+   *
+   * ── this was a silent defect, and it is worth saying how it failed ───────
+   * Next caps a server action's request body at 1 MB unless told otherwise —
+   * `defaultBodySizeLimit = '1 MB'` in its action handler, which throws a 413
+   * before the action's own code runs. The stocktake importer declares a 5 MB
+   * limit and explains, in a comment, why 5 MB is the right number. That
+   * limit was never reached: anything over 1 MB was refused by the framework,
+   * the action never executed, and `useActionState` was left holding its
+   * initial state. To the person doing the counting, the button did nothing.
+   *
+   * Nothing in the application could have reported it, because nothing in the
+   * application ran. The evidence was that the production database held no
+   * stocktakes, no import rows, and — the part that named the cause — not one
+   * rate-limit row, and the rate limiter is checked *after* the file is
+   * accepted. The request was being dropped above our code.
+   *
+   * So the number lives here, once, above the two limits it has to clear:
+   * 5 MB for a stocktake and 10 MB for a document, plus multipart overhead.
+   * Raising either of those without raising this reintroduces exactly the same
+   * silence, which is why both name this comment.
+   */
+  experimental: {
+    serverActions: { bodySizeLimit: '12mb' },
+  },
+
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: false,

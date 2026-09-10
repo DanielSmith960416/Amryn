@@ -28,12 +28,20 @@ export default async function ImportStocktakePage() {
         title="Import a stocktake"
         description="A counted shelf, from the spreadsheet you counted it on."
         actions={
-          <Link
-            href="/inventory"
-            className="text-[0.8125rem] text-[var(--text-secondary)] underline underline-offset-2"
-          >
-            Back to inventory
-          </Link>
+          <div className="flex items-center gap-4">
+            <a
+              href="/inventory/import/template"
+              className="text-[0.8125rem] text-[var(--brand)] underline underline-offset-2"
+            >
+              Download a template
+            </a>
+            <Link
+              href="/inventory"
+              className="text-[0.8125rem] text-[var(--text-secondary)] underline underline-offset-2"
+            >
+              Back to inventory
+            </Link>
+          </div>
         }
       />
 
@@ -75,7 +83,14 @@ export default async function ImportStocktakePage() {
               </p>
               <p>
                 <strong className="text-[var(--text-primary)]">Dates.</strong> Written day-first —
-                04/03/2026 is the fourth of March. ISO dates are read as they are.
+                04/03/2026 is the fourth of March. ISO dates are read as they are, and a cell
+                Excel already knows is a date is read as the date it shows rather than as the
+                number underneath it.
+              </p>
+              <p>
+                <strong className="text-[var(--text-primary)]">The file.</strong> An Excel workbook
+                (.xlsx) or a CSV. We read the first sheet. The older .xls will not open anywhere
+                that matters any more, so open it and save it again as .xlsx.
               </p>
               <p>
                 A line we cannot read is listed back with its row number, and nothing is written

@@ -1,9 +1,10 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState, type ChangeEvent } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/field';
+import { acceptAttribute, describeBytes, MAX_TABLE_BYTES } from '@/lib/files/kinds';
 import { importStocktake, type ImportState } from './import';
 
 export interface ProfileOption {
@@ -22,7 +23,26 @@ export function ImportForm({
   today: string;
 }) {
   const [state, action] = useActionState(importStocktake, { status: 'idle' } as ImportState);
+  const [tooLarge, setTooLarge] = useState<string | null>(null);
   const first = profiles[0];
+
+  /**
+   * Checked here as well as on the server, and the reason is not politeness.
+   *
+   * A body over the framework's limit is refused before the action runs, so
+   * the server's own size check — the one with the helpful sentence — is
+   * unreachable for exactly the files that need it. Measuring the file in the
+   * browser is the only place that message can be shown at all.
+   */
+  const measure = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    setTooLarge(
+      file && file.size > MAX_TABLE_BYTES
+        ? `That file is ${describeBytes(file.size)}, and the limit is ${describeBytes(MAX_TABLE_BYTES)}. ` +
+          'Split it by site or by department, or save it as CSV — a workbook is several times the size of the same rows as text.'
+        : null,
+    );
+  };
 
   return (
     <form action={action} className="space-y-5">
@@ -68,21 +88,46 @@ export function ImportForm({
       </div>
 
       <div>
-        <Label htmlFor="file">The spreadsheet</Label>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <Label htmlFor="file">The spreadsheet</Label>
+          <a
+            href="/inventory/import/template"
+            className="text-[0.75rem] text-[var(--brand)] underline underline-offset-2"
+          >
+            Download a template
+          </a>
+        </div>
         <input
           id="file"
           name="file"
           type="file"
-          accept=".csv,text/csv"
+          /*
+           * Excel first, and this is the fault that was reported.
+           *
+           * This attribute read `.csv,text/csv`, which is not a validation —
+           * it is what the operating system's file picker will show. Somebody
+           * with a workbook could not select the file they had counted on.
+           * They had not made a mistake and there was no error to read.
+           */
+          accept={acceptAttribute('table')}
+          onChange={measure}
           required
           className="block w-full text-[0.875rem] text-[var(--text-secondary)] file:mr-3 file:rounded-[var(--radius-field)] file:border-0 file:bg-[var(--brand)] file:px-3 file:py-2 file:text-[0.8125rem] file:font-medium file:text-[var(--on-brand)]"
         />
         <p className="mt-1.5 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
-          Save your sheet as CSV. We need a product name and an expiry date; everything else —
-          batch, department, quantity, cost, what was done and by whom — is used if it is there.
-          Column names are matched loosely, so “Expiry”, “Expiry Date” and “Best Before” all work.
+          Excel (.xlsx) or CSV, up to {describeBytes(MAX_TABLE_BYTES)}. We need a product name and
+          an expiry date; everything else — batch, department, quantity, cost, what was done and by
+          whom — is used if it is there. Column names are matched loosely, so “Expiry”,
+          “Expiry Date” and “Best Before” all work, and the first sheet of a workbook is the
+          one we read.
         </p>
       </div>
+
+      {tooLarge ? (
+        <p role="alert" className="text-[0.8125rem] leading-relaxed text-[var(--negative)]">
+          {tooLarge}
+        </p>
+      ) : null}
 
       {state.status === 'error' ? (
         <div role="alert" className="space-y-2">
@@ -106,15 +151,15 @@ export function ImportForm({
         </p>
       ) : null}
 
-      <Submit />
+      <Submit blocked={tooLarge !== null} />
     </form>
   );
 }
 
-function Submit() {
+function Submit({ blocked }: { blocked: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" disabled={pending}>
+    <Button type="submit" variant="primary" disabled={pending || blocked}>
       {pending ? 'Reading the file…' : 'Import the stocktake'}
     </Button>
   );

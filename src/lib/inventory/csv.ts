@@ -99,18 +99,30 @@ function splitRecords(text: string): string[][] {
 }
 
 export function parseCsv(text: string): ParsedCsv {
-  const records = splitRecords(text).filter(
+  return tabulate(splitRecords(text));
+}
+
+/**
+ * Rows of cells, as a header and records keyed by it.
+ *
+ * Split out from parseCsv so a workbook reaches the importer the same way a
+ * CSV does. The alternative was a second implementation of "which row is the
+ * header, and what happens to a short row" in the spreadsheet reader, and two
+ * implementations of that would eventually disagree about somebody's file.
+ */
+export function tabulate(records: readonly (readonly string[])[]): ParsedCsv {
+  const present = records.filter(
     // A row of nothing but empty cells is spacing, not data. Excel adds these
     // when somebody deletes content without deleting the row.
     (record) => record.some((cell) => cell.trim() !== ''),
   );
 
-  const headerRow = records.shift();
+  const headerRow = present.shift();
   if (!headerRow) return { headers: [], rows: [] };
 
   const headers = headerRow.map((h) => h.trim().toLowerCase());
 
-  const rows = records.map((record) => {
+  const rows = present.map((record) => {
     const row: Record<string, string> = {};
     for (const [index, header] of headers.entries()) {
       if (header === '') continue;
