@@ -68,10 +68,10 @@ export default defineRailway(() => {
    * Attached to the worker, because that is what takes the dump. A volume can
    * only be attached to one service, and it belongs to the one that writes it.
    *
-   * Sized well beyond need: a dump of this database is under a megabyte today
-   * and the retention window keeps fourteen. Growing a volume is a live,
-   * zero-downtime operation; shrinking one is not supported at all, so the
-   * asymmetry says start small rather than large.
+   * Sized well beyond need: a dump of this database is 0.83 MB today and the
+   * retention window keeps fourteen. Growing a volume is live and
+   * zero-downtime; shrinking one is not supported at all, so the asymmetry
+   * says start small rather than large.
    *
    * ── why the name is not simply `backups` ──────────────────────────────
    *
@@ -91,7 +91,12 @@ export default defineRailway(() => {
     // Where the services run. A volume in another region would work and would
     // add a round trip to every write for no benefit.
     region: 'ams',
-    sizeMB: 512,
+    // 500, because that is what Railway provisioned and what a free-plan
+    // volume is — 0.5 GB. Declaring 512 asked for a resize of twelve
+    // megabytes on every plan, which is noise in a review gate and might not
+    // even be permitted on this tier. Raise it when a dump gets close; growing
+    // is live and zero-downtime, shrinking is not supported at all.
+    sizeMB: 500,
   });
 
   /**
