@@ -41,5 +41,5 @@
   "20260911070000_40_volume_headroom.sql": "(select count(*) from information_schema.columns where table_schema='public' and table_name='worker_heartbeats' and column_name='volume_free_bytes') = 1",
   "20260911090000_41_backup_storage.sql": "exists (select 1 from storage.buckets where id = 'backups')",
   "20260911100000_42_platform_errors.sql": "to_regclass('public.platform_errors') is not null",
-  "20260911140000_43_connection_credentials.sql": "to_regproc('public.connection_credential') is not null"
+  "20260911140000_43_connection_credentials.sql": "to_regprocedure('public.connection_credential(text)') is not null"
 }

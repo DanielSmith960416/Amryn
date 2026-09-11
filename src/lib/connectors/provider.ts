@@ -75,8 +75,17 @@ export interface Invitation {
    * is generated per attempt and never stored.
    */
   url: string;
-  /** When it stops working, so the interface can say so rather than fail. */
-  expiresAt: Date;
+  /**
+   * When it stops working, so the interface can say so rather than fail.
+   *
+   * Null where nothing expires. That is not every provider's story: a
+   * connector authorised by pasting an API key is sent to a page inside Amryn,
+   * behind the same sign-in and the same permission as every other page, and
+   * there is no third-party session with a clock on it. Giving that an invented
+   * thirty-minute expiry would put a deadline in the interface that nothing
+   * enforces, which is worse than saying there isn't one.
+   */
+  expiresAt: Date | null;
 }
 
 /** What a completed authorisation gives Amryn, once the provider reports it. */

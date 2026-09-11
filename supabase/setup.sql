@@ -9069,34 +9069,45 @@ grant execute on function public.forget_connection_credential(uuid) to authentic
 --
 -- No audit row. This runs once per sync per connection and would bury the
 -- audit log in noise that says nothing a sync record does not already say.
-create or replace function public.connection_credential(p_connection uuid)
+--
+-- Keyed on the handle rather than on the connection, because the handle is
+-- what crosses Amryn's connector seam: ConnectorProvider deals in an opaque
+-- credentialRef and is deliberately not told which connection, organisation
+-- or customer it belongs to.
+--
+-- The existence check is what keeps that from becoming "read any secret in
+-- the Vault by id". Only a handle currently attached to a connection resolves;
+-- anything else returns null, so a credential Amryn stores here later for some
+-- other purpose is not reachable through this door.
+create or replace function public.connection_credential(p_ref text)
 returns text
 language plpgsql
 security definer
 set search_path = public, vault, pg_temp
 as $$
 declare
-  v_ref    text;
   v_secret text;
 begin
-  select credential_ref into v_ref
-    from public.data_connections
-   where id = p_connection;
+  if p_ref is null then
+    return null;
+  end if;
 
-  if v_ref is null then
+  if not exists (
+    select 1 from public.data_connections where credential_ref = p_ref
+  ) then
     return null;
   end if;
 
   select decrypted_secret into v_secret
     from vault.decrypted_secrets
-   where id = v_ref::uuid;
+   where id = p_ref::uuid;
 
   return v_secret;
 end;
 $$;
 
-revoke all on function public.connection_credential(uuid) from public, anon, authenticated;
-grant execute on function public.connection_credential(uuid) to service_role;
+revoke all on function public.connection_credential(text) from public, anon, authenticated;
+grant execute on function public.connection_credential(text) to service_role;
 
 -- Sync resolves a connection by its credential handle often enough to be worth
 -- an index, and a partial one because most rows never hold a credential.

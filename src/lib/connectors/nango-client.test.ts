@@ -54,7 +54,11 @@ describe('invite', () => {
     const invitation = await nangoProvider('xero', 'xero-prod').invite(definition, subject);
 
     expect(invitation.url).toBe('https://connect.invalid/abc');
-    expect(invitation.expiresAt.getTime()).toBeGreaterThan(Date.now());
+    // Nango's link does expire — thirty minutes, per its guide — so this
+    // provider is the one that must say when, null being for the connectors
+    // that genuinely have no clock on them.
+    expect(invitation.expiresAt).not.toBeNull();
+    expect(invitation.expiresAt!.getTime()).toBeGreaterThan(Date.now());
     expect(firstCall().url).toBe('https://api.nango.dev/connect/sessions');
   });
 

@@ -343,6 +343,52 @@ export async function listTransactions(
 }
 
 /**
+ * What a key is, established by using it once.
+ *
+ * `domain` is Paystack's own word for which set of keys this is — 'test' or
+ * 'live' on every transaction it returns. Worth surfacing, because connecting
+ * a test key and waiting for real revenue to appear is a mistake that looks
+ * exactly like a broken sync, and it is the mistake somebody makes at four in
+ * the afternoon on their first attempt.
+ *
+ * Null where the account has no transactions yet. An account with none is a
+ * new business rather than a bad key, so this reports what it found instead of
+ * refusing.
+ */
+export interface AccessCheck {
+  domain: string | null;
+  currency: string | null;
+  hasTransactions: boolean;
+}
+
+/**
+ * Confirm a key works, as cheaply as the API allows.
+ *
+ * One page of one record. There is no dedicated "who am I" endpoint in the
+ * reference read here, and inventing a path to one would be exactly the
+ * failure this connector was written to avoid — so the check is the smallest
+ * documented read, which proves the same three things: the key is accepted,
+ * the account exists, and the transactions endpoint is reachable.
+ */
+export async function checkAccess(transport: PaystackTransport): Promise<AccessCheck> {
+  const { ok, data } = envelope(
+    await transport({ path: '/transaction', query: { perPage: 1, page: 1 } }),
+  );
+
+  if (!ok || !Array.isArray(data)) {
+    throw new ProviderError('Paystack did not accept that key.', { retryable: false });
+  }
+
+  const first = data.length > 0 ? readTransaction(data[0]) : null;
+
+  return {
+    domain: first ? text(first.raw.domain) : null,
+    currency: first ? first.currency : null,
+    hasTransactions: data.length > 0,
+  };
+}
+
+/**
  * Fetch one transaction by Paystack's own id.
  *
  * `GET /transaction/:id`. Used to re-read a single record rather than to

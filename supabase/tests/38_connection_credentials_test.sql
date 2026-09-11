@@ -128,21 +128,23 @@ select pg_temp.check(
   'a rotated key leaves one secret behind, not two');
 
 select pg_temp.check(
-  public.connection_credential('cc000000-0000-0000-0000-0000000000a1'::uuid) = 'sk_test_second',
+  public.connection_credential(
+    (select credential_ref from public.data_connections
+      where id = 'cc000000-0000-0000-0000-0000000000a1'::uuid)) = 'sk_test_second',
   'and the one that is left is the new key');
 
 -- ── who may read one back ─────────────────────────────────────────────────
 
 select pg_temp.check(
-  not has_function_privilege('authenticated', 'public.connection_credential(uuid)', 'execute'),
+  not has_function_privilege('authenticated', 'public.connection_credential(text)', 'execute'),
   'a signed-in session cannot read a credential, its own organisation''s included');
 
 select pg_temp.check(
-  not has_function_privilege('anon', 'public.connection_credential(uuid)', 'execute'),
+  not has_function_privilege('anon', 'public.connection_credential(text)', 'execute'),
   'and neither can a caller with no session');
 
 select pg_temp.check(
-  has_function_privilege('service_role', 'public.connection_credential(uuid)', 'execute'),
+  has_function_privilege('service_role', 'public.connection_credential(text)', 'execute'),
   'the worker can, which is the only thing that needs to');
 
 -- The door is narrow only if the wall around it holds. Supabase grants the
