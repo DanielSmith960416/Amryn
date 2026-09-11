@@ -19,6 +19,7 @@
  * returned by the lease rather than by anything having to notice it is gone.
  */
 import { hostname } from 'node:os';
+import { statfs } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { JobQueue } from '@/lib/jobs/queue';
@@ -273,21 +274,71 @@ async function readDrift(): Promise<string[]> {
  * worker is not.
  */
 async function beat(): Promise<void> {
+  const volume = await measureVolume();
+
   try {
     await pool.query(
       `insert into public.worker_heartbeats
-         (worker_id, last_seen_at, started_at, handlers, in_flight, revision, pending_migrations)
-       values ($1, now(), $2, $3, $4, $5, $6)
+         (worker_id, last_seen_at, started_at, handlers, in_flight, revision, pending_migrations,
+          volume_path, volume_total_bytes, volume_free_bytes)
+       values ($1, now(), $2, $3, $4, $5, $6, $7, $8, $9)
        on conflict (worker_id) do update
-         set last_seen_at       = now(),
-             handlers           = excluded.handlers,
-             in_flight          = excluded.in_flight,
-             revision           = excluded.revision,
-             pending_migrations = excluded.pending_migrations`,
-      [WORKER_ID, STARTED_AT, registeredKinds(), inFlight.size, REVISION, behind],
+         set last_seen_at        = now(),
+             handlers            = excluded.handlers,
+             in_flight           = excluded.in_flight,
+             revision            = excluded.revision,
+             pending_migrations  = excluded.pending_migrations,
+             volume_path         = excluded.volume_path,
+             volume_total_bytes  = excluded.volume_total_bytes,
+             volume_free_bytes   = excluded.volume_free_bytes`,
+      [
+        WORKER_ID,
+        STARTED_AT,
+        registeredKinds(),
+        inFlight.size,
+        REVISION,
+        behind,
+        volume.path,
+        volume.totalBytes,
+        volume.freeBytes,
+      ],
     );
   } catch (error) {
     log(`heartbeat failed — ${safeMessage(error, connectionString)}`);
+  }
+}
+
+/**
+ * How much room is left where the backups go.
+ *
+ * The worker is the only process that can answer this: the volume is mounted
+ * here, and the diagnostics page that reports it is rendered by the web
+ * service, which cannot see this filesystem. Railway's own disk monitor would
+ * also answer it, and is gated behind a plan this deployment is not on.
+ *
+ * Zeroes rather than a throw when there is nothing to measure — no volume
+ * mounted, or a path that is not there. The reading is then "unknown", which
+ * is what it honestly is, and features/operations/volume.ts reads it as such
+ * rather than as full.
+ *
+ * `bavail` rather than `bfree`: the two differ by the blocks reserved for
+ * root, and the process writing dumps here is not the one that may use them.
+ */
+async function measureVolume(): Promise<{ path: string; totalBytes: number; freeBytes: number }> {
+  const path = (process.env.RAILWAY_VOLUME_MOUNT_PATH ?? '').trim();
+  if (path === '') return { path: '', totalBytes: 0, freeBytes: 0 };
+
+  try {
+    const stats = await statfs(path);
+    return {
+      path,
+      totalBytes: Number(stats.blocks) * Number(stats.bsize),
+      freeBytes: Number(stats.bavail) * Number(stats.bsize),
+    };
+  } catch {
+    // Not logged on every beat. A missing volume would otherwise write a line
+    // every five seconds, which is how a log stops being read.
+    return { path, totalBytes: 0, freeBytes: 0 };
   }
 }
 

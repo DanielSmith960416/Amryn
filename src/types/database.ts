@@ -4404,6 +4404,9 @@ export interface Database {
           created_at: string;
           updated_at: string;
           pending_migrations: string[];
+          volume_path: string;
+          volume_total_bytes: number;
+          volume_free_bytes: number;
         };
         Insert: {
           worker_id: string;
@@ -4415,6 +4418,9 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           pending_migrations?: string[];
+          volume_path?: string;
+          volume_total_bytes?: number;
+          volume_free_bytes?: number;
         };
         Update: {
           worker_id?: string;
@@ -4426,6 +4432,9 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
           pending_migrations?: string[];
+          volume_path?: string;
+          volume_total_bytes?: number;
+          volume_free_bytes?: number;
         };
         Relationships: [
         ];

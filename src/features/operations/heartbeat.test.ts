@@ -18,6 +18,7 @@ function beat(secondsAgo: number, over: Partial<Heartbeat> = {}): Heartbeat {
     inFlight: 0,
     revision: '86aec28',
     pendingMigrations: [],
+    volume: { path: '/backups', totalBytes: 5 * 1024 ** 3, freeBytes: 4 * 1024 ** 3 },
     ...over,
   };
 }

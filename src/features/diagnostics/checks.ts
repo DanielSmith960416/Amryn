@@ -41,6 +41,7 @@ import {
 import { missingHandlers, workerHealth } from '@/features/operations/heartbeat';
 import { describeDrift } from '@/features/operations/schema-drift';
 import { backupHealth, capturedNothing } from '@/features/operations/backups';
+import { volumeHealth } from '@/features/operations/volume';
 import { CONNECTORS, isConnectable } from '@/lib/connectors/catalogue';
 import { implementedProviders } from '@/lib/connectors/provider';
 import { registeredKinds } from '@/lib/jobs/registry';
@@ -289,6 +290,7 @@ export async function runDiagnostics(
      */
     checkWorker(),
     checkBackups(options.directConnection ?? false),
+    checkBackupStorage(options.directConnection ?? false),
     checkRowLevelSecurity(),
     checkSession(),
     checkMembership(),
@@ -1006,6 +1008,77 @@ async function checkBackups(allowed: boolean): Promise<Check> {
 
   if (health.state === 'stale') {
     return { name, status: 'warn', detail: health.detail, remedy: takeOne };
+  }
+
+  return { name, status: 'ok', detail: health.detail };
+}
+
+/**
+ * Whether there is room for the next backup.
+ *
+ * Its own check rather than a sentence on the one above, because age and space
+ * fail independently and have different remedies. A nightly dump that stops
+ * because the volume filled leaves the *age* check reporting a fresh backup
+ * for another twenty-six hours — the last one really was recent — and by the
+ * time that goes amber, two nights have been lost.
+ *
+ * The figure comes from the worker's heartbeat: the volume is mounted there,
+ * and this page is rendered by the web service, which cannot see that
+ * filesystem. Railway's own disk monitor would answer it too, and is behind a
+ * plan this deployment is not on.
+ */
+async function checkBackupStorage(allowed: boolean): Promise<Check> {
+  const name = 'Backup storage';
+
+  if (!allowed || !databaseUrl()) {
+    return {
+      name,
+      status: 'skipped',
+      detail: 'Not checked here — it needs a direct database connection.',
+    };
+  }
+
+  const [heartbeat, backup] = await Promise.all([readWorkerHeartbeatCached(), readLatestBackup()]);
+
+  if (heartbeat.problem) {
+    return {
+      name,
+      status: 'warn',
+      detail: `Could not ask the worker how much room is left — ${heartbeat.problem}`,
+      remedy: 'This is about reaching the database from this page, not about the volume itself.',
+    };
+  }
+
+  const health = volumeHealth(heartbeat.beat?.volume ?? null, backup.backup?.bytes ?? null);
+
+  /*
+   * Unknown is not a warning.
+   *
+   * A worker on a build older than migration 40 reports nothing, and so does a
+   * worker with no volume mounted. Both are ordinary; neither is a problem
+   * somebody should be sent to investigate at the moment this ships.
+   */
+  if (health.state === 'unknown') {
+    return {
+      name,
+      status: 'skipped',
+      detail: health.detail,
+      remedy:
+        'If the worker is on this build and has a volume, it reports within a minute. ' +
+        'A worker with no volume has nowhere to write dumps, which is its own problem.',
+    };
+  }
+
+  const makeRoom =
+    'Old dumps are the usual cause. Remove the ones you have copied elsewhere, or give the ' +
+    'volume more space — a backup that cannot be written is not a backup.';
+
+  if (health.state === 'full') {
+    return { name, status: 'fail', detail: health.detail, remedy: makeRoom };
+  }
+
+  if (health.state === 'tight') {
+    return { name, status: 'warn', detail: health.detail, remedy: makeRoom };
   }
 
   return { name, status: 'ok', detail: health.detail };

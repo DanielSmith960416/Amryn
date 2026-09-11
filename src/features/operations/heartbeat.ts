@@ -42,6 +42,15 @@ export interface Heartbeat {
    * is also what a worker predating the column reports.
    */
   pendingMigrations: string[];
+  /**
+   * Room left where the worker writes backups. The volume is mounted on the
+   * worker and nothing else can see it, so this travels with the beat.
+   *
+   * A zero total means the worker did not report — no volume mounted, or a
+   * build from before the column existed. Not the same as full, and
+   * features/operations/volume.ts reads it as unknown rather than as empty.
+   */
+  volume: { path: string; totalBytes: number; freeBytes: number };
 }
 
 export type WorkerHealth =

@@ -31,6 +31,14 @@ function readsInSource(): Set<string> {
     'git',
     [
       'grep',
+      // Untracked files too.
+      //
+      // Without this the guard has a blind spot exactly where it matters: a
+      // brand-new file is untracked, `git grep` skips it, and the inventory
+      // test passes on the run before the commit — which is the run anybody
+      // does. SUPABASE_URL reached production that way, read by a job handler
+      // that had never been staged when the suite last went green.
+      '--untracked',
       '-hoE',
       'process\\.env\\.[A-Z0-9_]+',
       '--',

@@ -97,6 +97,26 @@ export const SETTINGS: readonly Setting[] = [
     withoutIt: 'Operator pages are reachable only by a signed-in administrator.',
   },
   {
+    name: 'SUPABASE_URL',
+    stage: 'runtime',
+    required: false,
+    secret: false,
+    purpose:
+      'The project the worker fetches uploaded files from, to read scanned documents. The web service gets the same address from NEXT_PUBLIC_SUPABASE_URL; the worker has no browser bundle to inline it into, so it reads this.',
+    withoutIt:
+      'Scanned documents are stored and not read — the job says so and can be retried once it is set. Everything else is unaffected.',
+  },
+  {
+    name: 'RAILWAY_VOLUME_MOUNT_PATH',
+    stage: 'runtime',
+    required: false,
+    secret: false,
+    purpose:
+      'Where the backups volume is mounted. Set by the host, not by hand. The worker measures the free space there on every heartbeat so /diagnostics can say whether the next dump will fit.',
+    withoutIt:
+      'Backup storage reports as unknown rather than as full. Backups themselves are unaffected — this is the watch on them, not the mechanism.',
+  },
+  {
     name: 'NANGO_SECRET_KEY',
     stage: 'runtime',
     required: false,

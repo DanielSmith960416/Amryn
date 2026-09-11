@@ -313,6 +313,7 @@ export interface WorkerHeartbeatReading {
     inFlight: number;
     revision: string | null;
     pendingMigrations: string[];
+    volume: { path: string; totalBytes: number; freeBytes: number };
   } | null;
   /**
    * Why the question could not be asked, when it could not be.
@@ -338,9 +339,12 @@ export async function readWorkerHeartbeat(): Promise<WorkerHeartbeatReading> {
       in_flight: number;
       revision: string | null;
       pending_migrations: string[] | null;
+      volume_path: string | null;
+      volume_total_bytes: string | number | null;
+      volume_free_bytes: string | number | null;
     }>(
       `select worker_id, last_seen_at::text, started_at::text, handlers, in_flight, revision,
-              pending_migrations
+              pending_migrations, volume_path, volume_total_bytes, volume_free_bytes
          from public.worker_heartbeats
         order by last_seen_at desc
         limit 1`,
@@ -361,6 +365,17 @@ export async function readWorkerHeartbeat(): Promise<WorkerHeartbeatReading> {
         // Absent is not the same as behind, and reading it as drift would
         // report an outage on the one deploy where the column has arrived.
         pendingMigrations: row.pending_migrations ?? [],
+        /*
+         * bigint comes back as a string from pg, because a 64-bit integer does
+         * not always survive a double. These are disk sizes — well inside
+         * Number's safe range — so converting is right, but reading the column
+         * as a number without saying so is how a silent NaN gets in.
+         */
+        volume: {
+          path: row.volume_path ?? '',
+          totalBytes: Number(row.volume_total_bytes ?? 0),
+          freeBytes: Number(row.volume_free_bytes ?? 0),
+        },
       },
     };
   } catch (error) {
