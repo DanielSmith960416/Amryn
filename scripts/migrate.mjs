@@ -13,6 +13,7 @@
  *   node scripts/migrate.mjs --dry-run            list it and stop
  *   node scripts/migrate.mjs --check              ask, and exit non-zero if behind
  *   node scripts/migrate.mjs --backup <manifest>  apply, with a backup to hand
+ *   node scripts/migrate.mjs --no-self-backup     refuse instead of taking one
  *
  * ── safe to run on every deploy ───────────────────────────────────────────
  * This is the worker service's pre-deploy command, so it runs unattended on
@@ -41,8 +42,30 @@
  * there are no client records to lose, and making a fresh install take a
  * backup of nothing would teach everybody to reach for the escape hatch. There
  * is deliberately no escape hatch.
+ *
+ * ── and when nobody passed --backup, it takes one ─────────────────────────
+ * The rule above was written for a person at a terminal and enforced on a
+ * deploy, where there is no person. The result: migration 36 updated four rows
+ * and blocked the deploy of both services until somebody applied it by hand.
+ *
+ * The obvious fix — let the pre-deploy command run scripts/backup.mjs first —
+ * does not work. Railway does not mount volumes during pre-deploy, so the dump
+ * would land on a filesystem discarded minutes later: a green check over
+ * nothing, which is worse than the refusal.
+ *
+ * Letting the deploy through instead is worse still, and the reason is not
+ * obvious. A worker whose database is behind claims nothing and enqueues
+ * nothing (migration 34), so the nightly backup stops with everything else —
+ * and the backup is the one thing needed to unblock the migration. A deadlock,
+ * arrived at by being careful.
+ *
+ * So it takes the backup itself and puts it in object storage, which the
+ * container can reach and cannot lose. --no-self-backup restores the old
+ * behaviour for anyone who wants the refusal.
  */
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
@@ -53,10 +76,78 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'supabase', 'migrations');
 const dryRun = process.argv.includes('--dry-run');
 const checkOnly = process.argv.includes('--check');
-const backupManifestPath = (() => {
+let backupManifestPath = (() => {
   const index = process.argv.indexOf('--backup');
   return index !== -1 ? process.argv[index + 1] : undefined;
 })();
+const noSelfBackup = process.argv.includes('--no-self-backup');
+
+/**
+ * Takes a dump and puts it somewhere this container cannot lose it.
+ *
+ * Shells out to scripts/backup.mjs rather than reimplementing any of it: that
+ * script decides what a backup *is* — the completion marker, the checksum, the
+ * row counts — and two answers to that question is exactly one too many. The
+ * same reason backup.mjs shells out to pg_dump.
+ *
+ * Returns the manifest path, or null with the reason already printed.
+ */
+function takeOwnBackup() {
+  /*
+   * The local copy has to outlive this function.
+   *
+   * manifestProblems() deliberately checks the *file*, not just the manifest —
+   * "a manifest alone restores nothing", as it says. So the dump stays on disk
+   * until the gate below has verified it, and is removed on exit rather than
+   * here. The durable copy is the one in object storage; this one is scaffolding.
+   */
+  scratch = mkdtempSync(join(tmpdir(), 'amryn-premigrate-'));
+
+  console.log('\nNo backup to hand. Taking one before going any further …');
+  const run = spawnSync(
+    process.execPath,
+    [join(root, 'scripts', 'backup.mjs'), '--upload', '--out', scratch],
+    { encoding: 'utf8', maxBuffer: 1024 * 1024 * 64 },
+  );
+
+  // Its own output is written for a person and says what failed; passing it
+  // through beats summarising it into something vaguer.
+  if (run.stdout) process.stdout.write(run.stdout);
+  if (run.stderr) process.stderr.write(run.stderr);
+  if (run.status !== 0) return null;
+
+  const printed = /^Manifest: (.+)$/m.exec(run.stdout ?? '');
+  if (!printed) {
+    console.error('The backup finished without naming its manifest, so it cannot be checked.');
+    return null;
+  }
+
+  return printed[1].trim();
+}
+
+/**
+ * Where a self-taken dump sits while it is being checked.
+ *
+ * Removed on every exit path, including the ones that call process.exit — a
+ * database dump left in a temporary directory is not a habit worth having, and
+ * a `finally` would miss half the ways this script ends.
+ */
+let scratch = null;
+process.on('exit', () => {
+  if (scratch) rmSync(scratch, { recursive: true, force: true });
+});
+
+/**
+ * Whether the manifest given is a backup of somewhere else.
+ *
+ * The one problem that must not be answered by taking a fresh backup. A
+ * missing or stale manifest is an absence; a manifest naming another database
+ * is a mistake, and silently taking a good backup over the top of it would
+ * leave whoever made that mistake still making it.
+ */
+function namesAnotherDatabase(problems) {
+  return problems.some((problem) => problem.startsWith('it is a backup of'));
+}
 
 /** .env.local is where a developer keeps this locally; deployments use the environment. */
 function connectionString() {
@@ -235,9 +326,37 @@ try {
   //
   // Read from the SQL rather than from a marker: the migration where somebody
   // forgets to add the marker is precisely the one that needed it.
-  const risky = pending
-    .map((file) => ({ file, risks: riskyStatements(readFileSync(join(dir, file), 'utf8')) }))
-    .filter((entry) => entry.risks.length > 0);
+  const classified = pending.map((file) => ({
+    file,
+    risks: riskyStatements(readFileSync(join(dir, file), 'utf8')),
+  }));
+  const risky = classified.filter((entry) => entry.risks.length > 0);
+
+  /*
+   * Everything additive up to the first risky one is applied before the gate.
+   *
+   * Two things this fixes, both found by following the deploy through:
+   *
+   *   · An additive migration queued behind a risky one used to be refused
+   *     along with it. Nothing about adding a table needs a backup, and
+   *     holding it hostage to one is how a deploy blocks on work it did not
+   *     need to do.
+   *   · The self-backup needs the bucket that migration 41 creates. Ship 41
+   *     and a risky migration in the same deploy and the backup is attempted
+   *     before the bucket exists. Applying the additive ones first makes that
+   *     ordering correct by construction rather than by luck.
+   *
+   * Safe by the same definition the gate rests on: a migration that only adds
+   * cannot lose what is already there.
+   */
+  const firstRisky = classified.findIndex((entry) => entry.risks.length > 0);
+  const beforeGate = firstRisky === -1 ? pending : pending.slice(0, firstRisky);
+  const afterGate = firstRisky === -1 ? [] : pending.slice(firstRisky);
+
+  if (risky.length > 0 && beforeGate.length > 0 && !dryRun && !checkOnly) {
+    console.log(`\nApplying ${beforeGate.length} purely additive migration${beforeGate.length === 1 ? '' : 's'} first:`);
+    if (!(await apply(beforeGate))) process.exit(1);
+  }
 
   if (risky.length > 0) {
     console.log('\nNot purely additive:');
@@ -258,7 +377,24 @@ try {
     if (clientRecords === 0) {
       console.log('\nNo organisations in this database, so there are no client records to lose.');
     } else {
-      const problems = manifestProblems(backupManifestPath, url);
+      let problems = manifestProblems(backupManifestPath, url);
+
+      /*
+       * Nobody passed one, so take one.
+       *
+       * Only when the manifest is missing or stale — never to paper over one
+       * that names a different database. That is not an absent backup, it is
+       * the wrong backup, and quietly replacing it would hide a mistake worth
+       * seeing.
+       */
+      if (problems.length > 0 && !noSelfBackup && !namesAnotherDatabase(problems)) {
+        const taken = takeOwnBackup();
+        if (taken) {
+          backupManifestPath = taken;
+          problems = manifestProblems(backupManifestPath, url);
+        }
+      }
+
       if (problems.length > 0) {
         console.error(
           `\nRefusing to apply: ${clientRecords} organisation${clientRecords === 1 ? '' : 's'} ` +
@@ -273,7 +409,11 @@ try {
             '  node scripts/backup.mjs\n' +
             'then apply with the manifest it prints:\n' +
             '  node scripts/migrate.mjs --backup <manifest>\n' +
-            `A backup counts for ${MAX_AGE_HOURS} hours.`,
+            `A backup counts for ${MAX_AGE_HOURS} hours.\n\n` +
+            'This would normally have taken its own backup and carried on. It could not,\n' +
+            'and the reason is above — usually the project URL and service role key not\n' +
+            'being set on this service, or migration 41 (which creates the bucket) not\n' +
+            'having been applied yet.',
         );
         process.exit(1);
       }
@@ -293,24 +433,41 @@ try {
     process.exit(0);
   }
 
-  for (const file of pending) {
-    process.stdout.write(`  applying ${file} … `);
-    try {
-      await client.query('begin');
-      await client.query(readFileSync(join(dir, file), 'utf8'));
-      await client.query('insert into amryn.schema_migrations (file) values ($1)', [file]);
-      await client.query('commit');
-      console.log('ok');
-    } catch (error) {
-      await client.query('rollback').catch(() => {});
-      console.log('failed');
-      console.error(`\n${file} was not applied, and nothing from it was: ${safe(error, url)}`);
-      console.error('The migrations before it stand. Fix this one and run again.');
-      process.exit(1);
-    }
-  }
+  // Whatever the gate did not already apply. When nothing was risky that is
+  // the whole list; otherwise the additive prefix is already in.
+  const remaining = risky.length > 0 ? afterGate : pending;
+  if (!(await apply(remaining))) process.exit(1);
 
   console.log('\nDone.');
+
+  /**
+   * Applies a run of migrations, one transaction each.
+   *
+   * One transaction per file rather than one for the batch: a failure then
+   * leaves every migration before it applied and recorded, which is the state
+   * the ledger describes and the state a second run can carry on from. A batch
+   * transaction would roll back work that was fine and make the ledger and the
+   * schema disagree about what happened.
+   */
+  async function apply(files) {
+    for (const file of files) {
+      process.stdout.write(`  applying ${file} … `);
+      try {
+        await client.query('begin');
+        await client.query(readFileSync(join(dir, file), 'utf8'));
+        await client.query('insert into amryn.schema_migrations (file) values ($1)', [file]);
+        await client.query('commit');
+        console.log('ok');
+      } catch (error) {
+        await client.query('rollback').catch(() => {});
+        console.log('failed');
+        console.error(`\n${file} was not applied, and nothing from it was: ${safe(error, url)}`);
+        console.error('The migrations before it stand. Fix this one and run again.');
+        return false;
+      }
+    }
+    return true;
+  }
 } finally {
   await client.end().catch(() => {});
 }

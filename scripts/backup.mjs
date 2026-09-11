@@ -16,6 +16,7 @@
  *
  *   node scripts/backup.mjs
  *   node scripts/backup.mjs --out ~/amryn-backups
+ *   node scripts/backup.mjs --upload            also put it in object storage
  *
  * Writes two files: the dump, and a manifest beside it. The manifest is what
  * scripts/migrate.mjs checks before it will apply a migration that is not
@@ -30,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 // exactly the one the guard checks.
 import pg from 'pg';
 import { countRows, databaseFingerprint } from './backup-manifest.mjs';
+import { storageSettings, uploadDump } from './backup-storage.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -89,6 +91,19 @@ try {
   process.exit(1);
 }
 
+/*
+ * --upload: the dump also leaves this machine.
+ *
+ * Written for the one caller that has nowhere to keep a file — the worker's
+ * pre-deploy command, which Railway runs without mounting the volume. Without
+ * somewhere durable to put a dump, that command cannot satisfy the backup rule
+ * and a migration rewriting one row blocks the deploy of both services until
+ * a person intervenes. It did, twice.
+ *
+ * Additive to the existing behaviour: the local file is still written and
+ * still verified, and the upload happens after both.
+ */
+const upload = process.argv.includes('--upload');
 const outDir = resolve(argument('--out', join(root, 'backups')));
 mkdirSync(outDir, { recursive: true });
 
@@ -173,6 +188,37 @@ writeFileSync(
 );
 
 /*
+ * Off this machine, where asked.
+ *
+ * After the completion check and the checksum, never before: what is uploaded
+ * is a dump already known to be whole. A failure here is fatal, unlike the
+ * recording below — the caller asked for the dump to be somewhere durable, and
+ * a local copy in a container about to be discarded is not that.
+ */
+let storedAt = resolve(dumpPath);
+
+if (upload) {
+  const settings = storageSettings();
+  if (!settings) {
+    console.error(
+      '\n--upload needs the project URL and the service role key, and one of them is not set.',
+    );
+    process.exit(1);
+  }
+
+  try {
+    storedAt = await uploadDump(contents, `amryn-${fingerprint.digest}-${stamp}.sql`, settings);
+    console.log(`Uploaded to ${storedAt}`);
+  } catch (error) {
+    console.error(
+      `\nThe dump is complete and could not be uploaded — ${safe(error instanceof Error ? error.message : String(error), url)}`,
+    );
+    console.error('Nothing was migrated. The local file is still at the path above.');
+    process.exit(1);
+  }
+}
+
+/*
  * Tell the platform this happened.
  *
  * The dump itself stays on this machine — that is the whole reason this script
@@ -210,7 +256,7 @@ try {
       sha256,
       dumpVersion,
       JSON.stringify(rows),
-      resolve(dumpPath),
+      storedAt,
     ],
   );
   recorded = true;

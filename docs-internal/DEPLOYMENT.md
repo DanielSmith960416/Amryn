@@ -421,6 +421,7 @@ every signed-in role.
 - [ ] Authentication URLs point at `https://app.amryn.ai`
 - [ ] Railway service deployed, `/api/health/live` returns 200, and `/api/health` reaches 200 once Supabase is configured
 - [ ] Worker service deployed with start command `node dist/worker.mjs`, and `railway run node dist/worker.mjs --once` claims and runs something
+- [ ] A migration that rewrites rows no longer needs a person: `migrate.mjs` takes its own dump, uploads it to the private `backups` bucket, and then applies. It needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on the worker — without them it refuses and the deploy fails, which is the correct direction.
 - [ ] Worker service pre-deploy command is `node scripts/migrate.mjs`, and its output appears in the deploy log of a real deployment — a redeploy of an existing one does not prove it
 - [ ] Both services name `Dockerfile` in their own build settings — confirm from a build log showing the Dockerfile's own stages, not from the builder field
 - [ ] `RAILWAY_TOKEN` project token set as a GitHub Actions secret, and `railway config plan` reports no pending changes

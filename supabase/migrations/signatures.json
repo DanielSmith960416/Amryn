@@ -38,5 +38,6 @@
   "20260910180000_37_documents.sql": "to_regclass('public.data_documents') is not null",
   "20260910200000_38_document_text.sql": "to_regclass('public.data_document_text') is not null",
   "20260910220000_39_document_ocr.sql": "(select count(*) from information_schema.columns where table_schema='public' and table_name='data_documents' and column_name='text_source') = 1",
-  "20260911070000_40_volume_headroom.sql": "(select count(*) from information_schema.columns where table_schema='public' and table_name='worker_heartbeats' and column_name='volume_free_bytes') = 1"
+  "20260911070000_40_volume_headroom.sql": "(select count(*) from information_schema.columns where table_schema='public' and table_name='worker_heartbeats' and column_name='volume_free_bytes') = 1",
+  "20260911090000_41_backup_storage.sql": "exists (select 1 from storage.buckets where id = 'backups')"
 }
