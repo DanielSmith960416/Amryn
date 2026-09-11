@@ -62,6 +62,74 @@ function build(
   return Object.assign(provider, { seen: stub.seen });
 }
 
+describe('checkKey', () => {
+  /*
+   * The order the whole connect flow turns on. The web application cannot read
+   * a stored credential — connection_credential is granted to service_role —
+   * so the key is checked while it is still in the caller's hand, and only
+   * then stored. A typo therefore leaves nothing behind to clean up.
+   */
+  it('uses the key it was handed rather than one from a store', async () => {
+    const stub = gateway();
+    const provider = paystackProvider({
+      keyEntryUrl: '/data/integrations/paystack',
+      transport: stub.transport,
+    });
+
+    await provider.checkKey(definition, 'sk_test_typed');
+
+    expect(stub.seen[0]!.key).toBe('sk_test_typed');
+  });
+
+  it('works with no credential store at all', async () => {
+    const stub = gateway();
+    const provider = paystackProvider({
+      keyEntryUrl: '/data/integrations/paystack',
+      transport: stub.transport,
+    });
+
+    await expect(provider.checkKey(definition, 'sk_test_typed')).resolves.toBeDefined();
+  });
+
+  it('says which set of keys it is', async () => {
+    const stub = gateway([transaction({ domain: 'live' })]);
+    const provider = paystackProvider({
+      keyEntryUrl: '/x',
+      transport: stub.transport,
+    });
+
+    expect((await provider.checkKey(definition, 'sk_live_typed')).accountLabel).toBe(
+      'Paystack (live)',
+    );
+  });
+
+  it('trims what was pasted, because a copied key brings whitespace with it', async () => {
+    const stub = gateway();
+    const provider = paystackProvider({ keyEntryUrl: '/x', transport: stub.transport });
+
+    await provider.checkKey(definition, '  sk_test_typed\n');
+
+    expect(stub.seen[0]!.key).toBe('sk_test_typed');
+  });
+
+  it('asks for a key rather than spending a request on an empty one', async () => {
+    const stub = gateway();
+    const provider = paystackProvider({ keyEntryUrl: '/x', transport: stub.transport });
+
+    await expect(provider.checkKey(definition, '   ')).rejects.toThrow(ProviderError);
+    expect(stub.seen).toHaveLength(0);
+  });
+
+  it('passes the gateway’s refusal on, because only the typist can fix it', async () => {
+    const provider = paystackProvider({
+      keyEntryUrl: '/x',
+      transport: () => async () => ({ status: false, message: 'Invalid key', data: null }),
+    });
+
+    await expect(provider.checkKey(definition, 'sk_test_wrong')).rejects.toThrow(ProviderError);
+  });
+});
+
 describe('invite', () => {
   it('sends the customer to a page inside Amryn, not to the gateway', async () => {
     const provider = build(credentialsIn({}));

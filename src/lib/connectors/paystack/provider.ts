@@ -37,23 +37,32 @@
  * supposed to remove it, and the saving is one database round trip against a
  * request that is already crossing the internet.
  */
-import type { ConnectorDefinition } from '../catalogue';
 import type { CredentialStore } from '../credentials';
+import type { ConnectorDefinition } from '../catalogue';
 import {
   ProviderError,
   type ConnectionSubject,
-  type ConnectorProvider,
   type Established,
   type FetchPage,
   type FetchRequest,
   type Invitation,
+  type KeyAuthorisedProvider,
+  type KeyCheck,
 } from '../provider';
 import { checkAccess, directTransport, type PaystackTransport } from './api';
 import { readPage } from './reads';
 
 export interface PaystackProviderOptions {
-  /** Where the handles this provider is given can be exchanged for a key. */
-  store: CredentialStore;
+  /**
+   * Where the handles this provider is given can be exchanged for a key.
+   *
+   * Optional, and the omission is a capability rather than a convenience. The
+   * web application authorises keys and never reads one back; the worker reads
+   * them and never sees one typed. A provider built without a store can check
+   * a key and cannot fetch — so the surface that must not read credentials
+   * cannot accidentally be handed one that does.
+   */
+  store?: CredentialStore;
   /**
    * The page inside Amryn where somebody pastes their key.
    *
@@ -71,7 +80,7 @@ export interface PaystackProviderOptions {
   transport?: (secretKey: string) => PaystackTransport;
 }
 
-export function paystackProvider(options: PaystackProviderOptions): ConnectorProvider {
+export function paystackProvider(options: PaystackProviderOptions): KeyAuthorisedProvider {
   const { store, keyEntryUrl, transport = directTransport } = options;
 
   /**
@@ -86,6 +95,15 @@ export function paystackProvider(options: PaystackProviderOptions): ConnectorPro
     credentialRef: string,
     run: (call: PaystackTransport) => Promise<T>,
   ): Promise<T> {
+    if (!store) {
+      // Built without a store, so built to authorise rather than to sync.
+      // Reaching here is a wiring mistake in Amryn, not anything a customer
+      // did, and it says so rather than reporting a gateway fault.
+      throw new ProviderError('This connection cannot be read from here.', {
+        retryable: false,
+      });
+    }
+
     const key = await store.read(credentialRef);
 
     if (!key) {
@@ -99,6 +117,28 @@ export function paystackProvider(options: PaystackProviderOptions): ConnectorPro
 
   return {
     id: 'paystack',
+    authorisedBy: 'key',
+
+    /**
+     * Use the key once, while it is still in the caller's hand.
+     *
+     * Nothing is stored by this method and nothing is stored before it: a key
+     * that Paystack refuses leaves no connection row and no secret in the
+     * Vault, which is the difference between a typo and a mess to clear up.
+     */
+    async checkKey(definition: ConnectorDefinition, secret: string): Promise<KeyCheck> {
+      const trimmed = secret.trim();
+
+      if (!trimmed) {
+        throw new ProviderError('Paste your Paystack secret key to connect.', {
+          retryable: false,
+        });
+      }
+
+      const account = await checkAccess(transport(trimmed));
+
+      return account.domain ? { accountLabel: `${definition.name} (${account.domain})` } : {};
+    },
 
     async invite(
       _definition: ConnectorDefinition,
@@ -145,6 +185,11 @@ export function paystackProvider(options: PaystackProviderOptions): ConnectorPro
     },
 
     async revoke(credentialRef: string): Promise<void> {
+      // Nothing to forget when this provider was built to authorise rather
+      // than to sync. Quiet, per the interface: a caller disconnecting should
+      // not meet an error about which surface it happens to be running on.
+      if (!store) return;
+
       /*
        * Amryn's copy, and only Amryn's copy.
        *

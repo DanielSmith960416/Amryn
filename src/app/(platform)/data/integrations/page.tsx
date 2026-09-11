@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { loadEntitlements } from '@/lib/billing/entitlements';
 import { CONNECTORS, byCategory, type ConnectorCategory } from '@/lib/connectors/catalogue';
 import { connectionsRemaining, mayConnect } from '@/lib/connectors/access';
+import { connectPath } from '@/lib/connectors/native';
 import type { Plan } from '@/lib/billing/access';
 
 export const metadata: Metadata = { title: 'Integrations' };
@@ -57,7 +58,7 @@ export default async function IntegrationsPage() {
     loadEntitlements(workspace.organisation.id),
     supabase
       .from('data_connections')
-      .select('id, data_source_id, status, last_synced_at')
+      .select('id, status, last_synced_at, data_sources(provider)')
       .eq('organisation_id', workspace.organisation.id),
     supabase
       .from('subscriptions')
@@ -111,17 +112,18 @@ export default async function IntegrationsPage() {
       </Card>
 
       {/*
-        Said once, at the top, rather than repeated on every card. Every
-        connector is unconfirmed today — nothing has been checked against a
-        provider's own documentation — so nothing can be connected, and a page
-        full of dead Connect buttons would be worse than a page that says why.
+        Said once, at the top, rather than repeated on every card — and it used
+        to say that nothing could be connected at all, which was true while
+        every row was unconfirmed. One is open now, so the notice says which
+        rather than continuing to claim none.
       */}
       <Card tone="warning" className="mb-5">
         <div className="px-5 py-4">
           <p className="text-[0.9375rem] leading-relaxed text-[var(--text-primary)]">
-            <strong className="font-semibold">Connections are not open yet.</strong> Each system
-            below is being built and checked against its provider before it is switched on. Until
-            then, bring your figures in through{' '}
+            <strong className="font-semibold">Most connections are not open yet.</strong> A system
+            is switched on only once it has been checked against its provider&rsquo;s own
+            documentation, which is why the cards below say where each one stands. For the rest,
+            bring your figures in through{' '}
             <Link href="/data/imports" className="text-[var(--brand)] underline-offset-2 hover:underline">
               a file import
             </Link>
@@ -145,8 +147,17 @@ export default async function IntegrationsPage() {
               <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {list.map((definition) => {
                   const decision = mayConnect(definition, context);
+                  /*
+                   * Keyed on the source's provider, not on data_source_id.
+                   * data_source_id is the id of a data_sources row — a uuid —
+                   * and comparing it to a catalogue id like 'paystack' was
+                   * never going to match, so every connected system showed as
+                   * unconnected. Nobody noticed because nothing could connect.
+                   */
                   const connected = (connections ?? []).some(
-                    (c) => c.data_source_id === definition.id,
+                    (c) =>
+                      (c.data_sources as { provider: string | null } | null)?.provider ===
+                      definition.id,
                   );
 
                   return (
@@ -168,8 +179,10 @@ export default async function IntegrationsPage() {
 
                       <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
                         {decision.allowed ? (
-                          <Button variant="primary" size="sm" disabled>
-                            Connect
+                          <Button asChild variant={connected ? 'secondary' : 'primary'} size="sm">
+                            <Link href={connectPath(definition)}>
+                              {connected ? 'Manage' : 'Connect'}
+                            </Link>
                           </Button>
                         ) : (
                           <>

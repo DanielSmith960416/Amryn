@@ -207,10 +207,12 @@ export const CONNECTORS: readonly ConnectorDefinition[] = [
      * the documented list endpoint by page. A false here means "Amryn does not
      * rely on one", not "there isn't one".
      *
-     * Still 'planned' rather than 'available', and deliberately: the read side
-     * is written and tested (src/lib/connectors/paystack), but nothing holds a
-     * customer's key yet, so there is no provider registered and nothing to
-     * connect to. requireProvider() says so from the runtime's side.
+     * 'available' since the connect flow was built: a key can be checked
+     * against Paystack, stored in the Vault, and deleted again, and the pages
+     * for all three exist. What is not built yet is the sync that reads
+     * transactions on a schedule — so a connection made today is a verified
+     * credential and nothing more, and the connect page says exactly that
+     * rather than letting a green badge imply figures are arriving.
      */
     id: 'paystack',
     name: 'Paystack',
@@ -241,7 +243,7 @@ export const CONNECTORS: readonly ConnectorDefinition[] = [
      */
     minimumPlan: 'starter',
     entitlement: null,
-    status: 'planned',
+    status: 'available',
     verification: 'confirmed',
     capabilitiesSource: 'https://paystack.com/docs/api/',
   },
