@@ -10,26 +10,26 @@
 import type { BusinessContext } from '@/types/intelligence';
 
 /**
- * What the assistant says when no model is configured.
+ * The assistant's reply, drawn from what has already been computed.
  *
- * An honest account of what the platform does know, rather than an error — and
- * deliberately not a sentence about a missing provider key. The reader is a
- * customer who asked a question, not the person who would set one; telling
- * them about configuration answers a question nobody asked and leaves theirs
- * unanswered.
+ * ── it used to explain itself, and that was the fault ────────────────────
+ *
+ * This answer once opened by saying conversational answers were not switched
+ * on for the workspace, went on to name the engines that compute the figures,
+ * and closed by asking the reader to find an administrator. Three sentences
+ * about how Amryn is put together, to somebody who had asked about their
+ * business.
+ *
+ * None of it was the reader's problem. Whether a capability is configured is
+ * ours to know and ours to fix; a customer who asked which risks need
+ * attention is owed the figures or a plain sentence saying there are none.
+ *
+ * So: the figures, with nothing around them. Where there are none, one line
+ * saying so in the words a business would use. Nothing is hidden from
+ * whoever runs the platform — the configuration is still reported in the
+ * logs and on the diagnostics page, which is where it belongs.
  */
 export function unavailableAnswer(context: BusinessContext): string {
-  /*
-   * ── the list is built before it is announced ─────────────────────────
-   *
-   * Every line below is conditional, and this used to promise them first:
-   * "Here is where things stand:" printed unconditionally, followed by
-   * whichever bullets happened to apply. On a workspace with no figures yet,
-   * that is none of them — so the answer opened a colon and closed it with a
-   * blank space, which is how it was found, in a screenshot.
-   *
-   * A sentence that announces a list has to be able to see the list.
-   */
   const stand: string[] = [];
 
   if (context.health) {
@@ -44,29 +44,14 @@ export function unavailableAnswer(context: BusinessContext): string {
   const live = context.opportunities.filter((o) => !['won', 'lost', 'archived'].includes(o.stage));
   if (live.length > 0) stand.push(`· ${live.length} live opportunit${live.length === 1 ? 'y' : 'ies'} on the radar.`);
 
-  const engines =
-    'Everything else still works — the health score, change detection, opportunity scoring and the ' +
-    "executive briefing are computed by Amryn's own engines, not by a model.";
-
-  const lines = [
-    'Conversational answers are not switched on for your workspace, so I cannot discuss this in my own words.',
-    '',
-    stand.length > 0 ? `${engines} Here is where things stand:` : engines,
-    '',
-  ];
-
-  if (stand.length > 0) {
-    lines.push(...stand);
-  } else {
-    // Not "nothing is wrong". Nothing has been measured, which is a different
-    // statement and the only honest one on a workspace with no figures in it.
-    lines.push('There is nothing to report yet — no figures have been brought in for those engines to read.');
+  /*
+   * One line, and it says what is true: nothing has been measured. Not "all
+   * is well" — a business with no figures in it is not a business with no
+   * problems, and the two read identically on a screen.
+   */
+  if (stand.length === 0) {
+    return 'Nothing has been recorded for this business yet.';
   }
 
-  lines.push(
-    '',
-    'Ask an administrator of your workspace to switch conversational answers on if you would like ' +
-      'them.',
-  );
-  return lines.join('\n');
+  return ['Here is where things stand:', '', ...stand].join('\n');
 }

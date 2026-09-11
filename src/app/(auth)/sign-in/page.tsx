@@ -6,7 +6,6 @@ import { NotAvailable } from '@/features/setup/not-available';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
-const PROVIDER_NAMES: Record<string, string> = { google: 'Google', azure: 'Microsoft' };
 
 export default async function SignInPage({
   searchParams,
@@ -16,7 +15,6 @@ export default async function SignInPage({
   const params = await searchParams;
 
   if (!isSupabaseConfigured()) return <NotAvailable action="Signing in" internalKey={params.key} />;
-  const providerName = params.provider ? PROVIDER_NAMES[params.provider] : undefined;
 
   return (
     <>
@@ -30,12 +28,13 @@ export default async function SignInPage({
           className="mt-5 rounded-[var(--radius-tile)] border border-[var(--border)] bg-[var(--warning-soft)] px-4 py-3"
           role="alert"
         >
+          {/*
+            Two sentences about what is and is not switched on became one about
+            what to do next. Which providers a deployment carries is ours to
+            know; the reader's problem is getting in.
+          */}
           <p className="text-[0.875rem] font-medium text-[var(--text-primary)]">
-            {providerName ?? 'That provider'} sign-in is not enabled yet
-          </p>
-          <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-            Signing in with {providerName ?? 'that provider'} is not switched on for Amryn yet. Use
-            your email address and password instead.
+            Use your email address and password
           </p>
         </div>
       ) : null}

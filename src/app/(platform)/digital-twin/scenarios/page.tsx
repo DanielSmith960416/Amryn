@@ -93,17 +93,17 @@ export default async function ScenariosPage() {
  * turned on. Hiding the whole page would mean the first thing a customer sees
  * on the day it is enabled is an empty studio.
  */
+/*
+  Was an amber card about enablement, one organisation at a time. What the
+  reader needs is the part that changes what they do: scenarios written now
+  are kept and will run. The rest was ours.
+*/
 function TwinIsOff() {
   return (
-    <Card tone="warning" className="mb-5">
+    <Card className="mb-5">
       <CardBody className="pt-5">
-        <p className="text-[0.875rem] font-medium text-[var(--text-primary)]">
-          Simulation is not switched on for this organisation yet.
-        </p>
-        <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-          You can write scenarios now and they will be waiting. Nothing runs until we turn the Twin
-          on for you — it is enabled one organisation at a time, deliberately, because a model that
-          has never been checked against a business should not be quietly running against it.
+        <p className="text-[0.875rem] text-[var(--text-secondary)]">
+          No results yet. Scenarios you write now are saved and will run when results are available.
         </p>
       </CardBody>
     </Card>
