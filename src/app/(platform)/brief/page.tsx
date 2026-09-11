@@ -213,17 +213,18 @@ function LookedAt({ empty }: { empty: { section: Section; reason: string }[] }) 
   );
 }
 
+/*
+  Was an amber card explaining that the brief is enabled one organisation at a
+  time and that nothing is composed until we turn it on. Accurate, and entirely
+  about us. A reader who opened this page wants to know whether there is a
+  brief, which is one line.
+*/
 function NotSwitchedOn() {
   return (
-    <Card tone="warning" className="mb-5">
+    <Card className="mb-5">
       <CardBody className="pt-5">
-        <p className="text-[0.875rem] font-medium text-[var(--text-primary)]">
-          The morning brief is not switched on for this organisation yet.
-        </p>
-        <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-          Nothing is composed until we turn it on for you. It is enabled one organisation at a time,
-          deliberately — a brief arriving every morning for a business nobody has read it with is
-          how a product teaches people to ignore it.
+        <p className="text-[0.875rem] text-[var(--text-secondary)]">
+          No brief has been prepared yet.
         </p>
       </CardBody>
     </Card>

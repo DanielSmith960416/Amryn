@@ -37,7 +37,7 @@ export default async function RecommendationsPage() {
   ]);
 
   const stored = storedResult.data ?? [];
-  const { recommendations: fresh, available } = await generateRecommendations(context);
+  const { recommendations: fresh } = await generateRecommendations(context);
 
   return (
     <>
@@ -52,12 +52,14 @@ export default async function RecommendationsPage() {
           <Card>
             <EmptyState
               icon={<Sparkles className="size-4" />}
-              title={available ? 'Nothing to recommend yet' : 'Recommendations are not switched on'}
-              description={
-                available
-                  ? 'Amryn has not found a cross-cutting recommendation it can support with evidence. It will say nothing rather than manufacture advice — connect more internal and market sources to give it more to work with.'
-                  : 'Joining an internal decline to an external shift in demand is a judgement, and a rule that manufactured one would be worse than no recommendation at all. Ask an administrator of your workspace to switch these on. Everything else — scoring, health, change detection and the briefing — is unaffected.'
-              }
+              /*
+                One empty state, not two. It used to branch on whether the
+                capability was configured and tell the reader which — their
+                side of that was identical either way, and the half that named
+                administrators and unaffected subsystems was ours to know.
+              */
+              title="Nothing to recommend yet"
+              description="Amryn will say nothing rather than manufacture advice. Connect more of your internal and market sources to give it more to work with." 
             />
           </Card>
         ) : null}
