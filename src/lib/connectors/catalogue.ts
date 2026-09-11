@@ -183,23 +183,52 @@ export const CONNECTORS: readonly ConnectorDefinition[] = [
     capabilitiesSource: null,
   },
   {
+    /*
+     * The first row in this file to be confirmed, and a worked example of what
+     * confirming costs.
+     *
+     * The reference was read — authentication and transactions — and four of
+     * the six things this row claimed to read came out of it:
+     *
+     *   · `refunds` and `payouts` are real parts of Paystack's API whose pages
+     *     have not been opened. They come back the day somebody reads them.
+     *   · `customers` arrives embedded in every transaction, which is not the
+     *     same as the customer list endpoint this row was implying.
+     *   · `fees` is a field on a transaction, not a thing to fetch. It is read
+     *     on every transaction and needs no line of its own.
+     *
+     * None of that is a change of plan. It is the difference between what
+     * Amryn wants and what has been checked, which is the whole point of the
+     * `verification` column, and a shorter honest list is worth more than a
+     * long one nobody can cite.
+     *
+     * `supportsWebhooks` goes the same way. Paystack may well send them; the
+     * webhook documentation has not been read, and the sync that exists walks
+     * the documented list endpoint by page. A false here means "Amryn does not
+     * rely on one", not "there isn't one".
+     *
+     * Still 'planned' rather than 'available', and deliberately: the read side
+     * is written and tested (src/lib/connectors/paystack), but nothing holds a
+     * customer's key yet, so there is no provider registered and nothing to
+     * connect to. requireProvider() says so from the runtime's side.
+     */
     id: 'paystack',
     name: 'Paystack',
-    description: 'Money taken through Paystack — transactions, refunds, fees and payouts.',
+    description: 'Money taken through Paystack — every payment attempt, with its fee and channel.',
     category: 'payments',
     market: 'south_africa',
     priority: 'high',
     auth: 'api_key',
     viaNango: true,
     supportsSync: true,
-    supportsWebhooks: true,
-    intendedReads: ['transactions', 'customers', 'refunds', 'fees', 'payouts', 'failed_payments'],
+    supportsWebhooks: false,
+    intendedReads: ['transactions', 'failed_payments'],
     intendedWrites: [],
     minimumPlan: 'growth',
     entitlement: null,
     status: 'planned',
-    verification: 'unconfirmed',
-    capabilitiesSource: null,
+    verification: 'confirmed',
+    capabilitiesSource: 'https://paystack.com/docs/api/',
   },
   {
     id: 'yoco',
