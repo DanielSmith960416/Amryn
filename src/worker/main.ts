@@ -78,6 +78,17 @@ const STARTED_AT = new Date().toISOString();
  */
 const REVISION = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
 
+/*
+ * Say which program this is, before anything can fail.
+ *
+ * Set here rather than on the service, so there is no deployment variable to
+ * forget and nothing to drift when a service is renamed. lib/errors/record.ts
+ * reads it so a recorded failure says whether to go and look at the worker or
+ * at the web service — the same failure in both is two problems, and knowing
+ * which halves the search.
+ */
+process.env.AMRYN_SERVICE = 'worker';
+
 function log(message: string): void {
   console.log(`[worker ${WORKER_ID}] ${message}`);
 }

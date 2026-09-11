@@ -3239,6 +3239,46 @@ export interface Database {
           },
         ];
       };
+      platform_errors: {
+        Row: {
+          fingerprint: string;
+          scope: string;
+          message: string;
+          occurrences: number;
+          first_seen_at: string;
+          last_seen_at: string;
+          service: string;
+          revision: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          fingerprint: string;
+          scope: string;
+          message: string;
+          occurrences?: number;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          service?: string;
+          revision?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          fingerprint?: string;
+          scope?: string;
+          message?: string;
+          occurrences?: number;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          service?: string;
+          revision?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+        ];
+      };
       proposals: {
         Row: {
           id: string;
@@ -4556,6 +4596,16 @@ export interface Database {
         Args: {
           p_action: string;
           p_summary?: string | null;
+        };
+        Returns: undefined;
+      };
+      record_platform_error: {
+        Args: {
+          p_fingerprint: string;
+          p_scope: string;
+          p_message: string;
+          p_service?: string | null;
+          p_revision?: string | null;
         };
         Returns: undefined;
       };

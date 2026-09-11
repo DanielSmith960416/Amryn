@@ -36,6 +36,7 @@ import {
   databaseUrl,
   readLatestBackup,
   readPending,
+  readRecentErrors,
   readWorkerHeartbeatCached,
 } from '@/lib/db/setup';
 import { missingHandlers, workerHealth } from '@/features/operations/heartbeat';
@@ -291,6 +292,7 @@ export async function runDiagnostics(
     checkWorker(),
     checkBackups(options.directConnection ?? false),
     checkBackupStorage(options.directConnection ?? false),
+    checkRecentErrors(options.directConnection ?? false),
     checkRowLevelSecurity(),
     checkSession(),
     checkMembership(),
@@ -1082,6 +1084,75 @@ async function checkBackupStorage(allowed: boolean): Promise<Check> {
   }
 
   return { name, status: 'ok', detail: health.detail };
+}
+
+/**
+ * What has been going wrong, where somebody will see it.
+ *
+ * Until this existed, every failure in this codebase went to a log stream
+ * nobody reads — and this project has twice paid for that: the worker was down
+ * for thirty-five minutes, and mail stopped sending, and both were found by
+ * somebody happening to look at the right dashboard.
+ *
+ * Reported as a warning rather than a failure, deliberately. Errors are normal
+ * in a running system — a customer mistypes, a third party rate-limits, a
+ * request is abandoned — and a page that goes red on the first one teaches
+ * people to ignore the red. What is worth interrupting somebody for is *how
+ * many different things* are failing, which is what the count here is.
+ */
+async function checkRecentErrors(allowed: boolean): Promise<Check> {
+  const name = 'Recent errors';
+
+  if (!allowed || !databaseUrl()) {
+    return {
+      name,
+      status: 'skipped',
+      detail: 'Not checked here — it needs a direct database connection.',
+    };
+  }
+
+  const reading = await readRecentErrors();
+
+  if (reading.problem) {
+    return {
+      name,
+      status: 'warn',
+      detail: `Could not read what has been failing — ${reading.problem}`,
+      remedy: 'This is about reaching the database from this page, not about the errors.',
+    };
+  }
+
+  if (reading.distinct === 0) {
+    return {
+      name,
+      status: 'ok',
+      detail: 'Nothing has failed in the last day.',
+    };
+  }
+
+  // Newest first, and each one says how often rather than appearing once per
+  // occurrence — a loop failing four thousand times is one line here.
+  const lines = reading.errors.map(
+    (error) =>
+      `${error.scope}: ${error.message}` +
+      (error.occurrences > 1 ? ` (${error.occurrences.toLocaleString('en-ZA')} times)` : '') +
+      (error.service ? ` — ${error.service}` : ''),
+  );
+
+  const more = reading.distinct - reading.errors.length;
+
+  return {
+    name,
+    status: reading.distinct >= 5 ? 'warn' : 'ok',
+    detail:
+      `${reading.distinct} different ${reading.distinct === 1 ? 'thing has' : 'things have'} failed in the last day. ` +
+      lines.join(' · ') +
+      (more > 0 ? ` · and ${more} more` : ''),
+    remedy:
+      reading.distinct >= 5
+        ? 'Several unrelated failures at once is usually one cause. The scope of each names where to look.'
+        : undefined,
+  };
 }
 
 async function checkWorker(): Promise<Check> {

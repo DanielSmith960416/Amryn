@@ -1,4 +1,5 @@
 import 'server-only';
+import { recordError } from './errors/record';
 
 /**
  * The failures that are ours, said once.
@@ -28,6 +29,18 @@ export function ourFault(
   shown = 'Something went wrong on our side. Nothing you entered was at fault — please try again in a few minutes.',
 ): string {
   console.error(`[amryn:${scope}] ${describe(detail)}`);
+
+  /*
+   * And somewhere a person will actually look.
+   *
+   * Not awaited, and this function stays synchronous. Making it async to
+   * record telemetry would turn thirty-nine call sites — every one of them on
+   * a path with a customer waiting — into async ones, to buy a guarantee that
+   * telemetry does not need. A request that ends first loses that occurrence;
+   * the row saying this is failing is written the next time it fails.
+   */
+  void recordError(scope, detail);
+
   return shown;
 }
 

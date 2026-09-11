@@ -327,6 +327,73 @@ export interface WorkerHeartbeatReading {
   problem?: string;
 }
 
+export interface RecordedError {
+  scope: string;
+  message: string;
+  occurrences: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  service: string;
+  revision: string | null;
+}
+
+/**
+ * The failures worth putting in front of somebody, newest first.
+ *
+ * A direct connection, like every other operator-only reading here:
+ * platform_errors has row level security on with no policy, so there is no
+ * session that could read it and that is the point.
+ */
+export async function readRecentErrors(
+  sinceHours = 24,
+  limit = 5,
+): Promise<{ errors: RecordedError[]; distinct: number; problem?: string }> {
+  let client: Client | undefined;
+  try {
+    client = await connect();
+
+    const { rows } = await client.query<{
+      scope: string;
+      message: string;
+      occurrences: number;
+      first_seen_at: string;
+      last_seen_at: string;
+      service: string;
+      revision: string | null;
+      total: string;
+    }>(
+      `select scope, message, occurrences, first_seen_at::text, last_seen_at::text,
+              service, revision,
+              count(*) over () as total
+         from public.platform_errors
+        where last_seen_at > now() - ($1 || ' hours')::interval
+        order by last_seen_at desc
+        limit $2`,
+      [String(sinceHours), limit],
+    );
+
+    return {
+      errors: rows.map((row) => ({
+        scope: row.scope,
+        message: row.message,
+        occurrences: row.occurrences,
+        firstSeenAt: row.first_seen_at,
+        lastSeenAt: row.last_seen_at,
+        service: row.service,
+        revision: row.revision,
+      })),
+      // How many distinct problems there are, not how many this returned — the
+      // difference between "three things are failing" and "here are three of
+      // the eleven things that are failing".
+      distinct: Number(rows[0]?.total ?? 0),
+    };
+  } catch (error) {
+    return { errors: [], distinct: 0, problem: safeMessage(error) };
+  } finally {
+    await client?.end().catch(() => {});
+  }
+}
+
 export async function readWorkerHeartbeat(): Promise<WorkerHeartbeatReading> {
   let client: Client | undefined;
   try {
