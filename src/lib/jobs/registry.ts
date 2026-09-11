@@ -21,6 +21,7 @@ import { nightlyTwinTick } from './handlers/nightly-twin';
 import { readScan } from './handlers/read-scan';
 import { runAnalysis } from './handlers/run-analysis';
 import { simulateTwin } from './handlers/simulate-twin';
+import { syncConnection } from './handlers/sync-connection';
 import { sweepJobs } from './handlers/sweep-jobs';
 import type { JobHandler } from './types';
 import type { Schedule } from './schedule';
@@ -42,6 +43,11 @@ const HANDLERS: readonly JobHandler[] = [
   nightlyBriefTick,
   composeBrief,
   nightlyBackup,
+  // Queued when somebody asks for it. Not on a schedule yet — a connector that
+  // reads on its own needs a clock entry per organisation, and adding one
+  // before a single sync has ever run in production would be scheduling work
+  // nobody has watched happen once.
+  syncConnection,
 ];
 
 const BY_KIND = new Map(HANDLERS.map((handler) => [handler.kind, handler]));
