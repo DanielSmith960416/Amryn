@@ -37,6 +37,32 @@ const PUBLIC_PATHS = [
 ];
 
 /**
+ * Whether a request needs to know who is asking — decided before the call
+ * rather than after it.
+ *
+ * getUser() is a round trip to the auth server, and this middleware runs on
+ * every request the matcher admits. It used to run unconditionally, which
+ * meant a page that cannot branch on the caller — the privacy notice, the
+ * diagnostics page, an invitation link — still paid for one, and so did every
+ * request whose answer was then thrown away.
+ *
+ * The exceptions are sign-in and sign-up: both redirect a caller who is
+ * already signed in, so they genuinely need the answer.
+ *
+ * The cost of skipping it is that the session cookie is not rotated while
+ * somebody reads a public page. That is the right trade — the next private
+ * request rotates it, and nothing on a public page depends on a fresh token.
+ *
+ * A mistake here fails closed. A private path wrongly treated as public would
+ * leave `user` null, and a null user on a private path is redirected to
+ * sign-in — which is why this is an optimisation rather than a lock.
+ */
+export function needsIdentity(pathname: string): boolean {
+  if (pathname === '/sign-in' || pathname === '/sign-up') return true;
+  return !PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/**
  * The assurance level recorded in an access token.
  *
  * Read rather than verified: this only decides a redirect, and a forged token
@@ -92,6 +118,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     },
   );
 
+  const { pathname } = request.nextUrl;
+  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const needsUser = needsIdentity(pathname);
+
   // getUser() revalidates against the auth server. getSession() only decodes the
   // cookie, which is not enough to gate a route on.
   //
@@ -100,16 +130,16 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // sign-in; the alternative is the entire application returning 500 because
   // one upstream request timed out.
   let user: User | null = null;
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  } catch (error) {
-    console.error('[amryn:auth] session refresh failed, treating as signed out', error);
+  if (needsUser) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch (error) {
+      console.error('[amryn:auth] session refresh failed, treating as signed out', error);
+    }
   }
 
   const data = { user };
-  const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   /*
    * `/` was exempt here for as long as it served a marketing homepage: a
