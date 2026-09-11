@@ -11,6 +11,8 @@ import { CONNECTORS, byCategory, type ConnectorCategory } from '@/lib/connectors
 import { connectionsRemaining, mayConnect } from '@/lib/connectors/access';
 import { connectPath } from '@/lib/connectors/native';
 import type { Plan } from '@/lib/billing/access';
+import { SectionTabs } from '@/components/ui/section-tabs';
+import { visibleTabs } from '@/components/shell/navigation';
 
 export const metadata: Metadata = { title: 'Integrations' };
 
@@ -86,6 +88,8 @@ export default async function IntegrationsPage() {
           </Button>
         }
       />
+      <SectionTabs tabs={visibleTabs('data', workspace.permissions)} />
+
 
       <Card className="mb-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4">

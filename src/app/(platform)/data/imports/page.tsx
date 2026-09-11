@@ -11,6 +11,8 @@ import { describeBytes } from '@/lib/files/kinds';
 import { UploadForm } from '@/features/data/upload-form';
 import { RemoveButton } from '@/features/data/remove-button';
 import type { Enums } from '@/types/database';
+import { SectionTabs } from '@/components/ui/section-tabs';
+import { visibleTabs } from '@/components/shell/navigation';
 
 export const metadata: Metadata = { title: 'Files and imports' };
 
@@ -73,6 +75,8 @@ export default async function DataImportsPage() {
         title="Files and imports"
         description="Anything you give Amryn directly, rather than through a connected system. Spreadsheets have their rows read; everything else is stored and given back when you ask for it."
       />
+      <SectionTabs tabs={visibleTabs('data', workspace.permissions)} />
+
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">

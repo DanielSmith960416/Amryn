@@ -5,6 +5,9 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { requirePermission } from '@/lib/auth/session';
 import { COMPLIANCE_PROFILES } from '@/lib/intelligence/inventory';
 import { ImportForm } from '@/features/inventory/import-form';
+import { SectionTabs } from '@/components/ui/section-tabs';
+import { visibleTabs } from '@/components/shell/navigation';
+import { requireWorkspace } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Import a stocktake' };
 
@@ -19,6 +22,8 @@ export const dynamic = 'force-dynamic';
  */
 export default async function ImportStocktakePage() {
   await requirePermission('manage_inventory');
+  // Resolved once per request by the layout; this is the same cached value.
+  const workspace = await requireWorkspace();
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -44,6 +49,8 @@ export default async function ImportStocktakePage() {
           </div>
         }
       />
+      <SectionTabs tabs={visibleTabs('inventory', workspace.permissions)} />
+
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">

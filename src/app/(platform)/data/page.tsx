@@ -9,6 +9,8 @@ import { requirePermission } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { formatRelative, humanise } from '@/lib/utils/format';
 import type { Enums } from '@/types/database';
+import { SectionTabs } from '@/components/ui/section-tabs';
+import { visibleTabs } from '@/components/shell/navigation';
 
 export const metadata: Metadata = { title: 'Connected Sources' };
 
@@ -46,6 +48,8 @@ export default async function DataSourcesPage() {
           </Button>
         }
       />
+      <SectionTabs tabs={visibleTabs('data', workspace.permissions)} />
+
 
       {failing.length > 0 ? (
         <Card tone="negative" className="mb-5">

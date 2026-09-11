@@ -10,6 +10,9 @@ import { STATUS_GUIDANCE, STATUS_LABEL, type ExpiryStatus } from '@/lib/intellig
 import { count, date, money, percent } from '@/lib/format';
 import { currentWorkspace } from '@/lib/workspace';
 import { NoDataYet } from '@/components/intelligence/no-data-yet';
+import { SectionTabs } from '@/components/ui/section-tabs';
+import { visibleTabs } from '@/components/shell/navigation';
+import { requireWorkspace } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Advanced Inventory Control' };
 
@@ -23,6 +26,8 @@ export const metadata: Metadata = { title: 'Advanced Inventory Control' };
  * pharmacy.
  */
 export default async function InventoryPage() {
+  // Resolved once per request by the layout; this is the same cached value.
+  const workspace = await requireWorkspace();
   const state = await currentWorkspace();
   if (state.kind === 'empty') {
     return <NoDataYet what="Stock compliance, expiry tracking and department cover" organisationName={state.organisationName} />;
@@ -57,6 +62,8 @@ export default async function InventoryPage() {
           </Badge>
         }
       />
+      <SectionTabs tabs={visibleTabs('inventory', workspace.permissions)} />
+
 
       {w.isDemo ? (
         <DemoNotice>
