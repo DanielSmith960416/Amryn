@@ -224,7 +224,22 @@ export const CONNECTORS: readonly ConnectorDefinition[] = [
     supportsWebhooks: false,
     intendedReads: ['transactions', 'failed_payments'],
     intendedWrites: [],
-    minimumPlan: 'growth',
+    /*
+     * Starter, which by the ladder below means every plan.
+     *
+     * It sat on Growth, and that was the wrong shape for the product: Starter
+     * is sold with two data sources, and a tier that carries a connection
+     * quota and nothing to spend it on is selling an empty slot. A small
+     * business taking card payments is exactly who Starter is for, and asking
+     * them to move up a tier to connect the one system that knows what they
+     * earned is a strange first impression.
+     *
+     * The ceiling still does the limiting — two connections on Starter, eight
+     * on Growth — so this widens who may connect a payment gateway without
+     * widening how much anybody may connect. That is the distinction the
+     * quota exists to draw, and it is the honest place to draw it.
+     */
+    minimumPlan: 'starter',
     entitlement: null,
     status: 'planned',
     verification: 'confirmed',

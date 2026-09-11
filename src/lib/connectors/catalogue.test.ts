@@ -100,12 +100,35 @@ describe('planReaches', () => {
     expect(connectorsFor('enterprise')).toHaveLength(CONNECTORS.length);
   });
 
-  it('gives Starter nothing yet, which is a commercial finding and not a bug', () => {
-    // Recorded rather than quietly fixed. The brief places Sage and Xero at
-    // Growth, and every other connector at Growth or above, so a Starter
-    // customer paying R1,499 can connect no live system — only file imports,
-    // which need no connector. Worth a decision; not one to make here.
-    expect(connectorsFor('starter')).toEqual([]);
+  /*
+   * This was a failing commercial finding for a while, recorded here rather
+   * than quietly fixed: every connector sat at Growth or above, so a Starter
+   * customer paying R1,499 could connect no live system at all — only file
+   * imports, which need no connector, while the tier was sold with two
+   * connection slots.
+   *
+   * The decision came back: Paystack moves to Starter. The test stays, turned
+   * the other way up, because "Starter can connect nothing" is a state worth
+   * failing on if it ever returns.
+   */
+  it('gives Starter something to spend its two connections on', () => {
+    expect(connectorsFor('starter').map((c) => c.id)).toEqual(['paystack']);
+  });
+
+  it('puts a payment gateway within reach of every plan, not just the top ones', () => {
+    for (const plan of ['starter', 'growth', 'professional', 'enterprise'] as const) {
+      expect(planReaches(plan, connector('paystack')!), plan).toBe(true);
+      expect(connectorsFor(plan).map((c) => c.id), plan).toContain('paystack');
+    }
+  });
+
+  /*
+   * Widening who may connect is not widening how much. The ceiling is what
+   * limits a tier — two connections on Starter — and moving a connector down
+   * must not quietly hand Starter the rest of the catalogue with it.
+   */
+  it('moves one connector down and not the catalogue with it', () => {
+    expect(connectorsFor('starter').length).toBeLessThan(connectorsFor('growth').length);
   });
 });
 
