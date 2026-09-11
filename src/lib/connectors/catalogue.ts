@@ -183,23 +183,69 @@ export const CONNECTORS: readonly ConnectorDefinition[] = [
     capabilitiesSource: null,
   },
   {
+    /*
+     * The first row in this file to be confirmed, and a worked example of what
+     * confirming costs.
+     *
+     * The reference was read — authentication and transactions — and four of
+     * the six things this row claimed to read came out of it:
+     *
+     *   · `refunds` and `payouts` are real parts of Paystack's API whose pages
+     *     have not been opened. They come back the day somebody reads them.
+     *   · `customers` arrives embedded in every transaction, which is not the
+     *     same as the customer list endpoint this row was implying.
+     *   · `fees` is a field on a transaction, not a thing to fetch. It is read
+     *     on every transaction and needs no line of its own.
+     *
+     * None of that is a change of plan. It is the difference between what
+     * Amryn wants and what has been checked, which is the whole point of the
+     * `verification` column, and a shorter honest list is worth more than a
+     * long one nobody can cite.
+     *
+     * `supportsWebhooks` goes the same way. Paystack may well send them; the
+     * webhook documentation has not been read, and the sync that exists walks
+     * the documented list endpoint by page. A false here means "Amryn does not
+     * rely on one", not "there isn't one".
+     *
+     * 'available' since the connect flow was built: a key can be checked
+     * against Paystack, stored in the Vault, and deleted again, and the pages
+     * for all three exist. What is not built yet is the sync that reads
+     * transactions on a schedule — so a connection made today is a verified
+     * credential and nothing more, and the connect page says exactly that
+     * rather than letting a green badge imply figures are arriving.
+     */
     id: 'paystack',
     name: 'Paystack',
-    description: 'Money taken through Paystack — transactions, refunds, fees and payouts.',
+    description: 'Money taken through Paystack — every payment attempt, with its fee and channel.',
     category: 'payments',
     market: 'south_africa',
     priority: 'high',
     auth: 'api_key',
     viaNango: true,
     supportsSync: true,
-    supportsWebhooks: true,
-    intendedReads: ['transactions', 'customers', 'refunds', 'fees', 'payouts', 'failed_payments'],
+    supportsWebhooks: false,
+    intendedReads: ['transactions', 'failed_payments'],
     intendedWrites: [],
-    minimumPlan: 'growth',
+    /*
+     * Starter, which by the ladder below means every plan.
+     *
+     * It sat on Growth, and that was the wrong shape for the product: Starter
+     * is sold with two data sources, and a tier that carries a connection
+     * quota and nothing to spend it on is selling an empty slot. A small
+     * business taking card payments is exactly who Starter is for, and asking
+     * them to move up a tier to connect the one system that knows what they
+     * earned is a strange first impression.
+     *
+     * The ceiling still does the limiting — two connections on Starter, eight
+     * on Growth — so this widens who may connect a payment gateway without
+     * widening how much anybody may connect. That is the distinction the
+     * quota exists to draw, and it is the honest place to draw it.
+     */
+    minimumPlan: 'starter',
     entitlement: null,
-    status: 'planned',
-    verification: 'unconfirmed',
-    capabilitiesSource: null,
+    status: 'available',
+    verification: 'confirmed',
+    capabilitiesSource: 'https://paystack.com/docs/api/',
   },
   {
     id: 'yoco',

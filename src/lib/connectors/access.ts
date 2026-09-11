@@ -106,7 +106,11 @@ export function mayConnect(
       allowed: false,
       reason: 'quota',
       detail: 'Your plan does not include connected systems.',
-      remedy: 'Growth and above connect your accounting, payments and sales systems directly.',
+      // Deliberately does not name a tier. Every plan sold today carries a
+      // connection quota, so this branch is unreachable — and a sentence that
+      // names Growth would be wrong the moment it ran, now that a payment
+      // gateway starts at Starter.
+      remedy: 'A plan with connections brings your systems in directly, rather than by file.',
     };
   }
 

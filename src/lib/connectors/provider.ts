@@ -75,8 +75,17 @@ export interface Invitation {
    * is generated per attempt and never stored.
    */
   url: string;
-  /** When it stops working, so the interface can say so rather than fail. */
-  expiresAt: Date;
+  /**
+   * When it stops working, so the interface can say so rather than fail.
+   *
+   * Null where nothing expires. That is not every provider's story: a
+   * connector authorised by pasting an API key is sent to a page inside Amryn,
+   * behind the same sign-in and the same permission as every other page, and
+   * there is no third-party session with a clock on it. Giving that an invented
+   * thirty-minute expiry would put a deadline in the interface that nothing
+   * enforces, which is worse than saying there isn't one.
+   */
+  expiresAt: Date | null;
 }
 
 /** What a completed authorisation gives Amryn, once the provider reports it. */
@@ -181,6 +190,61 @@ export interface ConnectorProvider {
    * meet an error for it.
    */
   revoke(credentialRef: string): Promise<void>;
+}
+
+/**
+ * What checking a typed-in key tells Amryn.
+ *
+ * ── the second time this interface met a fact and had to move ────────────
+ *
+ * provider.ts already records one correction: authorise/complete was guessed
+ * from how OAuth looks when you write it yourself, and the documentation said
+ * otherwise. This is the second, and it is worth the same honesty.
+ *
+ * adopt() assumes the credential is already stored and can be read back by its
+ * handle. That is true for a provider holding the credential on its own
+ * servers, and it is exactly wrong for a key the customer types into Amryn:
+ * the web application deliberately cannot read a stored credential —
+ * connection_credential is granted to service_role and the application runs as
+ * the signed-in person — so an adopt()-shaped check would have needed the one
+ * grant this design exists to withhold.
+ *
+ * The order that actually works is the better order anyway. Check the key
+ * while it is still in hand, and store it only once it works. A typo then
+ * costs nothing: no connection row, no secret in the Vault, nothing to clean
+ * up, and a sentence back to the person who typed it.
+ */
+export interface KeyCheck {
+  /** What to call this account on its card, where the provider says anything. */
+  accountLabel?: string;
+  /** Scopes actually granted, where the provider says. */
+  grantedScopes?: readonly string[];
+}
+
+/**
+ * A connector authorised by a key rather than by a redirect.
+ *
+ * `authorisedBy` is a discriminator rather than a comment: the page that
+ * renders a connect flow has to know which of the two it is looking at, and
+ * asking the catalogue's `auth` field would be asking a declaration what the
+ * implementation does.
+ */
+export interface KeyAuthorisedProvider extends ConnectorProvider {
+  readonly authorisedBy: 'key';
+
+  /**
+   * Use a key once, before Amryn stores it anywhere.
+   *
+   * Throws ProviderError — in words safe to show whoever typed it — when the
+   * provider will not accept it.
+   */
+  checkKey(definition: ConnectorDefinition, secret: string): Promise<KeyCheck>;
+}
+
+export function authorisedByKey(
+  provider: ConnectorProvider,
+): provider is KeyAuthorisedProvider {
+  return (provider as KeyAuthorisedProvider).authorisedBy === 'key';
 }
 
 /**

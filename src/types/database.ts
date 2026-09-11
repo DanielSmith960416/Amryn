@@ -4550,6 +4550,12 @@ export interface Database {
         };
         Returns: Database['public']['Tables']['onboarding_progress']['Row'];
       };
+      connection_credential: {
+        Args: {
+          p_ref: string;
+        };
+        Returns: string;
+      };
       create_organisation: {
         Args: {
           p_name: string;
@@ -4574,6 +4580,12 @@ export interface Database {
       };
       ensure_user_profile: {
         Args: Record<string, never>;
+        Returns: undefined;
+      };
+      forget_connection_credential: {
+        Args: {
+          p_connection: string;
+        };
         Returns: undefined;
       };
       invitation_preview: {
@@ -4657,6 +4669,13 @@ export interface Database {
           p_term_months?: number | null;
         };
         Returns: Database['public']['Tables']['subscription_activations']['Row'];
+      };
+      store_connection_credential: {
+        Args: {
+          p_connection: string;
+          p_secret: string;
+        };
+        Returns: string;
       };
     };
     Enums: Enums;

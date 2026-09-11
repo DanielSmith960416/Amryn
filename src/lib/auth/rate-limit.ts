@@ -63,6 +63,11 @@ export const LIMITS = {
   // normal use never meets it, and it is the only thing bounding how fast an
   // organisation's storage can grow, which is why there is a number at all.
   documentUpload: { max: 60, window: '1 hour' },
+  // Connecting a system is a deliberate act somebody does once, and each
+  // attempt spends a request against the provider's own rate limit with a
+  // credential attached. Ten an hour leaves room for a mistyped key and a
+  // second try, and stops this becoming a way to test keys in bulk.
+  connectSystem: { max: 10, window: '1 hour' },
 } as const satisfies Record<string, Limit>;
 
 function hash(value: string): string {

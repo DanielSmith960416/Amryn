@@ -158,3 +158,92 @@ alter table storage.objects enable row level security;
 grant usage on schema storage to anon, authenticated, service_role;
 grant select on storage.buckets to anon, authenticated, service_role;
 grant select, insert, update, delete on storage.objects to authenticated, service_role;
+
+-- ══════════════════════════════════════════════════════════════════════════
+-- Supabase Vault
+--
+-- The real thing (supabase_vault 0.3.1, installed on the hosted project)
+-- stores secrets encrypted with an authenticated AEAD and exposes them
+-- through a view that decrypts on read. That machinery is not what the schema
+-- tests are checking: they check who may call the functions and who may read
+-- the secrets, and those are grants.
+--
+-- So this is a faithful *shape* and an honest fake of the encryption — the
+-- column is called `secret` and holds the value as given. Nothing in this file
+-- ever runs outside a throwaway test database, and a test that pretended to
+-- encrypt would be testing the pretence.
+--
+-- The grants below are copied from the hosted database rather than guessed:
+--   vault.secrets / vault.decrypted_secrets → service_role has select+delete,
+--   anon and authenticated have nothing at all,
+--   create_secret / update_secret → postgres and service_role may execute.
+-- ══════════════════════════════════════════════════════════════════════════
+create schema if not exists vault;
+
+create table if not exists vault.secrets (
+  id          uuid primary key default gen_random_uuid(),
+  name        text unique,
+  description text not null default '',
+  secret      text not null,
+  key_id      uuid,
+  nonce       bytea,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+create or replace view vault.decrypted_secrets as
+  select id, name, description, secret, secret as decrypted_secret,
+         key_id, nonce, created_at, updated_at
+    from vault.secrets;
+
+create or replace function vault.create_secret(
+  new_secret      text,
+  new_name        text default null,
+  new_description text default '',
+  new_key_id      uuid default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = vault, pg_temp
+as $$
+declare
+  v_id uuid;
+begin
+  insert into vault.secrets (secret, name, description, key_id)
+  values (new_secret, new_name, coalesce(new_description, ''), new_key_id)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+create or replace function vault.update_secret(
+  secret_id       uuid,
+  new_secret      text default null,
+  new_name        text default null,
+  new_description text default null,
+  new_key_id      uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = vault, pg_temp
+as $$
+begin
+  update vault.secrets
+     set secret      = coalesce(new_secret, secret),
+         name        = coalesce(new_name, name),
+         description = coalesce(new_description, description),
+         key_id      = coalesce(new_key_id, key_id),
+         updated_at  = now()
+   where id = secret_id;
+end;
+$$;
+
+grant usage on schema vault to service_role;
+grant select, delete on vault.secrets to service_role;
+grant select on vault.decrypted_secrets to service_role;
+revoke all on function vault.create_secret(text, text, text, uuid) from public;
+revoke all on function vault.update_secret(uuid, text, text, text, uuid) from public;
+grant execute on function vault.create_secret(text, text, text, uuid) to service_role;
+grant execute on function vault.update_secret(uuid, text, text, text, uuid) to service_role;
