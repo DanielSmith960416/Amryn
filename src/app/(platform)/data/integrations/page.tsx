@@ -111,7 +111,7 @@ export default async function IntegrationsPage() {
       </Card>
 
       {/*
-        Said once, at the top, rather than repeated on sixteen cards. Every
+        Said once, at the top, rather than repeated on every card. Every
         connector is unconfirmed today — nothing has been checked against a
         provider's own documentation — so nothing can be connected, and a page
         full of dead Connect buttons would be worse than a page that says why.
