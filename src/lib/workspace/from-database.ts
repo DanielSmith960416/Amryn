@@ -357,22 +357,35 @@ export const organisationWorkspace = cache(
   async (organisationId: string, asOf: Date = new Date()): Promise<Workspace | null> => {
     const supabase = await createClient();
 
-    const { data: organisation } = await supabase
-      .from('organisations')
-      .select('*')
-      .eq('id', organisationId)
-      .maybeSingle();
+    /*
+     * ── four round trips became two ──────────────────────────────────────
+     *
+     * This used to read the organisation, then wait for it before reading the
+     * financial records, then wait for those before reading everything else,
+     * then wait again for the stocktake. Four trips to Ireland in series on
+     * every render of the Command Centre, none of which needed the one before
+     * it: the records are keyed on the organisation *id*, which the caller
+     * already has, not on the row.
+     *
+     * Two of them cannot be collapsed — the branches and goals below are only
+     * worth reading once there is a series to compute from — so it is two now
+     * rather than one. What it costs is a wasted query in the case where the
+     * organisation does not exist, which happens once, to somebody following a
+     * stale link.
+     */
+    const [{ data: organisation }, { data: records }] = await Promise.all([
+      supabase.from('organisations').select('*').eq('id', organisationId).maybeSingle(),
+      supabase
+        .from('financial_records')
+        .select('*')
+        .eq('organisation_id', organisationId)
+        .order('occurred_on'),
+    ]);
 
     if (!organisation) return null;
 
     // The gate. Everything below computes from this series, so without it
     // there is nothing to compute and the honest answer is "not yet".
-    const { data: records } = await supabase
-      .from('financial_records')
-      .select('*')
-      .eq('organisation_id', organisationId)
-      .order('occurred_on');
-
     if (!records || records.length === 0) return null;
 
     const [
@@ -382,6 +395,7 @@ export const organisationWorkspace = cache(
       { data: opportunityRows },
       { data: recommendationRows },
       { data: goalRows },
+      inventory,
     ] = await Promise.all([
       supabase.from('branches').select('*').eq('organisation_id', organisationId).is('deleted_at', null),
       supabase.from('competitors').select('*').eq('organisation_id', organisationId),
@@ -389,6 +403,10 @@ export const organisationWorkspace = cache(
       supabase.from('opportunities').select('*').eq('organisation_id', organisationId).is('deleted_at', null),
       supabase.from('ai_recommendations').select('*').eq('organisation_id', organisationId),
       supabase.from('goals').select('*').eq('organisation_id', organisationId),
+      // Joined to the batch rather than awaited after it. It depends on
+      // nothing above, and waiting for six queries before starting a seventh
+      // was a round trip spent on nothing.
+      latestInventory(organisationId, asOf),
     ]);
 
     const figures = stated(organisation);
@@ -422,11 +440,10 @@ export const organisationWorkspace = cache(
     const actions_ = actionSummary(actions);
     const branches = toBranches(branchRows ?? [], records, health.overall);
 
-    // The most recent stocktake, or none. Deliberately the latest rather than
-    // a merge of all of them: a stocktake is a statement about the shelves on
-    // one day, and combining two of them would produce a shelf that never
-    // existed.
-    const inventory = await latestInventory(organisationId, asOf);
+    // The most recent stocktake, or none — read above, with the rest.
+    // Deliberately the latest rather than a merge of all of them: a stocktake
+    // is a statement about the shelves on one day, and combining two of them
+    // would produce a shelf that never existed.
 
     // Only the ones there is a real figure for. A KPI whose current value is
     // an assumption is worse than a KPI that is absent: the centre exists to

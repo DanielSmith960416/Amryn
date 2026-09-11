@@ -68,7 +68,7 @@ export function Sidebar({
         <nav className="px-2 py-3">
           {groups.map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
-              <p className="eyebrow px-2.5 !mb-1.5">{group.label}</p>
+              <p className="eyebrow-strong px-2.5 !mb-1.5">{group.label}</p>
               <ul>
                 {group.items.map((item) => {
                   const active = pathname === item.href;

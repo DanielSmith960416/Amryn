@@ -158,50 +158,44 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: 'view_performance',
         hint: 'Every division at once',
       },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
       {
-        label: 'Advanced Inventory Control',
-        href: '/inventory',
-        permission: 'view_operations_data',
-        hint: 'Compliance, audit log and stock intelligence',
-      },
-      {
-        label: 'Import a stocktake',
-        href: '/inventory/import',
-        permission: 'manage_inventory',
-        hint: 'Turn a counted spreadsheet into a stocktake',
-      },
-      {
-        label: 'Data Sources',
-        href: '/data',
-        permission: 'view_data_sources',
-        hint: 'What is connected, and how healthy',
-      },
-      {
-        label: 'Files and imports',
-        href: '/data/imports',
-        permission: 'view_data_sources',
-        hint: 'Upload a spreadsheet, a PDF, a statement',
-      },
-      {
-        label: 'Integrations',
-        href: '/data/integrations',
-        permission: 'view_data_sources',
-        hint: 'The systems Amryn can read directly',
-      },
-    ],
-  },
-  {
-    label: 'Reporting',
-    items: [
-      {
+        /*
+         * Was a group of its own, holding one row. A group of one is a
+         * heading with nothing to separate, and it sits here naturally: a
+         * brief is what you send somebody about performance.
+         */
         label: 'Weekly & Monthly Briefs',
         href: '/reports',
         hint: 'Download the executive brief',
+      },
+    ],
+  },
+  {
+    /*
+     * Two rows, not five.
+     *
+     * Inventory and Data each had their own pages listed beside them —
+     * Import a stocktake, Files and imports, Integrations — which described
+     * one place three times over. A sidebar that lists every page of every
+     * section has stopped being navigation and become a table of contents.
+     *
+     * Those pages are tabs on the section now (see SECTION_TABS below).
+     * Nothing is hidden: each is visible the moment you are in the section,
+     * which is the moment it is relevant, rather than permanently.
+     */
+    label: 'Operations',
+    items: [
+      {
+        label: 'Inventory',
+        href: '/inventory',
+        permission: 'view_operations_data',
+        hint: 'Stock, stocktakes and the audit log',
+      },
+      {
+        label: 'Data',
+        href: '/data',
+        permission: 'view_data_sources',
+        hint: 'What is connected, what has been uploaded, and how healthy',
       },
     ],
   },
@@ -250,6 +244,39 @@ export function isActive(href: string, pathname: string): boolean {
  * or a deployment where the catalogue could not be read — gets the old
  * behaviour rather than a navigation where every entry looks locked.
  */
+/**
+ * The pages of a section, shown along the top of it rather than in the
+ * sidebar.
+ *
+ * Here rather than beside the components that render them, for the same
+ * reason NAV_GROUPS is here: this is the information architecture, and it has
+ * one home. It is also the only place the permission on each page is stated,
+ * so a tab a member cannot open is never drawn — the same rule the sidebar
+ * has always followed, and easy to lose when tabs are hardcoded per page.
+ */
+export const SECTION_TABS: Record<'data' | 'inventory', readonly NavItem[]> = {
+  data: [
+    { label: 'Sources', href: '/data', permission: 'view_data_sources' },
+    { label: 'Files and imports', href: '/data/imports', permission: 'view_data_sources' },
+    { label: 'Integrations', href: '/data/integrations', permission: 'view_data_sources' },
+  ],
+  inventory: [
+    { label: 'Stock', href: '/inventory', permission: 'view_operations_data' },
+    { label: 'Import a stocktake', href: '/inventory/import', permission: 'manage_inventory' },
+    { label: 'Audit log', href: '/inventory/audit-log', permission: 'view_operations_data' },
+  ],
+};
+
+/** The tabs of one section that this member may actually open. */
+export function visibleTabs(
+  section: keyof typeof SECTION_TABS,
+  permissions: ReadonlySet<Permission>,
+): { label: string; href: string }[] {
+  return SECTION_TABS[section]
+    .filter((tab) => !tab.permission || permissions.has(tab.permission))
+    .map(({ label, href }) => ({ label, href }));
+}
+
 export function visibleGroups(
   permissions: ReadonlySet<Permission>,
   entitlements?: Entitlements,

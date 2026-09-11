@@ -126,6 +126,14 @@
   --brand: #004aad;
   --brand-strong: #003a87;
   --brand-soft: #e8eef8;
+  /*
+   * The sidebar's group headings.
+   *
+   * The dark navy from the asset pack, used at full strength on a paper
+   * ground. It was --text-secondary, which made the headings read as another
+   * row of grey text among the links they were meant to separate.
+   */
+  --nav-heading: #081b33;
   --on-brand: #ffffff;
 
   --accent: #00c9a7;
@@ -191,6 +199,12 @@
   --brand: #004aad;
   --brand-strong: #003a87;
   --brand-soft: #dde8f7;
+  /*
+   * Lifted blue here, not the navy, and not the brand blue either — the asset
+   * pack says it plainly at the top of this file: on a navy ground the brand
+   * blue disappears. A heading nobody can read is not a stronger heading.
+   */
+  --nav-heading: #3e7bd6;
   --on-brand: #ffffff;
 
   --accent: #00b294;
@@ -353,6 +367,21 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-secondary);
+  }
+
+  /*
+   * The same eyebrow, for a heading that has to separate rather than label.
+   *
+   * Weight and colour, not size: a sidebar heading competing on size with the
+   * links under it would read as a link somebody had made bigger.
+   */
+  .eyebrow-strong {
+    font-family: var(--font-label);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nav-heading);
   }
 }
 

@@ -185,29 +185,21 @@ export default async function ConnectPage({
       </Card>
 
       {/*
-        Where the key goes, in the customer's own interest rather than as
-        reassurance. Somebody handing over a credential that can move their
-        money is entitled to know who can read it back, and the answer is
-        unusual enough to be worth stating: nobody who can open a page.
+        Three paragraphs once, written this morning, and cut the same afternoon
+        a customer said the upload panel over-explained. Same fault: everything
+        in it was true and most of it was not the reader's problem while they
+        were looking for the paste box.
+
+        What survives is the one fact that is genuinely unusual and worth a
+        customer's attention — nobody who can open a page can read the key
+        back — and the one that bounds what Amryn can do with it.
       */}
-      <Card className="mt-5">
-        <CardHeader title="What happens to your key" />
-        <div className="space-y-2 px-5 pb-5 pt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-          <p>
-            It is checked against {definition.name} before anything is saved, so a mistyped key
-            never becomes a half-made connection.
-          </p>
-          <p>
-            It is then stored encrypted, outside the tables that hold your business data, and it is
-            reachable only by the process that runs your syncs. This page cannot read it back.
-            Neither can anybody signed in to Amryn, including you and including us.
-          </p>
-          <p>
-            Amryn only ever reads from {definition.name}. Nothing it does can move money, issue a
-            refund or change a record on your account.
-          </p>
-        </div>
-      </Card>
+      <p className="mt-4 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
+        Your key is checked with {definition.name} before it is saved, then stored where only the
+        sync can reach it — not this page, and not anyone signed in. Amryn only ever reads from{' '}
+        {definition.name}; nothing it does can move money.
+      </p>
+
     </>
   );
 }

@@ -7,6 +7,9 @@ import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { count, date, daysLabel, percent } from '@/lib/format';
 import { currentWorkspace } from '@/lib/workspace';
 import { NoDataYet } from '@/components/intelligence/no-data-yet';
+import { SectionTabs } from '@/components/ui/section-tabs';
+import { visibleTabs } from '@/components/shell/navigation';
+import { requireWorkspace } from '@/lib/auth/session';
 
 export const metadata: Metadata = { title: 'Audit Log' };
 
@@ -20,6 +23,8 @@ export const metadata: Metadata = { title: 'Audit Log' };
  * document. It scrolls instead.
  */
 export default async function AuditLogPage() {
+  // Resolved once per request by the layout; this is the same cached value.
+  const workspace = await requireWorkspace();
   const state = await currentWorkspace();
   if (state.kind === 'empty') {
     return <NoDataYet what="The audit trail of every stock action" organisationName={state.organisationName} />;
@@ -48,6 +53,8 @@ export default async function AuditLogPage() {
         title="Expiry audit log"
         description={`${settings.siteName} · ${profile.auditorRoleLabel}: ${settings.auditorName} · ${profile.responsibleRoleLabel}: ${settings.responsibleName} · ${date(w.inventory.auditDate)} · ${settings.shift}`}
       />
+      <SectionTabs tabs={visibleTabs('inventory', workspace.permissions)} />
+
 
       {w.isDemo ? <DemoNotice /> : null}
 
