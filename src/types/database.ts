@@ -1199,6 +1199,63 @@ export interface Database {
           },
         ];
       };
+      data_connection_syncs: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          data_connection_id: string;
+          kind: string;
+          cursor: string | null;
+          watermark: string | null;
+          records_written: number;
+          last_run_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          data_connection_id: string;
+          kind: string;
+          cursor?: string | null;
+          watermark?: string | null;
+          records_written?: number;
+          last_run_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          data_connection_id?: string;
+          kind?: string;
+          cursor?: string | null;
+          watermark?: string | null;
+          records_written?: number;
+          last_run_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'data_connection_syncs_data_connection_id_fkey';
+            columns: ['data_connection_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_connections';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'data_connection_syncs_organisation_id_fkey';
+            columns: ['organisation_id'];
+            isOneToOne: false;
+            referencedRelation: 'organisations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       data_connections: {
         Row: {
           id: string;
@@ -1726,6 +1783,8 @@ export interface Database {
           reference: string | null;
           data_source_id: string | null;
           created_at: string;
+          external_id: string | null;
+          data_connection_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1741,6 +1800,8 @@ export interface Database {
           reference?: string | null;
           data_source_id?: string | null;
           created_at?: string;
+          external_id?: string | null;
+          data_connection_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1756,6 +1817,8 @@ export interface Database {
           reference?: string | null;
           data_source_id?: string | null;
           created_at?: string;
+          external_id?: string | null;
+          data_connection_id?: string | null;
         };
         Relationships: [
           {
@@ -1763,6 +1826,13 @@ export interface Database {
             columns: ['branch_id'];
             isOneToOne: false;
             referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'financial_records_data_connection_id_fkey';
+            columns: ['data_connection_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_connections';
             referencedColumns: ['id'];
           },
           {
@@ -4649,6 +4719,12 @@ export interface Database {
           p_hashes: string[];
         };
         Returns: undefined;
+      };
+      request_connection_sync: {
+        Args: {
+          p_connection: string;
+        };
+        Returns: string;
       };
       request_document_ocr: {
         Args: {

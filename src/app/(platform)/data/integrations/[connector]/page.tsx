@@ -13,7 +13,7 @@ import { mayConnect } from '@/lib/connectors/access';
 import { authorisingProvider } from '@/lib/connectors/native';
 import { authorisedByKey } from '@/lib/connectors/provider';
 import { KeyForm } from '@/features/connectors/key-form';
-import { disconnectSystem } from '@/features/connectors/connect';
+import { disconnectSystem, syncNow } from '@/features/connectors/connect';
 import type { Plan } from '@/lib/billing/access';
 
 export const metadata: Metadata = { title: 'Connect a system', robots: { index: false } };
@@ -56,10 +56,24 @@ export default async function ConnectPage({
       .maybeSingle(),
   ]);
 
+
   const all = connections ?? [];
   const existing = all.find(
     (row) => (row.data_sources as { provider: string | null } | null)?.provider === definition.id,
   );
+
+  /*
+   * What the sync has brought in, asked for separately and only when there is
+   * a connection to ask about. "Last read at 14:02" says a job ran; it does
+   * not say whether anything arrived, and those look identical on a card until
+   * somebody goes looking for figures that are not there.
+   */
+  const { data: syncs } = existing
+    ? await supabase
+        .from('data_connection_syncs')
+        .select('kind, records_written, last_run_at, last_error')
+        .eq('data_connection_id', existing.id)
+    : { data: null };
 
   const decision = mayConnect(definition, {
     plan: (subscription?.plan ?? 'starter') as Plan,
@@ -95,17 +109,30 @@ export default async function ConnectPage({
               </p>
               <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
                 {existing.last_synced_at
-                  ? `Last read ${new Date(existing.last_synced_at).toLocaleString('en-ZA')}.`
+                  ? `Last read ${new Date(existing.last_synced_at).toLocaleString('en-ZA')} — ${brought(syncs)}.`
                   : 'Nothing has been read from it yet.'}
               </p>
+              {failure(syncs) ? (
+                <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--negative)]">
+                  {failure(syncs)}
+                </p>
+              ) : null}
             </div>
 
-            <form action={disconnectSystem}>
-              <input type="hidden" name="connection" value={existing.id} />
-              <Button type="submit" variant="secondary" size="sm">
-                Disconnect
-              </Button>
-            </form>
+            <div className="flex flex-wrap items-center gap-2">
+              <form action={syncNow}>
+                <input type="hidden" name="connection" value={existing.id} />
+                <Button type="submit" variant="primary" size="sm">
+                  Read it now
+                </Button>
+              </form>
+              <form action={disconnectSystem}>
+                <input type="hidden" name="connection" value={existing.id} />
+                <Button type="submit" variant="secondary" size="sm">
+                  Disconnect
+                </Button>
+              </form>
+            </div>
           </div>
 
           {/*
@@ -183,6 +210,18 @@ export default async function ConnectPage({
       </Card>
     </>
   );
+}
+
+/** What the last run actually brought in, in the customer's units. */
+function brought(syncs: { records_written: number }[] | null): string {
+  const total = (syncs ?? []).reduce((n, row) => n + Number(row.records_written ?? 0), 0);
+  if (total === 0) return 'nothing found to bring in';
+  return `${total.toLocaleString('en-ZA')} ${total === 1 ? 'record' : 'records'} so far`;
+}
+
+/** The last failure, where one is still standing. Cleared by a run that works. */
+function failure(syncs: { last_error: string | null }[] | null): string | null {
+  return (syncs ?? []).map((row) => row.last_error).find((message) => message) ?? null;
 }
 
 /** The label the connection was created with, where it still looks like one. */

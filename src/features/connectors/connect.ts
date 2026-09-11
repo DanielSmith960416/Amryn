@@ -153,6 +153,40 @@ export async function connectWithKey(
 }
 
 /**
+ * Asking for a sync now, rather than waiting for one.
+ *
+ * The RPC does the deciding — permission, whether a key is stored, whether one
+ * is already running — because those are facts about the connection and the
+ * database is where the connection is. Pressing the button twice returns
+ * quietly rather than raising: somebody impatient has not made a mistake.
+ */
+export async function syncNow(formData: FormData): Promise<void> {
+  const workspace = await requirePermission('manage_integrations');
+  const connectionId = String(formData.get('connection') ?? '');
+  if (!connectionId) return;
+
+  const supabase = await createClient();
+
+  // Scoped to the organisation as well as the id, for the same reason
+  // disconnecting is: RLS ensures it, and a mistake in one of the two is then
+  // caught by the other.
+  const { data: row } = await supabase
+    .from('data_connections')
+    .select('id')
+    .eq('id', connectionId)
+    .eq('organisation_id', workspace.organisation.id)
+    .maybeSingle();
+
+  if (!row) return;
+
+  const { error } = await supabase.rpc('request_connection_sync', { p_connection: connectionId });
+  if (error) ourFault('connectors', error, 'That sync could not be started.');
+
+  revalidatePath('/data/integrations');
+  revalidatePath('/data');
+}
+
+/**
  * Disconnecting.
  *
  * Deletes Amryn's copy of the credential and the connection row. It does not
