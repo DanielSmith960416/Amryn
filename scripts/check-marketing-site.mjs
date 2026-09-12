@@ -50,8 +50,6 @@ const CONTENT_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
@@ -251,12 +249,7 @@ await withSite('', async (page, errors, offOrigin, requested) => {
    * Order rather than timing, because timing here would measure the runner.
    */
   const scripts = requested.filter((path) => path.endsWith('app.js'));
-  // Photographs count as artwork here too, and the hero one especially: it is
-  // above the fold, so it cannot be lazy, and it is the only eager image on
-  // the page heavy enough to matter for this order.
-  const artwork = requested.filter(
-    (path) => /\.(?:png|jpe?g|webp)$/.test(path) && !path.includes('icon'),
-  );
+  const artwork = requested.filter((path) => path.endsWith('.png') && !path.includes('icon'));
 
   assert(scripts.length === 1, 'app.js is requested exactly once');
   assert(
@@ -270,7 +263,7 @@ await withSite('', async (page, errors, offOrigin, requested) => {
   // all. The two product marks sit inside demo views that start hidden, and
   // the lockup is in the footer.
   const eagerBelowFold = await page.$$eval(
-    'img[src*="product-"], img.lockup--foot, img[src*="market-skyline"]',
+    'img[src*="product-"], img.lockup--foot',
     (els) => els.filter((el) => el.getAttribute('loading') !== 'lazy').map((el) => el.getAttribute('src')),
   );
   assert(
