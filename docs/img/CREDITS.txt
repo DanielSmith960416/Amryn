@@ -1,0 +1,30 @@
+Amryn marketing site — photography
+==================================
+
+intelligence-portrait.jpg / .webp
+  Hero, right column. A rendered figure, used as an illustration of the
+  product's subject rather than as a depiction of anyone real.
+  Source: supplied by Amryn, 12 September 2026.
+
+market-skyline.jpg / .webp
+  "Who it is for" band. A commercial skyline, standing for the market
+  outside — the half of "Business Inside + Market Outside" that
+  OpportunityRadar watches.
+  Source: supplied by Amryn, 12 September 2026.
+
+Both were supplied as JPEGs, 736x1165 and 735x490. They are re-encoded here
+to WebP with a JPEG behind it, and cropped: the portrait to 736x920 so the
+hero is not half a screen tall, the skyline to 735x410 for the band.
+
+Licensing
+---------
+Neither image originated with Amryn's own photography or commissions, and
+the licence they arrive under is not recorded here because it was not given.
+Before this site is put in front of customers under a paid domain, confirm
+that each one carries a licence permitting commercial use — the two usual
+answers are a stock licence in Amryn's name or a written release from
+whoever produced the image.
+
+The typefaces in fonts/ have their provenance in fonts/LICENSE.txt, and the
+brand artwork in brand/ is Amryn's own. These two files are the only assets
+on the site whose licensing is unverified.

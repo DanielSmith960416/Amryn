@@ -78,7 +78,11 @@
 }
 
 *,*::before,*::after{ box-sizing:border-box; }
-html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+/* The bar is sticky and 64px tall, so an anchor that lands flush with the top
+   of the viewport lands underneath it. It always did — it used to cost the
+   eyebrow above a heading — but the "Who it is for" heading now sits inside a
+   photograph, where losing its first line loses the panel's whole point. */
+html{ scroll-behavior:smooth; scroll-padding-top:5rem; -webkit-text-size-adjust:100%; }
 
 body{
   margin:0; background:var(--paper); color:var(--ink);
@@ -185,13 +189,9 @@ button{ font:inherit; color:inherit; }
 .lede__h1{ font-size:clamp(2.2rem,5.6vw,3.9rem); font-weight:800; letter-spacing:-.015em; margin-bottom:1.25rem; }
 .lede__sub{ font-size:clamp(1rem,.95rem + .3vw,1.15rem); color:var(--mute); max-width:56ch; margin-bottom:1.75rem; }
 .lede__actions{ display:flex; flex-wrap:wrap; gap:.7rem; }
-.lede__mark .iconmark{ width:100%; max-width:230px; margin-left:auto;
-  opacity:0; transform:translateY(12px); animation:riseIn .9s cubic-bezier(.16,1,.3,1) .15s forwards; }
 @keyframes riseIn{ to{ transform:none; opacity:1; } }
 @media (max-width:820px){
   .lede__grid{ grid-template-columns:1fr; }
-  .lede__mark{ order:-1; }
-  .lede__mark .iconmark{ max-width:120px; margin:0; }
 }
 
 .philosophy{
@@ -502,7 +502,7 @@ button{ font:inherit; color:inherit; }
   html{ scroll-behavior:auto; }
   *,*::before,*::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important;
     transition-duration:.01ms !important; }
-  .lede__mark .iconmark{ opacity:1; transform:none; }
+  .shot{ opacity:1; transform:none; }
   .chart__area,.chart__pin{ opacity:1; }
 }
 
@@ -643,3 +643,90 @@ body::before{
   box-shadow: inset 0 0 0 1.5px rgba(12,42,82,.22);
 }
 .cta .btn--line:hover{ background: rgba(255,255,255,.55); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Photography
+   ───────────────────────────────────────────────────────────────────────────
+   Two photographs, and two is the point. The page had none: a headline, a
+   demonstration panel and the mark blown up to 230px in the hero, which is an
+   enlarged favicon rather than an image. It read as careful and said nothing
+   before the panel loaded.
+
+   Both are mounted as glass panels rather than as bleeds — the same 18px
+   radius, hairline and shadow as every other surface here. A full-bleed
+   photograph would be the fourth navy slab, and the slabs were removed on
+   purpose (see the layer above): a dark rectangle edge-to-edge reads as a
+   hole cut in the ground rather than as something sitting on it.
+
+   The banner's heading is markup over the picture, never baked into it, so it
+   stays selectable, translatable, and legible at 320px where the photograph
+   is cropped to a sliver.
+
+   Provenance and licensing: img/CREDITS.txt.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── the hero plate ─────────────────────────────────────────────────────────
+   A dark picture on a light ground, which is why it gets a warm edge and a
+   wash rather than a bare crop: the wash carries the ground's own blue into
+   the top of the plate so the two meet instead of butting. */
+.shot{
+  position:relative; margin:0;
+  border-radius:18px; overflow:hidden;
+  background:var(--navy);
+  border:1px solid rgba(12,42,82,.18);
+  box-shadow:0 20px 50px -20px rgba(12,42,82,.50);
+  opacity:0; transform:translateY(12px);
+  animation:riseIn .9s cubic-bezier(.16,1,.3,1) .15s forwards;
+}
+.shot img{ display:block; width:100%; height:auto; }
+.shot::after{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background:
+    linear-gradient(200deg, rgba(0,74,173,.26), transparent 42%),
+    linear-gradient(to top, rgba(8,27,51,.45), transparent 38%);
+}
+
+/* ── the market banner ───────────────────────────────────────────────────── */
+/* The picture is taken out of flow and the copy is the only thing in it, so
+   the panel is exactly as tall as `min-height` or as the heading needs —
+   whichever is more. Laid out as a grid instead, the photograph sized the row
+   from its own 735x410 and stood 692px tall at full width: most of a screen
+   of sky above four small cards. */
+.banner{
+  position:relative; display:flex; align-items:flex-end;
+  margin:0 auto clamp(1.5rem,4vw,2.5rem); max-width:var(--max);
+  min-height:clamp(240px,26vw,380px);
+  border-radius:18px; overflow:hidden;
+  background:var(--navy);
+  border:1px solid rgba(12,42,82,.18);
+  box-shadow:0 20px 50px -24px rgba(12,42,82,.45);
+}
+.banner picture{ position:absolute; inset:0; }
+.banner img{
+  display:block; width:100%; height:100%;
+  /* The source is 735px wide, so it is asked to cover a band rather than fill
+     a page: cover crops, and cropping this one just above centre keeps the
+     vanishing point that makes it worth using. */
+  object-fit:cover; object-position:50% 42%;
+}
+.banner__copy{
+  position:relative; width:100%;
+  padding:clamp(1.4rem,4vw,2.75rem);
+  color:#fff;
+  /* Ends fully transparent, not at .12: the scrim is only as tall as this
+     element, so a non-zero stop at the top draws a visible seam across the
+     photograph where the box ends. */
+  background:linear-gradient(to top,
+    rgba(8,27,51,.94) 0%, rgba(8,27,51,.72) 48%, rgba(8,27,51,0) 100%);
+}
+.banner__copy .eyebrow{ color:#9CC0F2; }
+.banner__copy .band__h2{ color:#fff; max-width:26ch; }
+.banner__copy .band__sub{ color:#C9D7EA; margin-top:.75rem; }
+
+@media (max-width:820px){
+  /* Below the fold on a phone either way, and a 460px-tall portrait between
+     the headline and the demonstration panel is a wall. It keeps its place
+     in the reading order and gives up most of its height. */
+  .lede__art{ max-width:320px; }
+  .banner img{ object-position:50% 38%; }
+}
