@@ -212,13 +212,31 @@ function EmptyThread({
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 py-10 text-center">
-      <Image
-        src={withBasePath('/brand/amryn-lockup-secondary.png')}
-        alt="Amryn AIGrowthIntelligence"
-        width={746}
-        height={270}
-        className="h-12 w-auto opacity-90"
-      />
+      {/*
+        The mark and the wordmark, composed the way the top bar composes them
+        — not the lockup file.
+
+        The lockup is a second drawing of the name: its own letterforms, its
+        own spacing, the tagline locked underneath. Correct artwork, and
+        correct on a sign-in card or a footer where nothing else is competing.
+        Here it sat a few centimetres below the bar doing the same job in
+        different type, and two versions of a name on one screen read as two
+        products rather than one.
+      */}
+      <div className="flex items-center gap-2.5">
+        {/* Supplied artwork only — never recoloured, stretched or outlined. */}
+        <Image
+          src={withBasePath('/brand/amryn-icon-mark.png')}
+          alt=""
+          aria-hidden
+          width={553}
+          height={563}
+          className="h-9 w-auto"
+        />
+        <span className="font-display text-[1.625rem] font-extrabold tracking-tight text-[var(--text-primary)]">
+          Amryn<span className="tm">™</span>
+        </span>
+      </div>
       <p className="font-display mt-5 text-[1.0625rem] font-semibold text-[var(--text-primary)]">
         Ask your DigitalTwin<sup className="tm">®</sup> anything
       </p>

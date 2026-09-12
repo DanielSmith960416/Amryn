@@ -23,6 +23,13 @@ export const config = {
      * server to establish that a monitor is not signed in. It never was, it
      * never will be, and the route is public anyway.
      */
-    '/((?!_next/static|_next/image|api/health|favicon.ico|robots\\.txt|sitemap\\.xml|brand/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    /*
+     * manifest.webmanifest is the robots.txt case exactly: a launcher fetches
+     * it to learn the app's name, icon and colours, and it fetches it as a
+     * stranger. Behind the session check it answered with a redirect to
+     * /sign-in, so the phone fell back to guessing from the page's meta tags
+     * and drew its own launch screen out of them. Also found by fetching it.
+     */
+    '/((?!_next/static|_next/image|api/health|favicon.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|brand/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
