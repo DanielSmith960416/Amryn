@@ -25,6 +25,9 @@ LOCKUPS
                               square. Home-screen icons are masked to a
                               rounded square, so the mark sits inside the
                               rounding rather than up against it.
+  amryn-app-icon-180          as above, for an iOS home screen
+  amryn-favicon-32            as above, for browsers that want a PNG
+  amryn-icon.svg              the mark as paths on white, for a browser tab
 
 WORDMARKS
   amryn-wordmark-amryn        AMRYN(TM) only
