@@ -87,21 +87,40 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <main className="relative w-full max-w-[26rem]">
         <div className="glass-strong rounded-[var(--radius-card)] px-6 py-7 sm:px-8 sm:py-8">
           {/* The mark leaves the application deliberately. There is one
-              marketing site and it is not this server, so the lockup links to
-              the site in docs/ — a plain anchor rather than next/link, because
+              marketing site and it is not this server, so this links to the
+              site in docs/ — a plain anchor rather than next/link, because
               this is a different origin. */}
           <a
             href={MARKETING_SITE_URL}
-            className="inline-block rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)]"
+            aria-label="Amryn"
+            className="inline-flex items-center gap-2.5 rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)]"
           >
+            {/*
+              The mark and the wordmark, composed as the platform's own top bar
+              composes them — not the lockup file.
+
+              The lockup is a second drawing of the name, with its own
+              letterforms and the tagline locked underneath. It is correct
+              artwork and it was here on the reasoning that nothing on this
+              screen competes with it. Nothing on this screen does; the screen
+              after it does. Somebody signs in and the name they just read is
+              set differently one second later, which reads as two products
+              rather than as one door into one.
+
+              Supplied artwork only — never recoloured, stretched or outlined.
+            */}
             <Image
-              src={withBasePath('/brand/amryn-lockup-secondary.png')}
-              alt="Amryn AIGrowthIntelligence"
-              width={746}
-              height={270}
+              src={withBasePath('/brand/amryn-icon-mark.png')}
+              alt=""
+              aria-hidden
+              width={553}
+              height={563}
               priority
-              className="h-11 w-auto"
+              className="h-8 w-auto"
             />
+            <span className="font-display text-[1.5rem] font-extrabold tracking-tight text-[var(--text-primary)]">
+              Amryn<span className="tm">™</span>
+            </span>
           </a>
 
           <div className="mt-6">{children}</div>
