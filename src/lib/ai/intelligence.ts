@@ -257,7 +257,7 @@ export async function askAssistant(
       content: claimed.ok
         ? answer
         : `${answer}\n\n---\n\nNot from your data: ${describeInvented(claimed)}. ` +
-          'Everything else here comes from figures in your workspace. Check anything above ' +
+          'Everything else here comes from your own figures. Check anything above ' +
           'before acting on it — it may be arithmetic on your own numbers, and it may not be.',
       model: result.model,
       tokensUsed: result.tokensUsed,
@@ -267,16 +267,23 @@ export async function askAssistant(
     if (error instanceof AiUnavailableError) {
       return { content: unavailableAnswer(context), model: null, tokensUsed: null, fromModel: false };
     }
+    /*
+     * The same answer as when nothing is configured, and deliberately so.
+     *
+     * This branch used to apologise for not reaching "the reasoning service"
+     * and then explain which parts of the platform run on "the analytical
+     * engine rather than on a model" — three clauses about how Amryn is built,
+     * to somebody who had asked about their business. It was written before
+     * the rule that customer-facing copy never names models, engines or
+     * configuration, and it is a different file from the ones that rule was
+     * applied to, so it survived. Found in a screenshot, again.
+     *
+     * What a reader needs is the same in both cases: the figures, or one line
+     * saying there are none. Whether the cause was a missing key or a gateway
+     * that refused is ours to know, and the log above is where it is recorded.
+     */
     logAiFailure('assistant', error);
-    return {
-      content:
-        'I could not reach the reasoning service just then. Everything else on the platform is ' +
-        'unaffected — the Command Centre, the Digital Twin and the radar all run on the ' +
-        'analytical engine rather than on a model. Try the question again in a moment.',
-      model: null,
-      tokensUsed: null,
-      fromModel: false,
-    };
+    return { content: unavailableAnswer(context), model: null, tokensUsed: null, fromModel: false };
   }
 }
 

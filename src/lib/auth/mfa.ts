@@ -16,6 +16,7 @@ import 'server-only';
  */
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
+import { decodeAal, verifiedTotpFactor } from './aal';
 import { getCurrentUser } from './session';
 
 export type MfaState =
@@ -29,34 +30,56 @@ export type MfaState =
 /**
  * Whether this session still owes a second factor.
  *
- * Read from Supabase's own assurance levels rather than from our stored flag:
- * `nextLevel` is what the auth server believes this account requires, which is
- * the authority on whether a challenge is outstanding. The stored flag exists
- * for the database guard, which cannot ask the auth server.
+ * ── this filled the log, and the fix is the one the middleware already made ──
  *
- * Cached per request. Several layouts ask, and it is a round trip each time.
+ * It used to ask supabase-js for the authenticator assurance level. Called
+ * without a token — which is how it was called — that method reaches for
+ * getSession() internally and then reads `session.user.factors`. supabase-js
+ * wraps a session's user in a proxy that logs an error-severity warning the
+ * moment any property is touched, because that object was decoded from a
+ * cookie and never revalidated. So every private page render produced one:
+ *
+ *   Using the user object as returned from supabase.auth.getSession() …
+ *   could be insecure!
+ *
+ * Task 29 fixed exactly this in the middleware and this file was missed. The
+ * warning was never about our own read — it came from inside the library, on
+ * our behalf, which is why grepping for `.user` found nothing.
+ *
+ * Nothing was exposed: the database refuses a session that owes a factor on
+ * every query (migration 15). What it cost was a log in which an error line
+ * meant nothing.
+ *
+ * The two facts needed are taken from sources that do not trip it:
+ *   · the verified factors, off the user getUser() already returned, which is
+ *     revalidated against the auth server;
+ *   · the current level, decoded from the access token — a signed string
+ *     rather than a claim about identity, and reading it warns about nothing.
+ *
+ * It is also one round trip lighter: listFactors() is gone, because the factor
+ * to challenge is on the user we already hold.
+ *
+ * Cached per request. Several layouts ask.
  */
 export const mfaState = cache(async (): Promise<MfaState> => {
   const user = await getCurrentUser();
   if (!user) return { required: false, enrolled: false };
 
+  const verified = verifiedTotpFactor(user.factors);
+  if (!verified) return { required: false, enrolled: false };
+
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
-    if (error || !data) return { required: false, enrolled: false };
-    if (data.nextLevel !== 'aal2') return { required: false, enrolled: false };
-    if (data.currentLevel === 'aal2') return { required: false, enrolled: true };
+    /*
+     * Only the access token is read off this. The proxy that warns is on
+     * `.user`, so touching `access_token` is silent — and it is the one field
+     * carrying the level this has to know.
+     */
+    const { data } = await supabase.auth.getSession();
+    const level = decodeAal(data.session?.access_token);
 
-    // Outstanding. Find the factor to challenge.
-    const { data: factors } = await supabase.auth.mfa.listFactors();
-    const verified = factors?.totp?.find((factor) => factor.status === 'verified');
-
-    // nextLevel says aal2 with no verified factor to present, which should not
-    // happen. Treating it as "nothing required" is the only safe direction:
-    // the alternative sends someone to a page that cannot be completed, with
-    // no way out of it.
-    if (!verified) return { required: false, enrolled: false };
+    if (level === 'aal2') return { required: false, enrolled: true };
 
     return { required: true, enrolled: true, factorId: verified.id };
   } catch (error) {

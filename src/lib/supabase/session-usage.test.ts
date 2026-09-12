@@ -19,6 +19,18 @@ const root = join(import.meta.dirname, '..', '..', '..');
  * warning that fires constantly is a warning nobody reads, including the time
  * it matters.
  *
+ * ── and then it kept firing, from somewhere this guard could not see ─────
+ *
+ * Months later the same warning was still there, once per private page
+ * render. Not from our code: mfaState() asked supabase-js for the
+ * authenticator assurance level with no token, and that method reaches for
+ * getSession() internally and reads session.user.factors itself. The read was
+ * inside the library, on our behalf, which is why grepping for
+ * `.session.user` found nothing.
+ *
+ * So the second guard below forbids the call that does it. A rule that only
+ * catches the spelling we happened to use last time catches it once.
+ *
  * `getUser()` is the revalidated source and carries the same fields. So this
  * asserts the shape rather than the intent: the substring cannot appear at
  * all, which is a rule that survives somebody reintroducing it for a reason
@@ -53,6 +65,26 @@ describe('the session object', () => {
       ).toEqual([]);
     });
   }
+
+  /*
+   * The assurance-level call with no argument is the trap: it reads the user
+   * off a session inside supabase-js. Passing a token takes the other branch,
+   * which asks getUser(). Amryn needs neither — the level is decoded from the
+   * access token and the factors come off the authenticated user (see
+   * src/lib/auth/aal.ts).
+   *
+   * The search is a blunt substring on purpose, so this comment is written
+   * without the call's own spelling in it. A guard that has to be taught about
+   * comments is a guard somebody will teach about other things too.
+   */
+  it('is never read for its user by proxy, through the assurance-level call', () => {
+    const offenders = sourceLinesMatching('getAuthenticatorAssuranceLevel()');
+    expect(
+      offenders,
+      `that call reads session.user.factors inside supabase-js and logs an error on ` +
+        `every request — decode the level from the access token instead:\n${offenders.join('\n')}`,
+    ).toEqual([]);
+  });
 
   it('catches the shape it is meant to catch', () => {
     // The guard above passes trivially if the search is broken, so this proves
