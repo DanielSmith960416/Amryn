@@ -39,7 +39,7 @@ jobs:
       # migrations, and a generated file committed to the repository is a file
       # that can be stale. Both are rebuilt and the tree compared, so a
       # migration added without regenerating fails here rather than on
-      # somebody's database. This job has Node; the database job does not.
+      # somebody's database.
       - name: Confirm the generated setup files are current
         run: |
           node scripts/build-setup-sql.mjs
@@ -140,6 +140,26 @@ jobs:
 
       - name: Install the PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      # The restore proof below runs two Node scripts, and one of them imports
+      # `pg`. This job was built without Node on the reasoning that psql was
+      # all the schema suite needed — true when it was written, and the note in
+      # the job above still says so — and then a step that needs a module was
+      # added to it. It failed on its first run and on every run since: eight
+      # merges to main with this workflow red, because the schema suite above
+      # it passed and that was the part being watched.
+      #
+      # Production dependencies only. `pg` is one, the two backup helpers
+      # import nothing else off the tree, and the schema suite needs none of
+      # it — so there is no reason to build the dev tree to take one dump.
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install what the backup scripts import
+        run: npm ci --omit=dev
 
       # run.sh builds the database from nothing, applies every migration in
       # filename order, then runs the suite — the same script a developer runs,
