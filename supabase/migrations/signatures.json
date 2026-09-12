@@ -42,5 +42,6 @@
   "20260911090000_41_backup_storage.sql": "exists (select 1 from storage.buckets where id = 'backups')",
   "20260911100000_42_platform_errors.sql": "to_regclass('public.platform_errors') is not null",
   "20260911140000_43_connection_credentials.sql": "to_regprocedure('public.connection_credential(text)') is not null",
-  "20260911170000_44_connection_sync.sql": "to_regclass('public.data_connection_syncs') is not null"
+  "20260911170000_44_connection_sync.sql": "to_regclass('public.data_connection_syncs') is not null",
+  "20260912140000_45_assistant_threads.sql": "(select count(*) from information_schema.columns where table_schema='public' and table_name='ai_conversations' and column_name='deleted_at') = 1"
 }
