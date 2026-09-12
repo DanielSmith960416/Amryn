@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { needsIdentity } from './middleware';
+import { config } from '@/middleware';
 
 /*
  * One round trip to the auth server, per request, decided here.
@@ -49,5 +50,47 @@ describe('needsIdentity', () => {
     expect(needsIdentity('/legalese')).toBe(true);
     expect(needsIdentity('/setup-wizard')).toBe(true);
     expect(needsIdentity('/diagnostics-report')).toBe(true);
+  });
+});
+
+/*
+ * What the middleware is asked to look at in the first place.
+ *
+ * needsIdentity above decides whether an admitted request costs a round trip.
+ * This decides whether a request is admitted at all, and it is the check that
+ * catches a file fetched by something that cannot sign in: robots.txt was
+ * found redirecting to /sign-in by fetching it, and manifest.webmanifest was
+ * found the same way — a launcher asking for the app's name and icon got an
+ * HTML redirect, so the phone guessed from the page's meta tags instead and
+ * drew a launch screen of its own.
+ */
+describe('the matcher', () => {
+  // Built from the same string the middleware exports, so this cannot pass
+  // against a pattern the middleware does not actually use.
+  const pattern = new RegExp(`^${matcherPattern()}$`);
+
+  function matcherPattern(): string {
+    const [only] = config.matcher;
+    if (!only) throw new Error('the middleware declares no matcher');
+    return only;
+  }
+
+  it('admits the pages that need guarding', () => {
+    for (const path of ['/', '/command-centre', '/assistant', '/sign-in', '/settings/security']) {
+      expect(pattern.test(path), path).toBe(true);
+    }
+  });
+
+  it('leaves out what a stranger fetches without a session', () => {
+    for (const path of [
+      '/robots.txt',
+      '/sitemap.xml',
+      '/manifest.webmanifest',
+      '/favicon.ico',
+      '/brand/amryn-app-icon-512.png',
+      '/api/health/live',
+    ]) {
+      expect(pattern.test(path), path).toBe(false);
+    }
   });
 });

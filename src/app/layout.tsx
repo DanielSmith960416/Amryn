@@ -13,7 +13,15 @@ export const metadata: Metadata = {
     'See your business. See your market. Know what to do next. Amryn combines a continuously ' +
     'updated DigitalTwin® of your operations with external OpportunityRadar® intelligence, in ' +
     'one Executive Command Centre.',
-  applicationName: 'Amryn™ AIGrowthIntelligence®',
+  /*
+   * One word, and deliberately. This becomes <meta name="application-name">,
+   * which is read by launchers and pinned-site chrome and drawn in the
+   * operating system's own font — where a ™ and an ® land full-size beside a
+   * system face and read as typing errors. The launch screen a phone builds
+   * from it showed exactly that. The full mark belongs everywhere it can be
+   * set in the right face; here the icon is the brand. See app/manifest.ts.
+   */
+  applicationName: 'Amryn',
   /*
    * No `icons` entry any more, and that is the point rather than an omission.
    *
