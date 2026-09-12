@@ -16,6 +16,15 @@ LOCKUPS
   amryn-icon-mark-white       single-colour white
   amryn-icon-mark-navy        single-colour #081B33
   amryn-icon-mark-blue        single-colour #004AAD
+  amryn-icon-mark-black       single-colour #081B33, transparent ground
+                              Recoloured from amryn-icon-mark@2x.png pixel for
+                              pixel: same trim, same edges, alpha untouched.
+                              Tracing the shape again would have produced a
+                              mark that is nearly this one rather than it.
+  amryn-app-icon-512          the same mark on white, centred at 62% of the
+                              square. Home-screen icons are masked to a
+                              rounded square, so the mark sits inside the
+                              rounding rather than up against it.
 
 WORDMARKS
   amryn-wordmark-amryn        AMRYN(TM) only
