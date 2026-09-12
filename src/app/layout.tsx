@@ -14,7 +14,15 @@ export const metadata: Metadata = {
     'updated DigitalTwin® of your operations with external OpportunityRadar® intelligence, in ' +
     'one Executive Command Centre.',
   applicationName: 'Amryn™ AIGrowthIntelligence®',
-  icons: { icon: withBasePath('/brand/amryn-icon-mark.png') },
+  /*
+   * No `icons` entry any more, and that is the point rather than an omission.
+   *
+   * src/app/icon.svg and src/app/apple-icon.png are file conventions: Next
+   * finds them, fingerprints them and writes the link tags itself, and a
+   * config entry here would be overridden by them anyway. Leaving both would
+   * mean two sources of truth for one favicon, with the losing one still
+   * looking authoritative to whoever read this file next.
+   */
   openGraph: {
     title: 'Amryn™ AIGrowthIntelligence®',
     description: 'See Your Business. See Your Market. Know What To Do Next.',
