@@ -30,71 +30,90 @@ import { MARKETING_SITE_URL } from '@/lib/marketing-site';
 export const dynamic = 'force-dynamic';
 
 /**
- * Sign-in chrome: the dark navy intelligence environment on the left, the form
- * on a clean surface on the right. The claim is made before the credentials
- * are asked for.
+ * The way in: one panel, centred, on the same ground as the platform behind it.
+ *
+ * ── what this replaced, and why ───────────────────────────────────────────
+ * It used to be a two-panel split — the navy intelligence environment on the
+ * left carrying the product claim, the form on a light surface to its right.
+ * That was a good page and it is worth saying what was wrong with it: the navy
+ * half was the only dark surface in a light product, it was hidden entirely
+ * below `lg` (so the smaller the screen, the less of Amryn you saw), and the
+ * claim it carried is the same claim the marketing site makes better, to
+ * people who have not already decided to sign in.
+ *
+ * One centred card says the same thing in less space and looks the same on a
+ * phone as on a desk. The ground, the frost and the radius are the platform's
+ * own, so the first screen a customer sees is made of the material every
+ * screen after it is made of.
+ *
+ * The decoration is deliberately behind everything and deliberately quiet: a
+ * dot grid and the mark bleeding off the right edge at low opacity. Both are
+ * `aria-hidden`, neither is in the tab order, and both fade out below `sm`
+ * where the card needs the whole screen.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-2">
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#081B33] p-10 lg:flex">
-        {/* The mark leaves the application deliberately. There is one
-        marketing site and it is not this server, so "back to the top"
-        means the site in docs/ — a plain anchor rather than next/link,
-        because this is a different origin. */}
-        <a href={MARKETING_SITE_URL} className="flex items-center gap-2.5">
-          <Image
-            src={withBasePath("/brand/amryn-icon-mark-white.png")}
-            alt=""
-            width={553}
-            height={563}
-            className="h-7 w-auto"
-            priority
-          />
-          <span className="font-display text-[1.125rem] font-extrabold tracking-tight text-white">
-            Amryn<span className="tm">™</span>
-          </span>
-        </a>
+    <div className="relative flex min-h-dvh flex-col items-center justify-center px-4 py-10 sm:px-6">
+      {/* ── the grid ──────────────────────────────────────────────────────
+          Two crossed gradients rather than an image: 1.2 KB of CSS instead of
+          a tile to fetch, and it takes the theme's own ink colour, so it is
+          the same grid a stop darker in the medium theme. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 hidden opacity-[0.55] sm:block"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--text-primary) 12%, transparent) 1px, transparent 0)',
+          backgroundSize: '22px 22px',
+          maskImage: 'radial-gradient(70rem 50rem at 50% 40%, black, transparent 75%)',
+          WebkitMaskImage: 'radial-gradient(70rem 50rem at 50% 40%, black, transparent 75%)',
+        }}
+      />
 
-        <div className="relative max-w-md">
-          {/* Not uppercased: the brand pack sets the solid capitalisation as
-              part of the mark, so AIGrowthIntelligence® must never be
-              transformed. The tracking carries the eyebrow treatment instead. */}
-          <p className="font-label text-[0.6875rem] tracking-[0.16em] text-[#3E7BD6]">
-            AIGrowthIntelligence<span className="tm">®</span> Software
-          </p>
-          <h1 className="font-display mt-4 text-[2.25rem] leading-[1.1] font-bold tracking-tight text-white">
-            See your business.
-            <br />
-            See your market.
-            <br />
-            <span className="text-[#3E7BD6]">Know what to do next.</span>
-          </h1>
-          <p className="mt-5 text-[0.9375rem] leading-relaxed text-[#8BA3C7]">
-            A continuously updated AI DigitalTwin<span className="tm">®</span> of what is happening
-            inside your business, and an AI OpportunityRadar<span className="tm">®</span> watching
-            the market outside it — converging in one Executive Command Centre.
-          </p>
+      {/* ── the mark, bleeding off the edge ───────────────────────────────
+          Supplied artwork at low opacity, never re-coloured or outlined — the
+          brand pack is explicit about that, and the opacity is on the element
+          rather than baked into a second file for the same reason. */}
+      <Image
+        aria-hidden
+        alt=""
+        src={withBasePath('/brand/amryn-icon-mark.png')}
+        width={553}
+        height={563}
+        priority={false}
+        className="pointer-events-none absolute -right-24 bottom-[-6rem] hidden w-[32rem] max-w-[55vw] opacity-[0.06] lg:block"
+      />
+
+      <main className="relative w-full max-w-[26rem]">
+        <div className="glass-strong rounded-[var(--radius-card)] px-6 py-7 sm:px-8 sm:py-8">
+          {/* The mark leaves the application deliberately. There is one
+              marketing site and it is not this server, so the lockup links to
+              the site in docs/ — a plain anchor rather than next/link, because
+              this is a different origin. */}
+          <a
+            href={MARKETING_SITE_URL}
+            className="inline-block rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand)]"
+          >
+            <Image
+              src={withBasePath('/brand/amryn-lockup-secondary.png')}
+              alt="Amryn AIGrowthIntelligence"
+              width={746}
+              height={270}
+              priority
+              className="h-11 w-auto"
+            />
+          </a>
+
+          <div className="mt-6">{children}</div>
         </div>
 
-        <p className="font-label text-[0.6875rem] tracking-[0.08em] text-[#64799A]">
-          Business Inside &nbsp;+&nbsp; Market Outside &nbsp;=&nbsp; Intelligent Growth
+        <p className="mt-6 text-center font-mono text-[0.6875rem] leading-relaxed text-[var(--text-tertiary)]">
+          Amryn<span className="tm">™</span> AIGrowthIntelligence<span className="tm">®</span>{' '}
+          Software · Kimberley, Northern Cape
         </p>
 
-        {/* A quiet radar sweep, not a decoration that competes with the words. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-40 -bottom-40 size-[28rem] rounded-full border border-[#1E3A5F]"
-        >
-          <div className="absolute inset-12 rounded-full border border-[#1E3A5F]" />
-          <div className="absolute inset-24 rounded-full border border-[#1E3A5F]" />
-        </div>
-      </div>
-
-      <div className="flex flex-col items-center justify-center px-5 py-12 sm:px-10">
-        <div className="w-full max-w-sm">{children}</div>
-        <LegalFooter className="mt-10 w-full max-w-sm justify-center" />
-      </div>
+        <LegalFooter className="mt-3 w-full justify-center" />
+      </main>
     </div>
   );
 }

@@ -52,7 +52,11 @@ export type SecurityEvent =
   | 'proposal.declined'
   | 'stocktake.imported'
   | 'document.uploaded'
-  | 'document.removed';
+  | 'document.removed'
+  // Clearing a thread out of the assistant's list. The thread is kept and
+  // filtered out (migration 45), so this row is the only place the act itself
+  // is written down — and the reader is told as much before they confirm.
+  | 'assistant.conversation_cleared';
 
 /**
  * Records something that happened to an organisation.

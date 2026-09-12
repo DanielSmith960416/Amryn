@@ -2,16 +2,34 @@
 
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/field';
-import { signInWithMagicLink, signInWithPassword, signInWithProvider } from './actions';
+import { signInWithMagicLink, signInWithPassword } from './actions';
 import type { ActionState } from './schemas';
 import { AuthError } from './auth-error';
 
 const idle: ActionState = { status: 'idle' };
 
+/**
+ * Email and password, or a link in the post.
+ *
+ * ── what is not here any more ─────────────────────────────────────────────
+ * Continue with Google and Continue with Microsoft. Amryn is bought by a
+ * business and used by the people that business invites, and a consumer
+ * identity on a sign-in page invites somebody to arrive with one — which
+ * produces an account attached to no organisation and a person who cannot be
+ * told why the product is empty. `signInWithProvider` is untouched in
+ * actions.ts: the flow works, the callback route still exchanges its code, and
+ * the day a customer's own directory is worth supporting the buttons come back
+ * pointed at it rather than at a personal mailbox.
+ *
+ * The link mode stays. It is how somebody invited into a workspace gets in the
+ * first time, before they have a password to type.
+ */
 export function SignInForm({ next }: { next?: string }) {
   const [mode, setMode] = useState<'password' | 'magic'>('password');
+  const [visible, setVisible] = useState(false);
   const [passwordState, passwordAction] = useActionState(signInWithPassword, idle);
   const [magicState, magicAction] = useActionState(signInWithMagicLink, idle);
 
@@ -48,19 +66,40 @@ export function SignInForm({ next }: { next?: string }) {
                 Forgotten it?
               </a>
             </div>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={visible ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                className="pr-10"
+              />
+              {/*
+                A button, not a checkbox beside the field: it never submits, it
+                is labelled by what it will do next rather than by its current
+                state, and it stays out of the tab order between the field and
+                the sign-in button — somebody typing a password they know
+                should not have to tab past a control they are not using.
+              */}
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setVisible((shown) => !shown)}
+                aria-label={visible ? 'Hide password' : 'Show password'}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                {visible ? (
+                  <EyeOff className="size-4" aria-hidden />
+                ) : (
+                  <Eye className="size-4" aria-hidden />
+                )}
+              </button>
+            </div>
           </div>
         ) : null}
 
-        {state.status === 'error' ? (
-          <AuthError message={state.message} />
-        ) : null}
+        {state.status === 'error' ? <AuthError message={state.message} /> : null}
 
         {state.status === 'sent' ? (
           <p className="text-[0.8125rem] text-[var(--positive)]" role="status">
@@ -71,6 +110,14 @@ export function SignInForm({ next }: { next?: string }) {
         <Submit label={mode === 'password' ? 'Sign in' : 'Email me a link'} />
       </form>
 
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-[var(--border)]" />
+        <span className="font-mono text-[0.625rem] tracking-[0.14em] text-[var(--text-tertiary)]">
+          or
+        </span>
+        <span className="h-px flex-1 bg-[var(--border)]" />
+      </div>
+
       <button
         type="button"
         onClick={() => setMode(mode === 'password' ? 'magic' : 'password')}
@@ -78,27 +125,6 @@ export function SignInForm({ next }: { next?: string }) {
       >
         {mode === 'password' ? 'Email me a sign-in link instead' : 'Use a password instead'}
       </button>
-
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-[var(--border)]" />
-        <span className="eyebrow !mb-0">or</span>
-        <span className="h-px flex-1 bg-[var(--border)]" />
-      </div>
-
-      <div className="grid gap-2">
-        <form action={signInWithProvider}>
-          <input type="hidden" name="provider" value="google" />
-          <Button type="submit" variant="secondary" className="w-full">
-            Continue with Google
-          </Button>
-        </form>
-        <form action={signInWithProvider}>
-          <input type="hidden" name="provider" value="azure" />
-          <Button type="submit" variant="secondary" className="w-full">
-            Continue with Microsoft
-          </Button>
-        </form>
-      </div>
     </div>
   );
 }
