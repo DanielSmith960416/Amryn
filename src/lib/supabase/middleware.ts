@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
+import { decodeAal } from '@/lib/auth/aal';
 import { isSupabaseConfigured, publicEnv } from '@/lib/env';
 import type { Database } from '@/types/database';
 
@@ -60,25 +61,6 @@ const PUBLIC_PATHS = [
 export function needsIdentity(pathname: string): boolean {
   if (pathname === '/sign-in' || pathname === '/sign-up') return true;
   return !PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-/**
- * The assurance level recorded in an access token.
- *
- * Read rather than verified: this only decides a redirect, and a forged token
- * is refused by the auth server on the very next call and by the database on
- * every query. Decoding it here avoids a round trip on every request.
- */
-function decodeAal(accessToken: string | undefined): string | undefined {
-  if (!accessToken) return undefined;
-  try {
-    const payload = accessToken.split('.')[1];
-    if (!payload) return undefined;
-    const json = Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
-    return (JSON.parse(json) as { aal?: string }).aal;
-  } catch {
-    return undefined;
-  }
 }
 
 /**
