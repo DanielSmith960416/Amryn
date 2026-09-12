@@ -88,11 +88,19 @@
         <a class="btn btn--ghost" href="mailto:danielsmith960416@gmail.com?subject=Amryn%2030-Day%20Pilot&amp;body=I%27d%20like%20to%20apply%20for%20the%2030-day%20pilot.">Apply for a 30-Day Pilot</a>
       </div>
     </div>
-    <div class="lede__mark" aria-hidden="true">
-      <img class="iconmark"
-           src="brand/amryn-icon-mark.png"
-           srcset="brand/amryn-icon-mark.png 1x, brand/amryn-icon-mark@2x.png 2x"
-           width="553" height="563" alt="">
+    <!-- Decorative, and deliberately not preloaded. app.js is fetched first on
+         purpose (see the head) because the demonstration panel arriving late
+         reads as a broken site; a photograph competing with it for the first
+         connection would undo that. `fetchpriority=low` says so to the
+         browser rather than trusting document order to say it. -->
+    <div class="lede__art">
+      <figure class="shot">
+        <picture>
+          <source type="image/webp" srcset="img/intelligence-portrait.webp">
+          <img src="img/intelligence-portrait.jpg" width="736" height="920"
+               alt="" aria-hidden="true" fetchpriority="low" decoding="async">
+        </picture>
+      </figure>
     </div>
   </div>
 
@@ -385,15 +393,26 @@
 
 <!-- ══════════ WHO IT IS FOR ══════════ -->
 <section class="band band--alt" id="who">
-  <header class="band__head">
-    <p class="eyebrow">Who it is for</p>
-    <h2 class="band__h2">Any business building a growth engine.</h2>
-    <p class="band__sub">
-      Amryn is not sized to a company, it is sized to a decision. Wherever management complexity is
-      high and data is accessible — a single high-performing site, a multi-branch group, or a
-      national operation — the same intelligence loop applies.
-    </p>
-  </header>
+  <!-- The market outside, which is the half of the philosophy line this band is
+       about. The heading is real markup over the photograph rather than baked
+       into it: it stays selectable, translatable and readable at 320px, and
+       the picture underneath can be replaced without re-setting type. -->
+  <figure class="banner">
+    <picture>
+      <source type="image/webp" srcset="img/market-skyline.webp">
+      <img src="img/market-skyline.jpg" width="735" height="410"
+           alt="" aria-hidden="true" loading="lazy" decoding="async">
+    </picture>
+    <header class="banner__copy">
+      <p class="eyebrow">Who it is for</p>
+      <h2 class="band__h2">Any business building a growth engine.</h2>
+      <p class="band__sub">
+        Amryn is not sized to a company, it is sized to a decision. Wherever management complexity is
+        high and data is accessible — a single high-performing site, a multi-branch group, or a
+        national operation — the same intelligence loop applies.
+      </p>
+    </header>
+  </figure>
   <div class="who">
     <article>
       <p class="who__k">Owner-led business</p>
