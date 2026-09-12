@@ -16,6 +16,13 @@ LOCKUPS
   amryn-icon-mark-white       single-colour white
   amryn-icon-mark-navy        single-colour #081B33
   amryn-icon-mark-blue        single-colour #004AAD
+  amryn-icon-mark-black       single-colour #081B33, transparent ground
+                              Recoloured from amryn-icon-mark@2x.png pixel for
+                              pixel: same trim, same edges, alpha untouched.
+  amryn-app-icon-512          the mark on white, centred at 62% of the square.
+  amryn-app-icon-180          as above, for an iOS home screen
+  amryn-favicon-32            as above, for browsers that want a PNG
+  amryn-icon.svg              the mark as paths on white, for a browser tab
 
 WORDMARKS
   amryn-wordmark-amryn        AMRYN(TM) only
