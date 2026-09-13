@@ -38,6 +38,39 @@ const PUBLIC_PATHS = [
 ];
 
 /**
+ * Whether a signed-in caller should be bounced off the way-in pages.
+ *
+ * ── why the method matters ────────────────────────────────────────────────
+ * This is a convenience: somebody who is already signed in has no use for the
+ * sign-in form, so they are sent to the Command Centre instead. It is about
+ * *navigation*, and it used to apply to every method — which broke signing in
+ * for anybody whose browser still held a session.
+ *
+ * A sign-in submission is a POST to this same path. Middleware runs on it, saw
+ * a session, and returned a redirect; the action then ran and returned its own
+ * redirect. Next merges the two, and two Location headers on one response are
+ * joined with a comma — so the browser was sent to
+ *
+ *   /command-centre, /command-centre
+ *
+ * which is a 404. Found in the Railway request log, where that path is printed
+ * exactly like that; the sign-in itself had succeeded, and the session was
+ * real, which is why it looked like the application failing after a correct
+ * password rather than like a redirect problem.
+ *
+ * A stale-but-valid cookie is not an edge case: any failed attempt that gets
+ * far enough for the auth server to issue a session leaves one, and so does
+ * signing in on a second tab. So the bounce is now for navigations only. A
+ * POST to /sign-in is the sign-in attempt itself, and redirecting it is never
+ * the right answer.
+ */
+export function bounceSignedIn(method: string, pathname: string, signedIn: boolean): boolean {
+  if (!signedIn) return false;
+  if (method !== 'GET' && method !== 'HEAD') return false;
+  return pathname === '/sign-in' || pathname === '/sign-up';
+}
+
+/**
  * Whether a request needs to know who is asking — decided before the call
  * rather than after it.
  *
@@ -181,7 +214,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     }
   }
 
-  if (data.user && (pathname === '/sign-in' || pathname === '/sign-up')) {
+  if (bounceSignedIn(request.method, pathname, Boolean(data.user))) {
     const url = request.nextUrl.clone();
     url.pathname = '/command-centre';
     url.search = '';
