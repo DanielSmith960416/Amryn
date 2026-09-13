@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Badge, OPPORTUNITY_TONE } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
+import { ProductWordmark } from '@/components/shell/product-wordmark';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { OpportunityDial } from '@/components/intelligence/opportunity-dial';
@@ -38,11 +39,7 @@ export default async function OpportunityRadarPage() {
     <>
       <PageHeader
         eyebrow="Outside view"
-        title={
-          <>
-            Amryn<sup className="tm">™</sup>OpportunityRadar<sup className="tm">®</sup>
-          </>
-        }
+        title={<ProductWordmark name="opportunity-radar" priority />}
         description="Everything happening around the business — demand shifts, competitor moves, and openings worth a week of attention."
       />
 
