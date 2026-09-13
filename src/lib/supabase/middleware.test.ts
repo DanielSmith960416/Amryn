@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { needsIdentity } from './middleware';
+import { bounceSignedIn, needsIdentity } from './middleware';
 import { config } from '@/middleware';
 
 /*
@@ -92,5 +92,45 @@ describe('the matcher', () => {
     ]) {
       expect(pattern.test(path), path).toBe(false);
     }
+  });
+});
+
+/*
+ * The convenience that broke signing in.
+ *
+ * Somebody already signed in has no use for the sign-in form, so a GET of it
+ * sends them to the Command Centre instead. That bounce used to run on every
+ * method — including the POST that *is* the sign-in. Middleware redirected it,
+ * the server action redirected it too, and two Location headers on one
+ * response are joined with a comma: the browser was sent to
+ * "/command-centre, /command-centre" and got a 404, after a correct password,
+ * which reads as the application failing rather than as a redirect problem.
+ *
+ * Any browser holding a stale-but-valid cookie hit it — a previous failed
+ * attempt that still minted a session, or a second tab.
+ */
+describe('bounceSignedIn', () => {
+  it('sends a signed-in caller who navigates to the way-in pages onward', () => {
+    expect(bounceSignedIn('GET', '/sign-in', true)).toBe(true);
+    expect(bounceSignedIn('GET', '/sign-up', true)).toBe(true);
+    expect(bounceSignedIn('HEAD', '/sign-in', true)).toBe(true);
+  });
+
+  it('leaves the sign-in submission alone, whoever is asking', () => {
+    // The POST is the attempt itself. The action answers it with its own
+    // redirect, and a second one from here is what produced the merged header.
+    expect(bounceSignedIn('POST', '/sign-in', true)).toBe(false);
+    expect(bounceSignedIn('POST', '/sign-up', true)).toBe(false);
+  });
+
+  it('does not bounce a stranger, who is on those pages to sign in', () => {
+    expect(bounceSignedIn('GET', '/sign-in', false)).toBe(false);
+    expect(bounceSignedIn('GET', '/sign-up', false)).toBe(false);
+  });
+
+  it('is only about the two way-in pages', () => {
+    expect(bounceSignedIn('GET', '/command-centre', true)).toBe(false);
+    expect(bounceSignedIn('GET', '/forgot-password', true)).toBe(false);
+    expect(bounceSignedIn('GET', '/sign-in/extra', true)).toBe(false);
   });
 });
