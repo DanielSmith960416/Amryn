@@ -1,4 +1,4 @@
-AMRYN(TM) AIGrowthIntelligence(R) - BRAND ASSET PACK v1.0
+AMRYN(TM) AIGrowthIntelligence(R) - BRAND ASSET PACK v2.0
 Generated from founder-supplied source PNGs. Backgrounds keyed to transparency,
 trimmed to the mark, colours un-multiplied so edges stay clean at any size.
 
@@ -10,12 +10,14 @@ FILE NAMING
                   for contrast on navy
 
 LOCKUPS
-  amryn-lockup-primary        icon + AMRYN(TM) + AIGrowthIntelligence(R) Software
   amryn-lockup-secondary      icon + AMRYN(TM) + AIGrowthIntelligence(R)
+                              Use where it is the only mark on the surface - a
+                              social card, a cover. Beside a header that already
+                              sets the name it competes with it, so the site and
+                              the platform compose the mark and the word in type
+                              there instead.
   amryn-icon-mark             A icon mark, original colour
   amryn-icon-mark-white       single-colour white
-  amryn-icon-mark-navy        single-colour #081B33
-  amryn-icon-mark-blue        single-colour #004AAD
   amryn-icon-mark-black       single-colour #081B33, transparent ground
                               Recoloured from amryn-icon-mark@2x.png pixel for
                               pixel: same trim, same edges, alpha untouched.
@@ -29,14 +31,18 @@ LOCKUPS
   amryn-favicon-32            as above, for browsers that want a PNG
   amryn-icon.svg              the mark as paths on white, for a browser tab
 
-WORDMARKS
-  amryn-wordmark-amryn        AMRYN(TM) only
-  amryn-wordmark-tagline      AIGrowthIntelligence(R) only
-  amryn-wordmark-platform     AIGrowthIntelligence(R) Software
+PRODUCT WORDMARKS
+  Redrawn September 2026 from founder-supplied artwork. Amryn in the bold
+  weight, the product name in the regular, the closing word in brand blue.
 
-PRODUCT MARKS
-  amryn-product-digital-twin          Amryn(TM) DigitalTwin(R)
-  amryn-product-opportunity-radar     Amryn(TM) OpportunityRadar(R)
+  amryn-product-digital-twin          Amryn(TM)DigitalTwin(R)
+  amryn-product-opportunity-radar     Amryn(TM)OpportunityRadar(R)
+  amryn-product-aigrowthintelligence  AIGrowthIntelligence(R) Software
+
+  This file lists what public/brand actually contains and nothing else. It
+  previously named a primary lockup, navy and blue icon variants and three
+  standalone wordmarks, none of which were ever in the directory - a manifest
+  that lists files nobody can find is worse than a short one.
 
 USAGE RULES
   1. Clear space around any lockup = the height of the AMRYN cap height.
@@ -46,6 +52,14 @@ USAGE RULES
   5. Product marks are set solid (no space around TM) by design - do not respace.
   6. Always carry (TM) on Amryn and (R) on AIGrowthIntelligence, DigitalTwin
      and OpportunityRadar.
+  7. Where a product name is a title, use its wordmark file. In running prose
+     it stays as text - a picture cannot wrap, be selected or be translated.
+
+THE PACK, TO LOOK AT
+  docs/brand-pack.html shows every asset above on light and on navy, with the
+  palette, the typefaces and these rules. It carries the artwork and both faces
+  inside it, so it survives being emailed or opened offline. Rebuild it with
+  `node scripts/build-brand-pack.mjs` after changing anything in this folder.
 
 PALETTE
   #004AAD  brand blue (primary)

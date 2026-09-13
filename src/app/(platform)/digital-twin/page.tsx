@@ -4,6 +4,7 @@ import { Badge, BRANCH_TONE, HEALTH_TONE } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
+import { ProductWordmark } from '@/components/shell/product-wordmark';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
 import { HealthBreakdown, HealthDial } from '@/components/intelligence/health-dial';
@@ -45,11 +46,7 @@ export default async function DigitalTwinPage() {
     <>
       <PageHeader
         eyebrow="Inside view"
-        title={
-          <>
-            Amryn<sup className="tm">™</sup>DigitalTwin<sup className="tm">®</sup>
-          </>
-        }
+        title={<ProductWordmark name="digital-twin" priority />}
         description="A continuously updated model of the business itself — what it earns, who it keeps, and what changed."
         actions={
           <>

@@ -484,6 +484,14 @@ button{ font:inherit; color:inherit; }
 .foot{ padding:clamp(2rem,5vw,3rem) var(--pad);
   display:grid; gap:1.5rem; grid-template-columns:1fr auto; align-items:start;
   border-top:1px solid var(--rule); }
+/* The footer brand: the mark and the word on one line, the supplied
+   AIGrowthIntelligence® Software wordmark under it, the philosophy line last.
+   Each step down is smaller and quieter than the one above it. */
+.foot__mark{ display:inline-flex; align-items:center; gap:.5rem; text-decoration:none; }
+.foot__mark .iconmark{ height:26px; }
+.foot__word{ font-family:var(--f-display); font-weight:800; font-size:1.05rem;
+  letter-spacing:-.02em; color:var(--ink); }
+.prodmark--foot{ height:15px; margin-top:.55rem; }
 .foot__phil{ font-family:var(--f-label); font-size:.66rem; letter-spacing:.1em;
   text-transform:uppercase; color:var(--mute); margin-top:.6rem; }
 .foot__contact{ display:flex; flex-direction:column; align-items:flex-end; gap:.3rem;

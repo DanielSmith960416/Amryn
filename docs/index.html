@@ -219,7 +219,7 @@
                 <img class="prodmark"
                      src="brand/amryn-product-digital-twin.png"
                      srcset="brand/amryn-product-digital-twin.png 1x, brand/amryn-product-digital-twin@2x.png 2x"
-                     width="569" height="56" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                     width="531" height="56" alt="" aria-hidden="true" loading="lazy" decoding="async">
               </h2>
               <p class="view__sub">A continuously updated model of the business itself — what it earns, who it keeps, and what changed.</p>
             </div>
@@ -285,7 +285,7 @@
                 <img class="prodmark"
                      src="brand/amryn-product-opportunity-radar.png"
                      srcset="brand/amryn-product-opportunity-radar.png 1x, brand/amryn-product-opportunity-radar@2x.png 2x"
-                     width="769" height="56" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                     width="716" height="56" alt="" aria-hidden="true" loading="lazy" decoding="async">
               </h2>
               <p class="view__sub">Everything happening around the business — demand shifts, competitor moves, and openings worth a week of attention.</p>
             </div>
@@ -435,11 +435,26 @@
 
 <footer class="foot">
   <div class="foot__brand">
-    <img class="lockup lockup--foot"
-         src="brand/amryn-lockup-secondary.png"
-         srcset="brand/amryn-lockup-secondary.png 1x, brand/amryn-lockup-secondary@2x.png 2x"
-         width="746" height="270"
-         alt="Amryn™ AIGrowthIntelligence®" loading="lazy" decoding="async">
+    <!-- The name set the way it is set everywhere else — the mark beside the
+         word in the display face — with the supplied AIGrowthIntelligence®
+         Software wordmark beneath it as the descriptor.
+
+         It used to be the lockup file, which draws the name a second way: its
+         own letterforms, its own spacing, the tagline built in. That file is
+         still the og:image, where it is the whole card and nothing sits beside
+         it; here it disagreed with the bar at the top of the same page. -->
+    <a class="foot__mark" href="#top" aria-label="Amryn, home">
+      <img class="iconmark"
+           src="brand/amryn-icon-mark.png"
+           srcset="brand/amryn-icon-mark.png 1x, brand/amryn-icon-mark@2x.png 2x"
+           width="553" height="563" alt="" aria-hidden="true" loading="lazy" decoding="async">
+      <span class="foot__word" aria-hidden="true">Amryn<sup>™</sup></span>
+    </a>
+    <img class="prodmark prodmark--foot"
+         src="brand/amryn-product-aigrowthintelligence.png"
+         srcset="brand/amryn-product-aigrowthintelligence.png 1x, brand/amryn-product-aigrowthintelligence@2x.png 2x"
+         width="808" height="56"
+         alt="AIGrowthIntelligence® Software" loading="lazy" decoding="async">
     <p class="foot__phil">Business Inside + Market Outside = Intelligent Growth</p>
   </div>
   <div class="foot__contact">
