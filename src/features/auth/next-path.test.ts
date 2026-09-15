@@ -42,6 +42,38 @@ describe('safeNextPath', () => {
     expect(safeNextPath({ toString: () => '/evil' })).toBe(DEFAULT_AFTER_SIGN_IN);
   });
 
+  /*
+   * The loop this function let run for two days.
+   *
+   * "/command-centre, /command-centre" is what a browser asks for when one
+   * response carried two Location headers — HTTP joins repeated headers with
+   * a comma and a space. It 404s, and asking for it without a session put it
+   * into ?next=, which put it into the sign-in form, which sent the reader
+   * back to it. Origin was never the problem: it is on this origin. It is
+   * simply not a path.
+   */
+  it('refuses a target no route could match, which is what kept the loop alive', () => {
+    expect(safeNextPath('/command-centre, /command-centre')).toBe(DEFAULT_AFTER_SIGN_IN);
+    expect(safeNextPath('/command-centre,%20/command-centre')).toBe(DEFAULT_AFTER_SIGN_IN);
+    expect(safeNextPath('/two words')).toBe(DEFAULT_AFTER_SIGN_IN);
+    expect(safeNextPath('/a\nb')).toBe(DEFAULT_AFTER_SIGN_IN);
+    expect(safeNextPath('/a\tb')).toBe(DEFAULT_AFTER_SIGN_IN);
+  });
+
+  it('refuses an escape that hides an off-origin target from the checks above', () => {
+    // %2F%2Fevil.example reads as a single-slash path and resolves as two.
+    expect(safeNextPath('/%2F%2Fevil.example')).toBe(DEFAULT_AFTER_SIGN_IN);
+    expect(safeNextPath('/%5Cevil.example')).toBe(DEFAULT_AFTER_SIGN_IN);
+    expect(safeNextPath('/%')).toBe(DEFAULT_AFTER_SIGN_IN);
+  });
+
+  it('still keeps the real targets, which is the whole point of honouring next', () => {
+    expect(safeNextPath('/invite/abc123')).toBe('/invite/abc123');
+    expect(safeNextPath('/command-centre?activated=1')).toBe('/command-centre?activated=1');
+    expect(safeNextPath('/data/integrations/paystack')).toBe('/data/integrations/paystack');
+    expect(safeNextPath('/imprint/what-we-sell')).toBe('/imprint/what-we-sell');
+  });
+
   it('lands somewhere useful by default rather than nowhere', () => {
     expect(DEFAULT_AFTER_SIGN_IN.startsWith('/')).toBe(true);
   });

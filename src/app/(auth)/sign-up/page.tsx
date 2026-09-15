@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { SignUpForm } from '@/features/auth/sign-up-form';
 import { NotAvailable } from '@/features/setup/not-available';
 import { isSupabaseConfigured } from '@/lib/env';
+import { safeNextPath } from '@/features/auth/next-path';
 
 export const metadata: Metadata = { title: 'Create an account' };
 
@@ -50,7 +51,7 @@ export default async function SignUpPage({
       </p>
 
       <div className="mt-7">
-        <SignUpForm next={params.next} />
+        <SignUpForm next={params.next === undefined ? undefined : safeNextPath(params.next)} />
       </div>
 
       <p className="mt-7 text-center text-[0.8125rem] text-[var(--text-secondary)]">
