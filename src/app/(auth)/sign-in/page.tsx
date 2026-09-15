@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { SignInForm } from '@/features/auth/sign-in-form';
 import { isSupabaseConfigured } from '@/lib/env';
 import { NotAvailable } from '@/features/setup/not-available';
+import { safeNextPath } from '@/features/auth/next-path';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
@@ -83,7 +84,7 @@ export default async function SignInPage({
       ) : null}
 
       <div className="mt-6">
-        <SignInForm next={params.next} />
+        <SignInForm next={params.next === undefined ? undefined : safeNextPath(params.next)} />
       </div>
 
       {/*
