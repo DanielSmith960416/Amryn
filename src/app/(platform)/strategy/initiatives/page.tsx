@@ -24,14 +24,14 @@ export default async function InitiativesPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Strategic Initiatives"
-        description="The bets, and the thinking behind each one. An initiative without a thesis is a task list."
+        description="The bets, and the thinking behind each one."
       />
 
       {(initiatives ?? []).length === 0 ? (
         <Card>
           <EmptyState
             title="No initiatives yet"
-            description="An initiative groups goals and opportunities under a single thesis, so that progress can be judged against what you were trying to achieve."
+            description="An initiative groups goals and opportunities under a single thesis."
           />
         </Card>
       ) : (

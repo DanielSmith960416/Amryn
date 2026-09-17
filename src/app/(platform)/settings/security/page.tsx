@@ -80,10 +80,8 @@ export default async function SecuritySettingsPage({
               </p>
             ) : (
               <p className="text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
-                Your password is currently the only thing standing between someone who has it and
-                everything this workspace holds. Turning this on means a stolen password is no
-                longer enough on its own.
-              </p>
+        A stolen password is no longer enough on its own.
+      </p>
             )}
 
             <TwoFactorPanel enabled={enabled} remainingCodes={codes?.length ?? 0} />

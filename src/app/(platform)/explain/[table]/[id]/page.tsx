@@ -64,7 +64,7 @@ export default async function ExplainPage({
       <Card>
         <CardHeader
           title="The chain"
-          subtitle="Most important first — somebody who stops after two steps has still been told the two things that would change what they do"
+          subtitle="Most important first"
         />
         <CardBody>
           <ol className="space-y-4">
@@ -98,10 +98,8 @@ export default async function ExplainPage({
           </ol>
 
           <p className="mt-6 border-t border-[var(--border)] pt-4 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
-            Nothing on this page was written by a model. Each line is what a column on the record
-            says, read in order — which is why a link that could not be resolved is reported as
-            unknown rather than filled in.
-          </p>
+        Nothing on this page was written by a model. Each line is what a column on the record says.
+      </p>
         </CardBody>
       </Card>
 

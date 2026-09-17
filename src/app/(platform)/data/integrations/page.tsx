@@ -81,7 +81,7 @@ export default async function IntegrationsPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Integrations"
-        description="The systems Amryn can read directly. Connecting one replaces a spreadsheet you would otherwise keep by hand, and everything Amryn concludes is drawn from what these bring in."
+        description="The systems Amryn can read directly."
         actions={
           <Button asChild variant="secondary" size="sm">
             <Link href="/data">What is connected</Link>

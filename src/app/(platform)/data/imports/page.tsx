@@ -75,7 +75,7 @@ export default async function DataImportsPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Files and imports"
-        description="Anything you give Amryn directly, rather than through a connected system. Spreadsheets have their rows read; everything else is stored and given back when you ask for it."
+        description="Anything you give Amryn directly, rather than through a connected system."
       />
       <SectionTabs tabs={visibleTabs('data', workspace.permissions)} />
 
@@ -116,7 +116,7 @@ export default async function DataImportsPage() {
             {files.length === 0 ? (
               <EmptyState
                 title="Nothing uploaded yet"
-                description="A PDF, a spreadsheet, a scanned delivery note — whatever the business actually holds. Amryn keeps it and reads the rows of anything that has rows."
+                description="A PDF, a spreadsheet, a scanned delivery note — whatever the business holds."
               />
             ) : (
               <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
@@ -227,12 +227,12 @@ export default async function DataImportsPage() {
           <Card>
             <CardHeader
               title="Import history"
-              subtitle="Rows brought into Amryn's own tables — upload, column mapping, validation, preview, import."
+              subtitle="Rows brought into Amryn's own tables."
             />
             {rows.length === 0 ? (
               <EmptyState
                 title="Nothing imported yet"
-                description="Uploading a spreadsheet keeps it and reads its columns. Turning those rows into stock lines is done from Import a stocktake."
+                description="Nothing has been imported into Amryn’s own tables yet."
               />
             ) : (
               <div className="overflow-x-auto border-t border-[var(--border)]">
@@ -317,43 +317,6 @@ export default async function DataImportsPage() {
             </Card>
           ) : null}
 
-          {/*
-            Seven paragraphs once stood here, and a customer said so.
-            Everything true in them is still true; most of it was not the
-            reader's problem at the moment they were choosing a file. What
-            survives is what changes what they do next — and the honesty about
-            extraction not being comprehension, which is the one claim this
-            panel exists to avoid making by accident.
-
-            Where files are stored, that they are encrypted, and how long a
-            link lasts moved out entirely. That belongs to the privacy notice,
-            which says it once for the whole platform rather than on the panel
-            of whoever happens to be uploading a spreadsheet.
-          */}
-          <Card>
-            <CardHeader title="What happens to it" />
-            <CardBody className="space-y-2.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-              <p>
-                <strong className="text-[var(--text-primary)]">Spreadsheets</strong> have their
-                sheets, columns and row counts read.{' '}
-                <strong className="text-[var(--text-primary)]">Documents</strong> have their words
-                pulled out so they can be searched — extracted, not understood. Nothing in a
-                contract has been read or assessed.
-              </p>
-              <p>
-                <strong className="text-[var(--text-primary)]">Scans</strong> are pictures of
-                pages, so there is nothing to pull out yet. Everything else is kept as it is and
-                handed back when you ask.
-              </p>
-              <p>
-                A stock count is kept as a file. Turning it into a stocktake is a separate step, on{' '}
-                <Link href="/inventory/import" className="underline underline-offset-2">
-                  Import a stocktake
-                </Link>
-                .
-              </p>
-            </CardBody>
-          </Card>
         </div>
       </div>
     </>

@@ -53,14 +53,14 @@ export default async function SearchPage({
         <Card>
           <EmptyState
             title="Type at least two characters"
-            description="Search looks across opportunity titles and summaries, risk titles, goal titles and market signals."
+            description="Opportunities, risks, goals and market signals."
           />
         </Card>
       ) : results.length === 0 ? (
         <Card>
           <EmptyState
             title={`Nothing matched “${term}”`}
-            description="Try a shorter term. Remember that search is limited to the part of the business you can see."
+            description="Try a shorter term."
           />
         </Card>
       ) : (

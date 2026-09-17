@@ -38,7 +38,7 @@ export default async function ScenariosPage() {
       <PageHeader
         eyebrow="Digital Twin"
         title="Scenarios"
-        description="Questions about the same business, asked as levers rather than assertions. Each answer is a range, and the range is only worth as much as the accuracy score above it."
+        description="Questions about the same business, asked as levers. Each answer is a range."
         actions={
           <Button asChild variant="ghost">
             <Link href="/digital-twin">Back to the model</Link>
@@ -132,10 +132,8 @@ function FirstScenario({ canManage }: { canManage: boolean }) {
       />
       <CardBody>
         <p className="mb-4 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-          Leave both levers at 1 and give it a name like &ldquo;Carry on as you are&rdquo;. A range
-          on its own means very little; the same range beside the one you would have had anyway is
-          the whole point.
-        </p>
+        Leave both levers at 1 and give it a name like &ldquo;Carry on as you are&rdquo;.
+      </p>
         <AddScenario />
       </CardBody>
     </Card>

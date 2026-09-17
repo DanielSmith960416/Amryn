@@ -46,7 +46,7 @@ export default async function BriefPage({
       <PageHeader
         eyebrow="Every morning"
         title="Morning brief"
-        description="The five things worth your attention, ranked by what they are worth. Every line names the record it came from."
+        description="The five things worth your attention, ranked by what they are worth."
         actions={brief ? <Delivery brief={brief} /> : null}
       />
 

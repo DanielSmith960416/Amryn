@@ -52,7 +52,7 @@ export function IntelligenceFeed({
       {shown.length === 0 ? (
         <EmptyState
           title="The feed is quiet"
-          description="Nothing has happened inside or outside the business that clears the reporting threshold. Connect more sources to widen what Amryn can see."
+          description="Nothing has cleared the reporting threshold. Connect more sources to widen what Amryn can see."
         />
       ) : (
         <ol className="border-t border-[var(--border)]">

@@ -169,7 +169,15 @@ update public.subscriptions
    set status = 'cancelled', cancelled_at = now() - interval '10 days'
  where organisation_id = current_setting('amryn_test.lapsed')::uuid;
 
--- Starter Co stays exactly as create_organisation left it: a trial.
+-- Starter Co is put on Starter explicitly.
+--
+-- It used to rely on that being what create_organisation left behind. Migration
+-- 50 moved trials onto whichever plan the catalogue marks as the default, so a
+-- fixture named for a tier has to name that tier — otherwise the assertions
+-- below quietly start describing whatever a new signup happens to get, and the
+-- one thing this file exists to test is which tier includes what.
+select public.apply_subscription_plan(
+  current_setting('amryn_test.starter')::uuid, 'starter', 'trialing');
 
 set local role authenticated;
 

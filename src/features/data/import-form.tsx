@@ -40,10 +40,8 @@ export function ImportForm() {
           required
           className="mt-1.5 block w-full text-[0.8125rem] text-[var(--text-secondary)] file:mr-3 file:rounded-[var(--radius-control)] file:border-0 file:bg-[var(--brand-soft)] file:px-3 file:py-1.5 file:text-[0.8125rem] file:font-medium file:text-[var(--brand)]"
         />
-        <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-          An .xlsx workbook of monthly figures, sales, expenses, opportunities and
-          risks. Amryn imports what the sheets state and tells you what it left
-          out — it never fills in a figure that is not there.
+        <p className="mt-2 text-[0.8125rem] text-[var(--text-secondary)]">
+          .xlsx only.
         </p>
       </div>
 

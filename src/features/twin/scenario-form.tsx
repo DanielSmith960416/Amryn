@@ -113,9 +113,7 @@ export function ScenarioForm({
       </div>
 
       <p className="text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
-        Levers, not figures. &ldquo;A fifth more demand&rdquo; is still a question about your
-        business and can turn out wrong; &ldquo;revenue of R2m&rdquo; would have replaced the model
-        with an assertion, which cannot.
+        Levers, not figures.
       </p>
 
       {state.status === 'error' ? (

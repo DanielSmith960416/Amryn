@@ -45,7 +45,7 @@ export default async function MarketPage() {
       <PageHeader
         eyebrow="Outside view"
         title="Market & Competitor Intelligence"
-        description="Demand shifts, economic signals and competitor moves — each with the management implication it carries."
+        description="Demand shifts, economic signals and competitor moves."
       />
 
       {w.isDemo ? <DemoNotice /> : null}

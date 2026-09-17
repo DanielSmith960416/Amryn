@@ -27,7 +27,7 @@ export default async function DecisionLogPage() {
       <PageHeader
         eyebrow="Organisational memory"
         title="Decision Log"
-        description="What was decided, on what evidence, by whom — and what actually happened. The record that turns a decision into something the business can learn from."
+        description="What was decided, on what evidence, by whom — and what actually happened."
       />
 
       {w.isDemo ? <DemoNotice /> : null}

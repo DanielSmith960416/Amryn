@@ -78,7 +78,7 @@ export default async function CompetitorsPage() {
             {(events ?? []).length === 0 ? (
               <EmptyState
                 title="Nothing observed"
-                description="No competitor activity has been detected. This fills as market sources report launches, pricing changes and expansion."
+                description="No competitor activity has been detected."
               />
             ) : (
               <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">

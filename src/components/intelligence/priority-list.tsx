@@ -38,7 +38,7 @@ export function PriorityList({
       {priorities.length === 0 ? (
         <EmptyState
           title="Nothing needs a decision"
-          description="No anomaly, open risk or unworked opportunity is pressing enough to rank. That is a good state to be in."
+          description="No anomaly, open risk or unworked opportunity is pressing enough to rank."
         />
       ) : (
         <ol className="divide-y divide-[var(--border)] border-t border-[var(--border)]">

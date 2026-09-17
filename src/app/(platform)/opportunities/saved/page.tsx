@@ -29,7 +29,7 @@ export default async function SavedOpportunitiesPage() {
         <Card>
           <EmptyState
             title="Nothing saved yet"
-            description="Save an opportunity from the radar to keep it here, out of the noise of everything else the scan turned up."
+            description="Save an opportunity from the radar to keep it here."
             action={
               <Button asChild variant="primary">
                 <Link href="/opportunity-radar">Open the radar</Link>

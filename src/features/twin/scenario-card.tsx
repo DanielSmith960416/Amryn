@@ -161,10 +161,8 @@ function Result({ result, currency }: { result: import('./scenarios').Simulation
           Seed {result.seed} · run {new Date(result.ranAt).toLocaleString('en-ZA')}
         </p>
         <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-[var(--text-tertiary)]">
-          The seed is fixed per scenario per day, so asking again today gives the same answer unless
-          you move a lever. That is deliberate: it means a difference between two runs is the lever
-          you changed rather than the dice.
-        </p>
+        Asking again today gives the same answer unless you move a lever.
+      </p>
       </details>
     </>
   );

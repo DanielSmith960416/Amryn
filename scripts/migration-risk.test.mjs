@@ -111,12 +111,21 @@ describe('the migrations in this repository', () => {
     // anything" is a judgement, and this classifier deliberately does not make
     // judgements. The deploy takes its own backup before applying it, which is
     // the behaviour that exists precisely for this case.
+    //
+    // 50 is the smallest of them: one UPDATE, against one row of the price
+    // list, setting the flag that says which plan a trial runs on. It touches
+    // no client record at all — subscription_plans is the catalogue, the same
+    // table 36 repriced. But this classifier does not read intent, and a rule
+    // that exempted "only the catalogue" would be a judgement call made by
+    // whoever wrote the migration rather than by the gate. It is cheaper to
+    // take the backup.
     const risky = files.filter((f) => riskyStatements(readFileSync(join(migrations, f), 'utf8')).length > 0);
     expect(risky).toEqual([
       '20260830080000_07_sector_policy.sql',
       '20260901090000_16_subscription_entitlements.sql',
       '20260910120000_36_pricing_and_connector_entitlements.sql',
       '20260917090000_46_profile_names_dob_address.sql',
+      '20260917200000_50_a_new_organisation_trials_the_plan_the_demo_runs_on.sql',
     ]);
   });
 

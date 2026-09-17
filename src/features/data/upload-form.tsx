@@ -51,11 +51,8 @@ export function UploadForm() {
           onChange={inspect}
           className="block w-full text-[0.875rem] text-[var(--text-secondary)] file:mr-3 file:rounded-[var(--radius-field)] file:border-0 file:bg-[var(--brand)] file:px-3 file:py-2 file:text-[0.8125rem] file:font-medium file:text-[var(--on-brand)]"
         />
-        <p className="mt-1.5 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
-          Anything up to {describeBytes(MAX_DOCUMENT_BYTES)} — a PDF, a Word document, a
-          photograph of a delivery note, an Excel workbook. Spreadsheets have their rows read and
-          documents have their words extracted; the rest is kept as it is. Programs and installers
-          are the one exception, and they are refused rather than quietly ignored.
+        <p className="mt-1.5 text-[0.75rem] text-[var(--text-tertiary)]">
+          Up to {describeBytes(MAX_DOCUMENT_BYTES)}. Programs and installers are refused.
         </p>
       </div>
 
@@ -81,10 +78,6 @@ export function UploadForm() {
           maxLength={2000}
           placeholder="August bank statement — Standard Bank, current account"
         />
-        <p className="mt-1.5 text-[0.75rem] text-[var(--text-tertiary)]">
-          A line for whoever finds this in six months. Amryn does not read the file, so this note
-          is the only description it will have.
-        </p>
       </div>
 
       {state.status === 'error' ? (

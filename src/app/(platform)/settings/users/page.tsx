@@ -43,7 +43,7 @@ export default async function UsersPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Users"
-        description="Role decides what someone can do. Scope decides how much of the business they can do it to. Both are enforced in the database, not just in the interface."
+        description="Role decides what someone can do. Scope decides how much of the business they can do it to."
       />
 
       <Card className="mb-5">

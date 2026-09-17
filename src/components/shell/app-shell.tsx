@@ -83,7 +83,6 @@ export function AppShell({
         <Sidebar
           groups={groups}
           pinned={pinned}
-          version={version}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           scopeLabel={scopeLabel}
@@ -91,7 +90,7 @@ export function AppShell({
         />
         <main id="main" className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {children}
-          <LegalFooter className="mt-12 border-t border-[var(--border)] pt-5" />
+          <LegalFooter className="mt-12 border-t border-[var(--border)] pt-5" version={version} />
         </main>
       </div>
     </div>

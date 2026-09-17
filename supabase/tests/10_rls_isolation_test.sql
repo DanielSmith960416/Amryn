@@ -222,10 +222,30 @@ select pg_temp.expect(
   'creator becomes an admin member of the new organisation',
   (select count(*) from public.organisation_members
     where organisation_id = :'new_org' and role = 'org_admin'), 1);
+-- Migration 50: the plan comes from the catalogue rather than from the
+-- function body, so this asks the catalogue too. Naming the plan here would
+-- pass for whichever one happened to be flagged on the day it was written,
+-- and a trial on the wrong tier is invisible until a customer cannot open the
+-- feature they signed up for.
 select pg_temp.expect(
-  'the new organisation is on a trialing starter subscription',
-  (select count(*) from public.subscriptions
-    where organisation_id = :'new_org' and plan = 'starter' and status = 'trialing'), 1);
+  'the new organisation trials on the plan the catalogue marks as default',
+  (select count(*) from public.subscriptions s
+     join public.subscription_plans p on p.plan = s.plan
+    where s.organisation_id = :'new_org' and s.status = 'trialing' and p.is_trial_default), 1);
+select pg_temp.expect(
+  'and takes the terms of that plan rather than a frozen default',
+  (select count(*) from public.subscriptions s
+     join public.subscription_plans p on p.plan = s.plan
+    where s.organisation_id = :'new_org'
+      and s.price_cents_monthly = p.price_cents_monthly
+      and s.seats = p.seats
+      and s.ai_credits_monthly = p.ai_credits_monthly), 1);
+select pg_temp.expect(
+  'the trial runs for the length the catalogue states',
+  (select count(*) from public.subscriptions s
+     join public.subscription_plans p on p.plan = s.plan
+    where s.organisation_id = :'new_org'
+      and s.trial_ends_at::date = (now() + make_interval(days => p.trial_days))::date), 1);
 select pg_temp.expect(
   'default health weights are installed',
   (select count(*) from public.health_score_weights where organisation_id = :'new_org'), 6);

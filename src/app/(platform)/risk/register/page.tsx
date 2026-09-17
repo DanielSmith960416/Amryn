@@ -26,14 +26,14 @@ export default async function RiskRegisterPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Risk Register"
-        description="Every risk raised, open or closed. The closed ones matter: they are the record of what was handled."
+        description="Every risk raised, open or closed."
       />
 
       <Card>
         {(risks ?? []).length === 0 ? (
           <EmptyState
             title="The register is empty"
-            description="No risk has been raised. Amryn adds one automatically when a metric deteriorates past its threshold, and anyone with the permission can raise one directly."
+            description="No risk has been raised. Amryn adds one when a metric deteriorates past its threshold."
           />
         ) : (
           <div className="overflow-x-auto">
