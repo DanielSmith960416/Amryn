@@ -15,11 +15,17 @@ const COLLAPSED_KEY = 'amryn.nav.collapsed';
  * A drawer under `lg`, a fixed rail above it — the same component either way,
  * because two implementations of one navigation is how they drift apart.
  *
- * ── the three things below the groups ────────────────────────────────────
- * Billing, Settings and the version sit outside the scrolling list, under a
- * divider. The rail is a column: the groups scroll, the footer does not. So
- * the way to pay an invoice is in the same place whether the reader is at the
+ * ── what sits outside the scrolling list ─────────────────────────────────
+ * Billing and Settings are above the groups; the version is below them. All
+ * three are outside the scroll, so they stay put whether the reader is at the
  * top of the list, at the bottom of it, or has collapsed every section.
+ *
+ * Billing and Settings were under the groups at first, which reads as tidy
+ * and puts them last — with five sections open, most of a phone screen from
+ * the top, with the way to pay under the fold. They belong to the account
+ * rather than to the work, so they sit beside the statement of whose account
+ * it is. The version stays at the bottom: it is for reading out over the
+ * phone, not for finding.
  *
  * ── collapsing, and what is remembered ───────────────────────────────────
  * Each heading is a button. What is collapsed is kept in this browser, per
@@ -120,6 +126,34 @@ export function Sidebar({
           <p className="text-[0.6875rem] text-[var(--text-tertiary)]">{roleLabel}</p>
         </div>
 
+        {/*
+          Above the groups, not below them.
+          ── why it moved ──────────────────────────────────────────────────
+          These two were pinned under the scrolling list, which reads as tidy
+          and puts them last. With five groups open that is most of a phone
+          screen away, and the one thing down there was the way to pay: a
+          business on a trial had to open the rail, scroll past every section
+          it was not looking for, and find Billing under the fold.
+
+          Nobody should have to go looking in order to subscribe. So the two
+          rows that belong to the account rather than to the work sit at the
+          top, next to the statement of whose account it is.
+
+          Still outside the scrolling list, so the groups scroll under them
+          and neither row can be pushed off. Pinning changes where a row is,
+          never who may open it — Billing keeps manage_billing, and a member
+          without it still sees nothing here.
+        */}
+        <div className="border-b border-[var(--border)] px-2 py-2">
+          <ul>
+            {pinned.map((item) => (
+              <li key={item.href}>
+                <Row item={item} active={pathname === item.href} onClose={onClose} />
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
           {groups.map((group) => {
             const shut = collapsed.has(group.label);
@@ -155,16 +189,7 @@ export function Sidebar({
           })}
         </nav>
 
-        {/* Outside the scrolling list on purpose — see the note at the top. */}
         <div className="border-t border-[var(--border)] px-2 py-2">
-          <ul>
-            {pinned.map((item) => (
-              <li key={item.href}>
-                <Row item={item} active={pathname === item.href} onClose={onClose} />
-              </li>
-            ))}
-          </ul>
-
           {/*
             Small, quiet, and selectable. It is here to be read out over the
             phone when somebody is describing a problem, so it has to be

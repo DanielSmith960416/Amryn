@@ -239,3 +239,98 @@ describe('what is not imported', () => {
     expect(plan.drafts).toHaveLength(0);
   });
 });
+
+/*
+ * The defect this guards against cost a working afternoon in production: a
+ * management pack whose financial sheet was called "Monthly Financial" rather
+ * than "Monthly Financials" imported zero financial records, reported itself
+ * complete, and left every financial screen empty.
+ */
+describe('a sheet whose name is not spelled the way we wrote it down', () => {
+  const singularName = {
+    ...monthly,
+    name: 'Monthly Financial',
+  };
+
+  it('reads a singular where the table says plural', () => {
+    const plan = planWorkbook([singularName]);
+    const rows = rowsFor(plan.drafts, 'financial_records');
+    expect(rows).toHaveLength(6);
+  });
+
+  it('reads a plural where the table says singular', () => {
+    // `monthly` rides along only to give the workbook a year: a dated sheet
+    // cannot be placed without one, and that is deliberate.
+    const plan = planWorkbook([
+      monthly,
+      {
+        name: 'Product Categories',
+        records: [['Product Categories'], [], ['Category', 'Units'], ['Kitchen', '120']],
+      },
+    ]);
+    expect(rowsFor(plan.drafts, 'operational_records').length).toBeGreaterThan(0);
+  });
+
+  it('reads a name written down as an alias after somebody read the sheet', () => {
+    const plan = planWorkbook([
+      monthly,
+      {
+        name: 'Suppliers',
+        records: [['Suppliers'], [], ['Supplier', 'Spend YTD'], ['Kopano Supply', '124000']],
+      },
+    ]);
+    expect(rowsFor(plan.drafts, 'operational_records').length).toBeGreaterThan(0);
+  });
+
+  /*
+   * The line this must not cross. A sheet routed to the wrong mapper on a
+   * resemblance imports the wrong numbers under the right heading, which is
+   * exactly what the rest of this module exists to prevent.
+   */
+  it('does not reach for a mapper on a resemblance', () => {
+    const plan = planWorkbook([
+      { name: 'Sales Commentary', records: [['Note', 'Detail'], ['Q3', 'Strong']] },
+      { name: 'Risk Appetite Statement', records: [['Heading'], ['Prose here']] },
+    ]);
+    expect(plan.drafts).toHaveLength(0);
+  });
+});
+
+describe('a sheet it cannot place', () => {
+  const plan = planWorkbook([
+    {
+      name: 'Cash AR AP Detail',
+      records: [
+        ['Cash, receivables and payables'],
+        [],
+        ['Week ending', 'Cash on hand', 'Receivables', 'Payables'],
+        ['2026-09-05', '194000', '427000', '318000'],
+      ],
+    },
+  ]);
+
+  /*
+   * "Not one of the sheets this importer knows how to read" names nothing and
+   * suggests nothing, and the only person who can see the sheet is the one
+   * being told the least. The headings are what the mapping is keyed on, so
+   * the headings are what somebody needs to say "that one is our cash sheet".
+   */
+  it('names the sheet and the columns it found', () => {
+    const reason = plan.skipped[0]!.reason;
+    expect(reason).toMatch(/Cash AR AP Detail/);
+    expect(reason).toMatch(/"Week ending"/);
+    expect(reason).toMatch(/"Cash on hand"/);
+    expect(reason).toMatch(/"Payables"/);
+  });
+
+  it('says what to do about it', () => {
+    expect(plan.skipped[0]!.reason).toMatch(/can be mapped/);
+  });
+
+  it('says so plainly when there is no header row to report', () => {
+    const headerless = planWorkbook([
+      { name: 'Loose Numbers', records: [['1200'], ['980'], ['1450']] },
+    ]);
+    expect(headerless.skipped[0]!.reason).toBeTruthy();
+  });
+});
