@@ -205,10 +205,30 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Organisation', href: '/settings/organisation', permission: 'manage_organisation' },
       { label: 'Users', href: '/settings/users', permission: 'manage_users' },
       { label: 'Roles & Permissions', href: '/settings/roles', permission: 'manage_users' },
-      { label: 'Billing', href: '/settings/billing', permission: 'manage_billing' },
-      { label: 'Settings', href: '/settings' },
     ],
   },
+];
+
+/**
+ * The two that sit below everything else, outside the groups.
+ *
+ * Billing and Settings used to be the last two rows of Administration, which
+ * put them behind two obstacles at once: a reader without manage_organisation
+ * or manage_users never saw the Administration heading at all, so Settings —
+ * which needs no permission and belongs to everybody — was invisible to them;
+ * and once the groups collapse, anything inside a collapsed one is a click
+ * away from a reader who is trying to pay an invoice.
+ *
+ * So they are pinned. They are not a group: they have no heading, they do not
+ * collapse, and they sit under a divider at the bottom of the rail where the
+ * eye goes for exactly this kind of thing.
+ *
+ * Billing keeps its permission. Somebody who may not manage billing still does
+ * not see it — pinning changes where a row is, not who may open it.
+ */
+export const PINNED_NAV: NavItem[] = [
+  { label: 'Billing', href: '/settings/billing', permission: 'manage_billing' },
+  { label: 'Settings', href: '/settings' },
 ];
 
 /** The five that fit across the top bar on a desktop. */
@@ -287,6 +307,15 @@ export function visibleGroups(
       .filter((item) => !item.permission || permissions.has(item.permission))
       .map((item) => ({ ...item, locked: isLocked(item, entitlements) })),
   })).filter((group) => group.items.length > 0);
+}
+
+export function visiblePinned(
+  permissions: ReadonlySet<Permission>,
+  entitlements?: Entitlements,
+): NavItem[] {
+  return PINNED_NAV.filter((item) => !item.permission || permissions.has(item.permission)).map(
+    (item) => ({ ...item, locked: isLocked(item, entitlements) }),
+  );
 }
 
 export function visiblePrimary(
