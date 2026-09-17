@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Permission } from '@/lib/auth/permissions';
-import { NAV_GROUPS, SECTION_TABS, visibleGroups, visibleTabs } from './navigation';
+import {
+  NAV_GROUPS,
+  PINNED_NAV,
+  SECTION_TABS,
+  visibleGroups,
+  visiblePinned,
+  visibleTabs,
+} from './navigation';
 
 const ALL = new Set<Permission>([
   'view_data_sources',
@@ -35,12 +42,47 @@ describe('the sidebar after the collapse', () => {
    * The three the brief asked to leave alone. Worth a test rather than a
    * memory: the next tidy-up of this file will be tempted by all three.
    */
-  it('leaves Billing, the Twin and the Radar where they were', () => {
+  it('leaves the Twin and the Radar where they were', () => {
     const hrefs = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
-    expect(hrefs).toContain('/settings/billing');
     expect(hrefs).toContain('/digital-twin');
     expect(hrefs).toContain('/digital-twin/scenarios');
     expect(hrefs).toContain('/opportunity-radar');
+  });
+
+  /*
+   * Billing was in this list, and the assertion above guarded it against
+   * exactly the tidy-up that has now happened — so it is worth saying why the
+   * guard was answered rather than deleted.
+   *
+   * It moved because the groups collapse now. Anything inside a collapsed
+   * section is a click away, and the way to pay an invoice should not be. The
+   * same move fixed something that was already wrong: Settings needs no
+   * permission and belongs to everybody, but it sat in Administration, whose
+   * heading only appears for somebody holding manage_organisation or
+   * manage_users — so most members could not see it at all.
+   *
+   * The guard is therefore kept, pointed at where they live now. Reachable is
+   * what it was ever really asserting.
+   */
+  it('and moves Billing and Settings out of the groups, to the pinned rail', () => {
+    const grouped = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+    const pinnedHrefs = PINNED_NAV.map((i) => i.href);
+
+    expect(grouped).not.toContain('/settings/billing');
+    expect(grouped).not.toContain('/settings');
+    expect(pinnedHrefs).toEqual(['/settings/billing', '/settings']);
+  });
+
+  it('pins them without widening who may open them', () => {
+    // Pinning changes where a row is, not who sees it.
+    expect(PINNED_NAV.find((i) => i.href === '/settings/billing')?.permission).toBe(
+      'manage_billing',
+    );
+    expect(visiblePinned(new Set())).toEqual([{ href: '/settings', label: 'Settings', locked: false }]);
+    expect(visiblePinned(new Set(['manage_billing'])).map((i) => i.href)).toEqual([
+      '/settings/billing',
+      '/settings',
+    ]);
   });
 });
 

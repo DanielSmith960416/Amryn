@@ -1,9 +1,10 @@
 import { AppShell } from '@/components/shell/app-shell';
-import { visibleGroups, visiblePrimary } from '@/components/shell/navigation';
+import { visibleGroups, visiblePinned, visiblePrimary } from '@/components/shell/navigation';
 import { can, requireWorkspace } from '@/lib/auth/session';
 import { AccountNotice } from '@/features/billing/account-notice';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
 import { createClient } from '@/lib/supabase/server';
+import packageJson from '../../../package.json';
 import { RememberDevice } from '@/components/shell/remember-device';
 import { BirthdayBanner } from '@/features/profile/birthday-banner';
 
@@ -38,6 +39,15 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     <AppShell
       primary={visiblePrimary(workspace.permissions, workspace.entitlements)}
       groups={visibleGroups(workspace.permissions, workspace.entitlements)}
+      pinned={visiblePinned(workspace.permissions, workspace.entitlements)}
+      /*
+        Read here rather than in the sidebar, which is a client component:
+        importing package.json there would inline the whole file — every
+        dependency name and version — into the browser bundle to print one
+        string. This is the single source of truth the brief asked for, kept
+        on the server side of the boundary.
+      */
+      version={packageJson.version}
       organisations={workspace.organisations}
       activeOrganisationId={workspace.organisation.id}
       userName={name}

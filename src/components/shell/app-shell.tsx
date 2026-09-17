@@ -17,6 +17,8 @@ import { LegalFooter } from '@/components/legal/legal-footer';
 export function AppShell({
   primary,
   groups,
+  pinned,
+  version,
   organisations,
   activeOrganisationId,
   userName,
@@ -29,6 +31,8 @@ export function AppShell({
 }: {
   primary: NavItem[];
   groups: NavGroup[];
+  pinned: NavItem[];
+  version: string;
   organisations: { id: string; name: string; slug: string; role: Enums['org_role'] }[];
   activeOrganisationId: string;
   userName: string;
@@ -64,6 +68,8 @@ export function AppShell({
       <div className="flex">
         <Sidebar
           groups={groups}
+          pinned={pinned}
+          version={version}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           scopeLabel={scopeLabel}
