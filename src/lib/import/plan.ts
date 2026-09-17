@@ -128,7 +128,7 @@ export function planWorkbook(sheets: SheetSource[]): Plan {
   const skipped: Skipped[] = [];
 
   for (const sheet of sheets) {
-    const mapper = MAPPERS[normalise(sheet.name)];
+    const mapper = findMapper(sheet.name);
     if (!mapper) {
       skipped.push({ sheet: sheet.name, reason: describeUnmapped(sheet) });
       continue;
@@ -575,6 +575,91 @@ const MAPPERS: Record<string, (context: Context) => Mapped> = {
 };
 
 /**
+ * Finding the mapper for a sheet whose name is not the one we wrote down.
+ *
+ * ── what went wrong ──────────────────────────────────────────────────────
+ * The table above was keyed on exact names, and a real workbook does not use
+ * them. A management pack uploaded to production had "Monthly Financial"
+ * where this file said "monthly financials" and "Product Categories" where it
+ * said "product category" — a letter apiece. Every financial line in the
+ * workbook was reported as a sheet the importer did not recognise, the
+ * financial_records table stayed empty, and the Command Centre said there was
+ * nothing to show while the import reported itself complete.
+ *
+ * A singular and a plural are the same word. Matching them apart was never a
+ * decision anybody made; it was a spelling that happened to be written twice.
+ *
+ * ── what this deliberately does not do ───────────────────────────────────
+ * It does not guess. There is no keyword scoring, no "contains the word
+ * sales", no nearest match by edit distance — a sheet routed to the wrong
+ * mapper on a resemblance imports the wrong numbers under the right heading,
+ * which is the failure this whole module is built to avoid, and a fuzzy
+ * matcher is a machine for producing it.
+ *
+ * Both sides are reduced to the same form and compared exactly. Where a
+ * workbook uses a genuinely different word, that is an alias somebody writes
+ * down after reading the sheet, not something inferred here.
+ */
+function findMapper(name: string): ((context: Context) => Mapped) | undefined {
+  const normalised = normalise(name);
+
+  const exact = MAPPERS[normalised];
+  if (exact) return exact;
+
+  const alias = ALIASES[normalised];
+  if (alias) return MAPPERS[alias];
+
+  const stemmed = singular(normalised);
+  for (const [key, mapper] of Object.entries(MAPPERS)) {
+    if (singular(key) === stemmed) return mapper;
+  }
+  for (const [key, target] of Object.entries(ALIASES)) {
+    if (singular(key) === stemmed) return MAPPERS[target];
+  }
+
+  return undefined;
+}
+
+/**
+ * Sheet names that mean one of the mapped sheets but share no stem with it.
+ *
+ * Every entry is a name seen in a real workbook, written down after somebody
+ * read the sheet and confirmed it holds what the mapper expects. Nothing here
+ * was inferred from the name alone — that is the difference between an alias
+ * and a guess, and the reason this is a list rather than an algorithm.
+ */
+const ALIASES: Record<string, string> = {
+  // Seen in the Northstar management pack.
+  'expenses sep': 'expense register',
+  'cash ar ap': 'cash working capital',
+  customers: 'customer intelligence',
+  marketing: 'marketing performance',
+  suppliers: 'supplier intelligence',
+  operations: 'operations workforce',
+};
+
+/**
+ * One word's singular, for the only difference that is never meaningful.
+ *
+ * Deliberately crude: three suffix rules and no dictionary. It runs on both
+ * sides of every comparison, so a word it reduces oddly reduces the same way
+ * on both — "sales" becomes "sale" wherever it appears, and the two still
+ * match each other. What matters is that it is symmetric, not that it is
+ * linguistically right.
+ */
+function singular(text: string): string {
+  return text
+    .split(' ')
+    .map((word) => {
+      if (word.length > 3 && word.endsWith('ies')) return `${word.slice(0, -3)}y`;
+      if (word.length > 3 && word.endsWith('ses')) return word.slice(0, -2);
+      if (word.length > 2 && word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
+      return word;
+    })
+    .join(' ');
+}
+
+/**
  * Why a sheet was not imported, in words the person who uploaded it can act
  * on. "Unmapped" is not a reason; it is a restatement of the outcome.
  */
@@ -618,7 +703,41 @@ function describeUnmapped(sheet: SheetSource): string {
   if (!numbers) {
     return 'Notes and commentary rather than figures — there is no measurement on this sheet to import.';
   }
-  return 'Not one of the sheets this importer knows how to read.';
+
+  /*
+   * The last resort, and the one that has to earn its place.
+   *
+   * "Not one of the sheets this importer knows how to read" is a restatement
+   * of the outcome. It names nothing, suggests nothing, and leaves the person
+   * who uploaded the file — the only person who can see the sheet — with no
+   * way to tell whether the name is wrong, the shape is wrong, or the sheet
+   * was never going to be imported at all.
+   *
+   * It cost a working afternoon: a pack whose financial sheet was called
+   * "Monthly Financial" instead of "Monthly Financials" reported exactly this
+   * sentence, seventeen times, and the only way to find out which word was
+   * wrong was to read the source.
+   *
+   * So it says what it saw. The headings are what the mapping is keyed on, so
+   * the headings are what somebody needs in order to say "that one is our
+   * revenue sheet".
+   */
+  const headings = dedupe(
+    blocks.flatMap((block) => block.header.map((heading) => heading.trim()).filter(Boolean)),
+  ).slice(0, 8);
+
+  if (headings.length === 0) {
+    return (
+      `"${sheet.name}" is not a sheet this importer recognises, and it has no column headings ` +
+      'to go on either. A sheet needs a header row to be read.'
+    );
+  }
+
+  return (
+    `"${sheet.name}" is not a sheet this importer recognises. Its columns are ` +
+    `${headings.map((heading) => `"${heading}"`).join(', ')}. If this holds figures Amryn should ` +
+    'be reading, send us the sheet name and those columns and it can be mapped.'
+  );
 }
 
 /** The period a sheet's own title states, e.g. "September 2026". */
