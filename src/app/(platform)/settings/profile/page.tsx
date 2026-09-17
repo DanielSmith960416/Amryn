@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { PageHeader } from '@/components/shell/page-header';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/shell/theme-toggle';
+import { NameForm } from '@/features/profile/name-form';
+import { DateOfBirthForm } from '@/features/profile/date-of-birth-form';
+import { PasswordForm } from '@/features/profile/password-form';
 import { requireWorkspace } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
 import { formatRelative } from '@/lib/utils/format';
@@ -16,20 +19,52 @@ export default async function ProfilePage() {
       <PageHeader eyebrow="Your account" title="Profile" />
 
       <div className="grid max-w-3xl gap-5 sm:grid-cols-2">
-        <Card>
-          <CardHeader title="You" />
-          <CardBody className="space-y-3 text-[0.8125rem]">
-            <Row label="Name" value={workspace.profile?.full_name ?? 'Not set'} />
-            <Row label="Email" value={workspace.user.email ?? '—'} />
-            <Row label="Job title" value={workspace.profile?.job_title ?? 'Not set'} />
-            <Row
-              label="Last seen"
-              value={
-                workspace.profile?.last_seen_at
-                  ? formatRelative(workspace.profile.last_seen_at)
-                  : 'This session'
-              }
+        {/*
+          Editable where it is yours to change, read-only where it is not. The
+          email address and the role are both facts about the account rather
+          than preferences: one is the identity the auth server holds, the
+          other is granted by an administrator, and a field that looks typeable
+          and refuses to save is worse than a row of text.
+        */}
+        <Card className="sm:col-span-2">
+          <CardHeader title="You" subtitle="The name Amryn greets you by" />
+          <CardBody className="space-y-5">
+            <NameForm
+              firstName={workspace.profile?.first_name ?? null}
+              lastName={workspace.profile?.last_name ?? null}
             />
+            <div className="space-y-3 border-t border-[var(--border)] pt-4 text-[0.8125rem]">
+              <Row label="Email" value={workspace.user.email ?? '—'} />
+              <Row label="Job title" value={workspace.profile?.job_title ?? 'Not set'} />
+              <Row
+                label="Last seen"
+                value={
+                  workspace.profile?.last_seen_at
+                    ? formatRelative(workspace.profile.last_seen_at)
+                    : 'This session'
+                }
+              />
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="sm:col-span-2">
+          <CardHeader
+            title="Birthday"
+            subtitle="Optional, and only ever used for one thing"
+          />
+          <CardBody>
+            <DateOfBirthForm dateOfBirth={workspace.profile?.date_of_birth ?? null} />
+          </CardBody>
+        </Card>
+
+        <Card className="sm:col-span-2">
+          <CardHeader
+            title="Password"
+            subtitle="Your current one is needed before a new one is accepted"
+          />
+          <CardBody>
+            <PasswordForm />
           </CardBody>
         </Card>
 

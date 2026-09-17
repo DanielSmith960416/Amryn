@@ -54,7 +54,7 @@ export async function switchOrganisation(organisationId: string): Promise<void> 
 /* ── sector scope ──────────────────────────────────────────────────────── */
 
 import { z } from 'zod';
-import { assertPermission, requireWorkspace } from '@/lib/auth/session';
+import { assertPermission, requirePermission, requireWorkspace } from '@/lib/auth/session';
 import type { Enums } from '@/types/database';
 
 const sectorSchema = z.array(z.enum(['private', 'public', 'mixed', 'unknown'])).min(1);
@@ -303,4 +303,95 @@ function explainCreateFailure(error: { code?: string; message: string } | null):
     `[amryn:organisation] organisation creation failed: ${message.length > 0 ? message : 'no reason given'}`,
   );
   return OURS;
+}
+
+/* ── where the business is ─────────────────────────────────────────────── */
+
+/**
+ * A South African trading address, held on the organisation.
+ *
+ * On the organisation rather than the person because that is what it is: one
+ * business trades at one address and every member of it shares that fact. A
+ * copy per member would be five answers to one question, four of them going
+ * stale the day the business moves.
+ *
+ * Every field is optional, including the whole address. It is used to name the
+ * city on the Command Centre's weather panel and to fill in documents that
+ * need a trading address; nothing in the product refuses to work without it,
+ * so nothing here insists.
+ *
+ * Authorisation is not done here twice. requirePermission gates the page, and
+ * `organisations_update` is `amryn.is_org_admin(id)` — so a member without the
+ * role gets no rows updated even if they reach this action directly, which is
+ * the check that actually holds. The permission call below is so that the
+ * refusal is a sentence rather than a silent no-op.
+ */
+export type AddressState =
+  | { status: 'idle' }
+  | { status: 'error'; message: string }
+  | { status: 'saved'; message: string };
+
+const addressSchema = z.object({
+  addressLine1: z.string().trim().max(160).optional().transform(blankToNull),
+  addressLine2: z.string().trim().max(160).optional().transform(blankToNull),
+  city: z.string().trim().max(120).optional().transform(blankToNull),
+  province: z.string().trim().max(120).optional().transform(blankToNull),
+  postalCode: z
+    .string()
+    .trim()
+    .max(16)
+    .optional()
+    .transform(blankToNull)
+    .refine(
+      (value) => value === null || /^[A-Za-z0-9][A-Za-z0-9 -]{1,15}$/.test(value),
+      'That postal code does not look right',
+    ),
+});
+
+function blankToNull(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+export async function updateBusinessAddress(
+  _previous: AddressState,
+  formData: FormData,
+): Promise<AddressState> {
+  const workspace = await requirePermission('manage_organisation');
+
+  const parsed = addressSchema.safeParse({
+    addressLine1: formData.get('addressLine1'),
+    addressLine2: formData.get('addressLine2'),
+    city: formData.get('city'),
+    province: formData.get('province'),
+    postalCode: formData.get('postalCode'),
+  });
+  if (!parsed.success) {
+    return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Check the address.' };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('organisations')
+    .update({
+      address_line1: parsed.data.addressLine1,
+      address_line2: parsed.data.addressLine2,
+      city: parsed.data.city,
+      province: parsed.data.province,
+      postal_code: parsed.data.postalCode,
+    })
+    .eq('id', workspace.organisation.id);
+
+  if (error) return { status: 'error', message: 'That address could not be saved.' };
+
+  await recordEvent(workspace.organisation.id, 'organisation.settings_changed', {
+    entityType: 'organisation',
+    entityId: workspace.organisation.id,
+    summary: parsed.data.city
+      ? `Business address set (${parsed.data.city})`
+      : 'Business address cleared',
+  });
+
+  revalidatePath('/', 'layout');
+  return { status: 'saved', message: 'Address saved.' };
 }

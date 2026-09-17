@@ -132,25 +132,71 @@ select pg_temp.check(
 set local role authenticated;
 select pg_temp.act_as('d1111111-1111-1111-1111-111111111111');
 
-update public.ai_conversations
-   set deleted_at = now()
- where id = 'dcccccc1-0000-4000-8000-000000000001';
+-- Through the function, not an update. Migration 47 made the read policy hide
+-- cleared threads, and Postgres refuses an update whose result the person
+-- performing it could no longer see — so `set deleted_at = now()` as the owner
+-- raises "new row violates row-level security policy". That refusal is the
+-- point of the function, and it is asserted a few lines down.
+select pg_temp.check(
+  public.clear_conversation('dcccccc1-0000-4000-8000-000000000001') = 'Margin by branch',
+  'clearing a thread returns the title it cleared, so the audit entry can name it'
+);
 
 select pg_temp.check(
   not exists (
     select 1 from public.ai_conversations
-     where user_id = 'd1111111-1111-1111-1111-111111111111'
-       and deleted_at is null
-       and id = 'dcccccc1-0000-4000-8000-000000000001'
+     where id = 'dcccccc1-0000-4000-8000-000000000001'
   ),
-  'a cleared thread is gone from the list'
+  'a cleared thread is gone from the list — refused by the policy, not by the query'
 );
+
+select pg_temp.check(
+  not exists (
+    select 1 from public.ai_messages
+     where conversation_id = 'dcccccc1-0000-4000-8000-000000000001'
+  ),
+  'and its messages go with it, through the parent rather than a second column'
+);
+
+select pg_temp.check(
+  public.clear_conversation('dcccccc1-0000-4000-8000-000000000001') is null,
+  'clearing it twice reports nothing cleared rather than pretending'
+);
+
+-- The refusal itself, so nobody re-introduces the direct update and finds out
+-- in production. A live thread, updated by its owner, setting the one column
+-- the read policy tests.
+do $$
+declare
+  refused boolean := false;
+begin
+  begin
+    update public.ai_conversations
+       set deleted_at = now()
+     where id = 'dcccccc2-0000-4000-8000-000000000002';
+  exception when insufficient_privilege then
+    refused := true;
+  end;
+  if not refused then
+    raise exception 'FAIL  a direct soft-delete update should be refused by the read policy';
+  end if;
+  raise notice 'pass  a direct soft-delete update is refused — clearing must go through the function';
+end $$;
+
+-- From outside the policies: the row and its message are still on disk. This
+-- is the whole difference between clearing and deleting, and it can only be
+-- asserted as the service role now that the reader cannot see either.
+set local role postgres;
+select pg_temp.act_as(null);
 
 select pg_temp.check(
   (select count(*) from public.ai_messages
     where conversation_id = 'dcccccc1-0000-4000-8000-000000000001') = 1,
   'and the question asked in it is still there, because clearing is not deleting'
 );
+
+set local role authenticated;
+select pg_temp.act_as('d1111111-1111-1111-1111-111111111111');
 
 -- ── somebody else's thread ────────────────────────────────────────────────
 

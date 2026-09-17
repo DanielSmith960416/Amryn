@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/states';
 import { SectorScopeForm } from '@/features/organisation/sector-scope-form';
+import { AddressForm } from '@/features/organisation/address-form';
 import { requirePermission } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 
@@ -51,6 +52,29 @@ export default async function OrganisationSettingsPage() {
             <Detail label="Country" value={workspace.organisation.country_code} />
             <Detail label="Currency" value={workspace.organisation.currency_code} />
             <Detail label="Timezone" value={workspace.organisation.timezone} />
+          </CardBody>
+        </Card>
+
+        {/*
+          Beside Details rather than inside it: those five are set when the
+          organisation is created and are not edited here, and mixing a form
+          into a list of facts makes the facts look editable too.
+        */}
+        <Card>
+          <CardHeader
+            title="Trading address"
+            subtitle="Where the business is. Optional, and used to name your city on the Command Centre."
+          />
+          <CardBody>
+            <AddressForm
+              address={{
+                addressLine1: workspace.organisation.address_line1,
+                addressLine2: workspace.organisation.address_line2,
+                city: workspace.organisation.city,
+                province: workspace.organisation.province,
+                postalCode: workspace.organisation.postal_code,
+              }}
+            />
           </CardBody>
         </Card>
 

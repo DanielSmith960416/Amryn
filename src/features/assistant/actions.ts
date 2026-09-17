@@ -217,22 +217,36 @@ export async function clearConversation(
   const parsed = threadSchema.safeParse({ conversationId: formData.get('conversationId') });
   if (!parsed.success) return { status: 'error', message: 'That conversation could not be found.' };
 
+  /*
+   * Through a function rather than an update, because migration 47 made the
+   * read policy hide cleared threads and Postgres will not let an update
+   * produce a row the person doing it can no longer see:
+   *
+   *   update ... set title = 'x'          → accepted
+   *   update ... set deleted_at = now()   → "new row violates row-level
+   *                                         security policy"
+   *
+   * clear_conversation() is SECURITY DEFINER and makes the ownership check the
+   * policy would have made. It returns the title it cleared, which is also why
+   * the `.select()` that used to follow this update is gone: that read is now
+   * refused by the same policy, so the audit entry would have lost the name of
+   * the thread it was recording.
+   *
+   * Null means nothing was cleared, and deliberately does not say which of
+   * "not yours", "not there" and "already gone" it was.
+   */
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('ai_conversations')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', parsed.data.conversationId)
-    .is('deleted_at', null)
-    .select('id, title')
-    .maybeSingle();
+  const { data: cleared, error } = await supabase.rpc('clear_conversation', {
+    p_conversation_id: parsed.data.conversationId,
+  });
 
   if (error) return { status: 'error', message: 'That conversation could not be cleared.' };
-  if (!data) return { status: 'error', message: 'That conversation is no longer in your list.' };
+  if (!cleared) return { status: 'error', message: 'That conversation is no longer in your list.' };
 
   await recordEvent(workspace.organisation.id, 'assistant.conversation_cleared', {
     entityType: 'ai_conversation',
-    entityId: data.id,
-    summary: `Cleared "${threadTitle(data.title)}" from the assistant`,
+    entityId: parsed.data.conversationId,
+    summary: `Cleared "${threadTitle(cleared)}" from the assistant`,
   });
 
   revalidatePath('/assistant');
