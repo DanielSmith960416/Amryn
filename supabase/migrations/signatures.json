@@ -45,5 +45,6 @@
   "20260911170000_44_connection_sync.sql": "to_regclass('public.data_connection_syncs') is not null",
   "20260912140000_45_assistant_threads.sql": "(select count(*) from information_schema.columns where table_schema='public' and table_name='ai_conversations' and column_name='deleted_at') = 1",
   "20260917090000_46_profile_names_dob_address.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'user_profiles' and column_name = 'date_of_birth')",
-  "20260917090100_47_cleared_threads_hidden_by_rls.sql": "exists (select 1 from pg_policy p join pg_class c on c.oid = p.polrelid where c.relname = 'ai_conversations' and p.polname = 'ai_conversations_read')"
+  "20260917090100_47_cleared_threads_hidden_by_rls.sql": "exists (select 1 from pg_policy p join pg_class c on c.oid = p.polrelid where c.relname = 'ai_conversations' and p.polname = 'ai_conversations_read')",
+  "20260917120000_48_new_organisations_take_the_catalogue_price.sql": "(select column_default from information_schema.columns where table_schema = 'public' and table_name = 'subscriptions' and column_name = 'price_cents_monthly') is null"
 }
