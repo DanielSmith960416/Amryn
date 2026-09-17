@@ -48,13 +48,13 @@ export default async function RolesPage() {
       <PageHeader
         eyebrow="Administration"
         title="Roles & Permissions"
-        description="Read live from the database, so this is what is actually enforced rather than a description of it. Individual people can be granted or denied any of these on top of their role."
+        description="Individual people can be granted or denied any of these on top of their role."
       />
 
       <Card>
         <CardHeader
           title="Role matrix"
-          subtitle="Reach widens left to right. Scope — how much of the business a person sees — is a separate axis."
+          subtitle="Reach widens left to right."
         />
 
         <div className="overflow-x-auto border-t border-[var(--border)]">

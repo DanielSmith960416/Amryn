@@ -85,11 +85,8 @@ export default async function OrganisationSettingsPage() {
           />
           <CardBody>
             <p className="mb-4 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-              This is your choice, not Amryn&rsquo;s. By default the radar surfaces everything,
-              including public-sector tenders, and lets relevance and strategic alignment decide
-              what ranks. If your business does not pursue certain work, narrow it here and the
-              radar will honour that everywhere — the pipeline, reports and the assistant alike.
-            </p>
+        By default the radar surfaces everything, including public-sector tenders. Narrow it here and the radar will honour that everywhere.
+      </p>
             <SectorScopeForm current={workspace.organisation.sector_scope} />
           </CardBody>
         </Card>
@@ -99,7 +96,7 @@ export default async function OrganisationSettingsPage() {
           {(branches ?? []).length === 0 ? (
             <EmptyState
               title="No structure defined"
-              description="A single-site business needs none. Add regions and branches when you have more than one place to compare."
+              description="Add regions and branches when you have more than one place to compare."
             />
           ) : (
             <CardBody className="space-y-4">

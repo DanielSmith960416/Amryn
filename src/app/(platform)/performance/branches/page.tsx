@@ -82,14 +82,14 @@ export default async function BranchPerformancePage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Branch Performance"
-        description="Ranked by growth rather than by size. A large branch that has stopped moving is the more interesting problem."
+        description="Ranked by growth rather than by size."
       />
 
       {rows.length === 0 ? (
         <Card>
           <EmptyState
             title="No branches defined"
-            description="Add branches under Administration to compare performance across them. A single-site business has nothing to compare, and that is a fine state to be in."
+            description="Add branches under Administration to compare performance across them."
           />
         </Card>
       ) : (

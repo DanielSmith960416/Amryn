@@ -26,7 +26,7 @@ export function HealthCard({
       <Card className={className}>
         <EmptyState
           title="No health score yet"
-          description="Connect a data source and define at least one metric with a target. Your AI DigitalTwin® needs something to measure before it can score anything."
+          description="Connect a data source and define at least one metric with a target."
         />
       </Card>
     );

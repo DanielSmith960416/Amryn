@@ -29,7 +29,7 @@ export default async function ReportsPage() {
       <PageHeader
         eyebrow="Reporting"
         title="Weekly & Monthly Briefs"
-        description="The executive brief, computed from the same figures that drive every view in this workspace."
+        description="The executive brief, computed from the figures in this workspace."
         actions={
           <>
             <Button asChild variant="primary">
@@ -53,30 +53,6 @@ export default async function ReportsPage() {
         <BriefCard brief={w.monthly} />
       </div>
 
-      <Card className="mt-6">
-        <CardHeader
-          title="How the report is produced"
-          subtitle="Worth knowing before it goes to a board"
-        />
-        <CardBody className="space-y-3 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">
-          <p>
-            Every sentence above is computed from the figures in this workspace, not written in
-            advance. Where a claim names a number, a branch or a record ID, that value came from the
-            data and will change with it.
-          </p>
-          <p>
-            The report opens as a print-ready page. Use your browser&rsquo;s Print dialog and choose
-            &ldquo;Save as PDF&rdquo; — the layout, page breaks and margins are already set for A4.
-            This site is served as static files, so there is no server to generate the file for
-            you; the browser&rsquo;s own typesetter produces a document indistinguishable from one
-            that was.
-          </p>
-          <p>
-            Forecast figures anywhere in the report are projections on the year-to-date average.
-            They carry that warning wherever they appear.
-          </p>
-        </CardBody>
-      </Card>
     </>
   );
 }

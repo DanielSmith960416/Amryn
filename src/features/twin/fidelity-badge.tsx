@@ -37,9 +37,7 @@ export function FidelityNote({ fidelity }: { fidelity: FidelityReading | null })
   if (!fidelity) {
     return (
       <p className="text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-        Nothing has run yet, so nobody has asked how close the model gets. Until that question has
-        been asked and answered, no simulated figure can be recorded at all — the first run will ask
-        it.
+        Nothing has run yet, so nobody has asked how close the model gets.
       </p>
     );
   }

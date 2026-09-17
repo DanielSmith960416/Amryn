@@ -44,7 +44,7 @@ export default async function RecommendationsPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Recommendations"
-        description="Where what is happening inside the business meets what is happening outside it. These are the suggestions neither half would produce alone."
+        description="Where what is happening inside the business meets what is happening outside it."
       />
 
       <div className="space-y-5">
@@ -59,7 +59,7 @@ export default async function RecommendationsPage() {
                 administrators and unaffected subsystems was ours to know.
               */
               title="Nothing to recommend yet"
-              description="Amryn will say nothing rather than manufacture advice. Connect more of your internal and market sources to give it more to work with." 
+              description="Connect more of your internal and market sources to give Amryn more to work with." 
             />
           </Card>
         ) : null}

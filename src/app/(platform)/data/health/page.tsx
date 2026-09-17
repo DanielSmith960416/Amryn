@@ -44,7 +44,7 @@ export default async function DataHealthPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Data Health"
-        description="Everything Amryn concludes rests on this. Where a source is incomplete or stale, the findings drawn from it deserve less weight — and this page is where you find that out."
+        description="Where each source stands, and how complete and current it is."
         actions={
           averageCompleteness === null ? null : (
             <div className="text-right">
@@ -71,7 +71,7 @@ export default async function DataHealthPage() {
         {rows.length === 0 ? (
           <EmptyState
             title="Nothing assessed yet"
-            description="Data health is measured after the first sync of each source. Connect a source and this fills itself."
+            description="Measured after the first sync of each source."
           />
         ) : (
           <div className="overflow-x-auto border-t border-[var(--border)]">

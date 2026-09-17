@@ -16,7 +16,7 @@ export default async function IntelligenceFeedPage() {
       <PageHeader
         eyebrow={workspace.organisation.name}
         title="Intelligence Feed"
-        description="Everything Amryn has noticed, inside and outside the business, on a single timeline. They are deliberately not separated — the two only mean something read together."
+        description="Everything Amryn has noticed, inside and outside the business, on a single timeline."
       />
       <div className="max-w-3xl">
         <IntelligenceFeed

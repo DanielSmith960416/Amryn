@@ -39,7 +39,7 @@ export default async function OpportunityPipelinePage() {
         <Card>
           <EmptyState
             title="Nothing in the pipeline yet"
-            description="Opportunities arrive here from the AI OpportunityRadar® once it has market sources to scan. You can also add one manually."
+            description="Opportunities arrive from the AI OpportunityRadar® once it has market sources to scan."
           />
         </Card>
       ) : (

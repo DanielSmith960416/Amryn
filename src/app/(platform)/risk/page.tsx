@@ -86,7 +86,7 @@ export default async function RiskDashboardPage() {
             {open.length === 0 ? (
               <EmptyState
                 title="Nothing open"
-                description="No risk on the register needs attention. Amryn will raise one the moment a metric movement or market signal warrants it."
+                description="No risk on the register needs attention."
               />
             ) : (
               <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">

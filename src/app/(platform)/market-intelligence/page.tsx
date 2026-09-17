@@ -43,7 +43,7 @@ export default async function MarketIntelligencePage() {
             {(signals ?? []).length === 0 ? (
               <EmptyState
                 title="No signals yet"
-                description="Amryn has not observed anything relevant in the market. Add market sources so the radar has somewhere to look."
+                description="Nothing relevant observed. Add market sources so the radar has somewhere to look."
               />
             ) : (
               <ul className="divide-y divide-[var(--border)] border-t border-[var(--border)]">

@@ -36,7 +36,7 @@ export default async function AlertsPage() {
         {rows.length === 0 ? (
           <EmptyState
             title="Nothing needs your attention"
-            description="No metric has crossed a threshold, no sync has failed and no competitor has moved. Amryn only raises an alert when something has actually changed."
+            description="No metric has crossed a threshold, no sync has failed and no competitor has moved."
           />
         ) : (
           <ul className="divide-y divide-[var(--border)]">

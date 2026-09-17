@@ -35,7 +35,7 @@ export default async function KpiCentrePage() {
       <PageHeader
         eyebrow="Performance intelligence"
         title="KPI Centre"
-        description="Every measure with a target, its variance, and whether it is on track. On target, or within 10% of it, or below."
+        description="Every measure with a target, its variance, and whether it is on track."
       />
 
       {w.isDemo ? <DemoNotice /> : null}

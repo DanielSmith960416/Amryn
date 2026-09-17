@@ -48,10 +48,7 @@ export function DateOfBirthForm({ dateOfBirth }: { dateOfBirth: string | null })
       </div>
 
       <p id="dob-purpose" className="text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-        Used only to wish you a happy birthday on the day. It is never used to
-        segment you, to price anything, or to check your age, and it is not
-        shared with anyone. Leave it empty — or clear it later — and nothing in
-        Amryn behaves differently.
+        Used only to wish you a happy birthday on the day. Never shared.
       </p>
 
       <Outcome state={state} />
