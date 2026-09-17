@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Draft } from '@/lib/import/plan';
-import { partitionByPermission, permissionName, writePermission } from './import-permissions';
+import {
+  partitionByPermission,
+  permissionName,
+  UNDO_ORDER,
+  WRITE_ORDER,
+  writePermission,
+} from './import-permissions';
 
 /*
  * These drafts stand in for a management pack: the three tables import_data
@@ -120,5 +126,53 @@ describe('the permission, written for a reader', () => {
 
   it('degrades readably for anything else', () => {
     expect(permissionName('some_future_permission')).toBe('some future permission');
+  });
+});
+
+/*
+ * Undo exists because of a report that it did not: an import could be made
+ * and never taken back, so every clean-up was a DELETE run against production
+ * by hand.
+ */
+describe('the order an import is written and unwritten in', () => {
+  it('writes the financial rows first, because every screen reads them', () => {
+    expect(WRITE_ORDER[0]).toBe('financial_records');
+  });
+
+  /*
+   * Reverse, so a failed undo leaves the financial rows standing rather than
+   * removing them and then failing on something else. Derived rather than
+   * typed out twice: two lists that must mirror each other stay mirrored
+   * until somebody adds a table to one of them.
+   */
+  it('removes them last, and cannot drift from the write order', () => {
+    expect([...UNDO_ORDER]).toEqual([...WRITE_ORDER].reverse());
+    expect(UNDO_ORDER[UNDO_ORDER.length - 1]).toBe('financial_records');
+  });
+
+  it('covers every table a draft can name', () => {
+    const tables: Draft['table'][] = [
+      'financial_records',
+      'sales_records',
+      'operational_records',
+      'opportunities',
+      'risks',
+    ];
+    expect([...WRITE_ORDER].sort()).toEqual([...tables].sort());
+  });
+
+  /*
+   * The undo respects the same split as the import. Somebody who could not
+   * have written opportunities cannot remove them either, and is told so
+   * rather than handed a partial undo that looks complete.
+   */
+  it('asks the same permission to remove a table as to write it', () => {
+    for (const table of UNDO_ORDER) {
+      expect(writePermission(table)).toBe(
+        writePermission(WRITE_ORDER.find((t) => t === table)!),
+      );
+    }
+    expect(writePermission('opportunities')).toBe('manage_opportunities');
+    expect(writePermission('financial_records')).toBeNull();
   });
 });

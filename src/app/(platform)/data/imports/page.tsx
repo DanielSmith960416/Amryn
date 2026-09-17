@@ -11,6 +11,7 @@ import { describeBytes } from '@/lib/files/kinds';
 import { UploadForm } from '@/features/data/upload-form';
 import { ImportForm } from '@/features/data/import-form';
 import { RemoveButton } from '@/features/data/remove-button';
+import { UndoImportButton } from '@/features/data/undo-import-button';
 import type { Enums } from '@/types/database';
 import { SectionTabs } from '@/components/ui/section-tabs';
 import { visibleTabs } from '@/components/shell/navigation';
@@ -238,7 +239,7 @@ export default async function DataImportsPage() {
                 <table className="w-full text-left text-[0.8125rem]">
                   <thead>
                     <tr className="border-b border-[var(--border)]">
-                      {['File', 'Status', 'Rows', 'Imported', 'Rejected', 'When'].map((heading) => (
+                      {['File', 'Status', 'Rows', 'Imported', 'Rejected', 'When', ''].map((heading) => (
                         <th
                           key={heading}
                           className="eyebrow px-5 py-2.5 !mb-0 font-normal whitespace-nowrap"
@@ -280,6 +281,22 @@ export default async function DataImportsPage() {
                         </td>
                         <td className="px-5 py-3 whitespace-nowrap text-[var(--text-secondary)]">
                           {formatRelative(row.created_at)}
+                        </td>
+                        {/*
+                          Undo, which had no way to exist until an imported row
+                          could say which import wrote it. Reported as "I
+                          cannot remove the import", and the answer was that
+                          nobody could: every clean-up was a DELETE run against
+                          production by hand.
+                        */}
+                        <td className="px-5 py-3 text-right">
+                          {mayUpload ? (
+                            <UndoImportButton
+                              id={row.id}
+                              filename={row.filename ?? 'this import'}
+                              rows={row.rows_imported}
+                            />
+                          ) : null}
                         </td>
                       </tr>
                     ))}

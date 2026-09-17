@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { can, requirePermission } from '@/lib/auth/session';
 import { recordEvent } from '@/lib/audit';
 import { isLegacyExcel, readWorkbook, SpreadsheetError } from '@/lib/files/xlsx';
-import { planWorkbook, type Draft, type Skipped } from '@/lib/import/plan';
+import { planWorkbook, type Skipped } from '@/lib/import/plan';
 import { label } from './import-labels';
-import { partitionByPermission } from './import-permissions';
+import { partitionByPermission, WRITE_ORDER } from './import-permissions';
 
 /**
  * Loading a management workbook into the tables the product reads.
@@ -159,6 +159,53 @@ export async function importWorkbook(
   const imported: { table: string; rows: number }[] = [];
 
   /*
+   * The import record is opened before the rows, and finished after them.
+   *
+   * It used to be written only at the end, on the reasoning that a record
+   * claiming an import which then failed half way is worse than no record —
+   * the next attempt would be refused as a duplicate and the business would
+   * be stuck with the partial import and no way through the interface.
+   *
+   * That reasoning was right about the danger and wrong about the fix. Rows
+   * written before their record exists cannot carry its id, so no row knew
+   * which import made it, so no import could be undone — and the partial
+   * import it was protecting against was exactly the case somebody then could
+   * not clear.
+   *
+   * Opening it as `importing` solves both. The duplicate guard above asks for
+   * status 'complete', so a half-finished import never blocks a retry. And an
+   * import that dies part-way is now a visible row that says so, with its
+   * rows attached to it, which is what makes it removable.
+   */
+  const { data: record, error: opening } = await supabase
+    .from('data_imports')
+    .insert({
+      organisation_id: organisationId,
+      filename: file.name,
+      status: 'importing',
+      row_count: plan.drafts.length,
+      rows_imported: 0,
+      rows_rejected: 0,
+      validation: {
+        fingerprint,
+        year: plan.year,
+        skipped: skipped.map((entry) => ({ sheet: entry.sheet, reason: entry.reason })),
+      },
+      uploaded_by: workspace.user.id,
+    })
+    .select('id')
+    .single();
+
+  if (opening || !record) {
+    return {
+      status: 'error',
+      message: `The import could not be started: ${opening?.message ?? 'no record was created'}`,
+    };
+  }
+
+  const importId = record.id;
+
+  /*
    * Written table by table rather than in one transaction, because PostgREST
    * has no transaction to offer across several of them. The order is chosen so
    * that a failure part-way leaves something coherent: the financial rows are
@@ -168,13 +215,15 @@ export async function importWorkbook(
    * Each batch reports what it wrote, so a partial import says so precisely
    * instead of claiming the whole file.
    */
-  for (const table of ORDER) {
+  for (const table of WRITE_ORDER) {
     const rows = allowed.filter((draft) => draft.table === table).map((draft) => draft.row);
     if (rows.length === 0) continue;
 
     const { error } = await supabase
       .from(table)
-      .insert(rows.map((row) => ({ ...row, organisation_id: organisationId })) as never);
+      .insert(
+        rows.map((row) => ({ ...row, organisation_id: organisationId, import_id: importId })) as never,
+      );
 
     if (error) {
       return {
@@ -191,27 +240,18 @@ export async function importWorkbook(
 
   const total = imported.reduce((sum, entry) => sum + entry.rows, 0);
 
-  /*
-   * Written after the rows rather than before them. A row claiming an import
-   * that then failed half way is worse than no row at all: the next attempt
-   * would be refused as a duplicate, and the business would be left with the
-   * partial import and no way to finish it through the interface.
-   */
-  await supabase.from('data_imports').insert({
-    organisation_id: organisationId,
-    filename: file.name,
-    status: 'complete',
-    row_count: plan.drafts.length,
-    rows_imported: total,
-    rows_rejected: plan.drafts.length - total,
-    validation: {
-      fingerprint,
-      year: plan.year,
-      skipped: skipped.map((entry) => ({ sheet: entry.sheet, reason: entry.reason })),
-    },
-    uploaded_by: workspace.user.id,
-    completed_at: new Date().toISOString(),
-  });
+  // Only now does it count as complete, which is the state the duplicate
+  // guard looks for. Everything up to here is a row saying an import is in
+  // progress, which is true and removable.
+  await supabase
+    .from('data_imports')
+    .update({
+      status: 'complete',
+      rows_imported: total,
+      rows_rejected: plan.drafts.length - total,
+      completed_at: new Date().toISOString(),
+    })
+    .eq('id', importId);
 
   await recordEvent(organisationId, 'workbook.imported', {
     entityType: 'workbook',
@@ -230,14 +270,6 @@ export async function importWorkbook(
     filename: file.name,
   };
 }
-
-const ORDER: Draft['table'][] = [
-  'financial_records',
-  'sales_records',
-  'operational_records',
-  'opportunities',
-  'risks',
-];
 
 function readableDate(value: string | null | undefined): string | null {
   if (!value) return null;

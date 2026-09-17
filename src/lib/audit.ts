@@ -56,6 +56,10 @@ export type SecurityEvent =
   // at once, and afterwards the only way to tell an imported figure from a
   // typed one is that somebody wrote this down.
   | 'workbook.imported'
+  // And taking one back out. The same reasoning applies in reverse: this is
+  // the one act that can remove six months of reported figures at once, and
+  // the rows it deletes leave no trace of themselves behind.
+  | 'workbook.import_undone'
   | 'document.uploaded'
   | 'document.removed'
   // Clearing a thread out of the assistant's list. The thread is kept and
