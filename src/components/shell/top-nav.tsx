@@ -8,6 +8,7 @@ import { ThemeToggle } from './theme-toggle';
 import { Clock } from './clock';
 import { OrganisationSwitcher } from './organisation-switcher';
 import { UserMenu } from './user-menu';
+import { SubscriptionPill } from './subscription-pill';
 import { cn } from '@/lib/utils/cn';
 import type { NavItem } from './navigation';
 import type { Enums } from '@/types/database';
@@ -28,6 +29,10 @@ export function TopNav({
   userEmail,
   organisationName,
   unreadCount,
+  subscriptionState,
+  trialing,
+  subscriptionEndingOn,
+  canManageBilling,
   onOpenSidebar,
 }: {
   primary: NavItem[];
@@ -38,6 +43,10 @@ export function TopNav({
   /** The organisation being acted in, shown under the name in the menu. */
   organisationName: string;
   unreadCount: number;
+  subscriptionState: 'open' | 'read_only';
+  trialing: boolean;
+  subscriptionEndingOn: string | null;
+  canManageBilling: boolean;
   onOpenSidebar: () => void;
 }) {
   const pathname = usePathname();
@@ -99,6 +108,18 @@ export function TopNav({
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
+          {/*
+            First in the cluster, so it reads before the tools rather than
+            after them. Billing stays pinned in the rail for somebody going
+            looking; this is for everybody who is not.
+          */}
+          <SubscriptionPill
+            state={subscriptionState}
+            trialing={trialing}
+            endingOn={subscriptionEndingOn}
+            canManageBilling={canManageBilling}
+          />
+
           {/*
             Hidden below `md`. On a phone the bar is already carrying the menu,
             the mark, the organisation and five controls, and the time is the

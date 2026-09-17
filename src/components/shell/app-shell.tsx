@@ -27,6 +27,10 @@ export function AppShell({
   scopeLabel,
   roleLabel,
   unreadCount,
+  subscriptionState,
+  trialing,
+  subscriptionEndingOn,
+  canManageBilling,
   children,
 }: {
   primary: NavItem[];
@@ -41,6 +45,12 @@ export function AppShell({
   scopeLabel: string;
   roleLabel: string;
   unreadCount: number;
+  /** What the subscription is doing, for the pill in the top bar. */
+  subscriptionState: 'open' | 'read_only';
+  trialing: boolean;
+  /** ISO, not a Date: this crosses the server/client boundary. */
+  subscriptionEndingOn: string | null;
+  canManageBilling: boolean;
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -62,6 +72,10 @@ export function AppShell({
         userEmail={userEmail}
         organisationName={organisationName}
         unreadCount={unreadCount}
+        subscriptionState={subscriptionState}
+        trialing={trialing}
+        subscriptionEndingOn={subscriptionEndingOn}
+        canManageBilling={canManageBilling}
         onOpenSidebar={() => setSidebarOpen(true)}
       />
 
