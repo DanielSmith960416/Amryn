@@ -12,6 +12,7 @@ import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { ImprintPrompt } from '@/features/imprint/prompt';
 import { AnalysisBanner } from '@/features/analysis/banner';
 import { Greeting } from '@/components/shell/greeting';
+import { WeatherPanel } from '@/features/weather/weather-panel';
 import { requireWorkspace } from '@/lib/auth/session';
 import { hourInTimezone, timeOfDay } from '@/lib/greeting/greeting';
 
@@ -40,10 +41,18 @@ export default async function CommandCentrePage() {
   const firstName = workspace.profile?.first_name ?? null;
   const part = timeOfDay(hourInTimezone(workspace.organisation.timezone));
 
+  // The trading address, if an administrator has set one. Where it is absent
+  // the panel offers to ask the browser instead — it never guesses a city from
+  // the country, which would be a confident wrong answer about where somebody
+  // is rather than an honest blank.
+  const city = workspace.organisation.city;
+  const countryCode = workspace.organisation.country_code;
+
   if (state.kind === 'empty') {
     return (
       <>
         <Greeting firstName={firstName} initialPart={part} />
+        <WeatherPanel city={city} countryCode={countryCode} />
         <NoDataYet what="The week in one view — health, opportunities, risks and what to do about them —" organisationName={state.organisationName} />
       </>
     );
@@ -73,6 +82,12 @@ export default async function CommandCentrePage() {
           </Badge>
         }
       />
+
+      {/* Under the heading, so the greeting still comes first — the same order
+          the empty state above uses. */}
+      <div className="mb-6 -mt-1">
+        <WeatherPanel city={city} countryCode={countryCode} />
+      </div>
 
       {w.isDemo ? (
         <DemoNotice>
