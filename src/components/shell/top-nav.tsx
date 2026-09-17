@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, Menu, Search, Sparkles } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
+import { Clock } from './clock';
 import { OrganisationSwitcher } from './organisation-switcher';
 import { UserMenu } from './user-menu';
 import { cn } from '@/lib/utils/cn';
@@ -98,6 +99,13 @@ export function TopNav({
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
+          {/*
+            Hidden below `md`. On a phone the bar is already carrying the menu,
+            the mark, the organisation and five controls, and the time is the
+            one thing there that the device itself is showing an inch higher.
+          */}
+          <Clock className="mr-1 hidden text-[0.75rem] md:inline" withDate={false} />
+
           <Link
             href="/search"
             className="flex size-9 items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--card-inset)] hover:text-[var(--text-primary)]"
