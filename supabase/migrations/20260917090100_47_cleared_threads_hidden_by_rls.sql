@@ -80,7 +80,23 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ── the conversations ─────────────────────────────────────────────────────
+--
+-- Every drop is `if exists`, including the four policies this migration
+-- itself creates, so the file can be applied to a database that already has
+-- them. That is not hypothetical: these four were applied to production by
+-- hand while this was being built, which left the objects present and the
+-- ledger saying the migration was still pending. The next deploy tried it,
+-- hit `policy "ai_conversations_read" already exists`, and stopped — taking
+-- the worker down and blocking every later migration behind it.
+--
+-- Dropping and recreating rather than `create or replace`, which Postgres
+-- does not offer for a policy. The whole file runs in one transaction, so
+-- there is no moment at which the table is readable without a policy.
 drop policy if exists ai_conversations_own on public.ai_conversations;
+drop policy if exists ai_conversations_read on public.ai_conversations;
+drop policy if exists ai_conversations_insert on public.ai_conversations;
+drop policy if exists ai_conversations_update on public.ai_conversations;
+drop policy if exists ai_conversations_delete on public.ai_conversations;
 
 create policy ai_conversations_read on public.ai_conversations
   for select
