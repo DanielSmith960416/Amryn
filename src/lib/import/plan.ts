@@ -111,6 +111,25 @@ export interface SheetSource {
  * so. That is the whole policy in one place.
  */
 export function workbookYear(sheets: SheetSource[]): number | null {
+  /*
+   * Sheets this importer will actually read come first.
+   *
+   * It used to take the first year in the first four rows of any sheet, in
+   * order. The first sheet of a real management pack was "Company Profile",
+   * which says when the business was founded — so a workbook of 2026 figures
+   * was read as 2022, every financial line was dated 2022-12-31, and a
+   * dashboard asking for this year's revenue correctly reported nothing.
+   *
+   * A year on a sheet of figures describes the figures. A year in prose about
+   * the company describes the company. They are not the same fact, and only
+   * the first one dates a row.
+   */
+  const mapped = sheets.filter((sheet) => findMapper(sheet.name));
+  return stateYear(mapped) ?? stateYear(sheets);
+}
+
+/** The first year stated in the opening rows of any of these sheets. */
+function stateYear(sheets: SheetSource[]): number | null {
   for (const sheet of sheets) {
     for (const row of sheet.records.slice(0, 4)) {
       for (const value of row) {
@@ -201,16 +220,42 @@ const PRIMITIVE: Record<string, { direction: 'income' | 'expense'; category: str
  * record sheets: each *cell* is a record, and its date comes from the column
  * heading rather than from anything in the row.
  */
-function monthlySummary({ blocks }: Context): Mapped {
+function monthlySummary({ blocks, year }: Context): Mapped {
   const drafts: Draft[] = [];
   const skipped: string[] = [];
   const block = blocks[0]!;
 
+  // The workbook's year is passed down so a column headed "Apr" resolves
+  // against it. Only the first column is excluded — that one holds the line
+  // names, not a month.
   const periods = block.header.map((heading, index) =>
-    index === 0 ? null : monthPeriod(heading),
+    index === 0 ? null : monthPeriod(heading, year),
   );
+
   if (periods.every((period) => period === null)) {
-    return { drafts, skipped: ['No month could be read from the column headings.'] };
+    /*
+     * Name the headings. "No month could be read from the column headings"
+     * is true of the pattern and says nothing about the sheet — and this is
+     * the sheet every financial screen depends on, so its failure is the one
+     * that most needs to be actionable. Finding the real cause once meant
+     * reading the customer's file.
+     */
+    const headings = block.header
+      .slice(1)
+      .map((heading) => heading.trim())
+      .filter(Boolean);
+
+    return {
+      drafts,
+      skipped: [
+        headings.length > 0
+          ? `No month could be read from the column headings, which are ${headings
+              .slice(0, 8)
+              .map((heading) => `"${heading}"`)
+              .join(', ')}. A month needs to be recognisable — "Apr", "Apr-26" or "Apr 2026" all work, provided the workbook states its year somewhere.`
+          : 'This sheet has no column headings to read months from.',
+      ],
+    };
   }
 
   for (const row of block.rows) {

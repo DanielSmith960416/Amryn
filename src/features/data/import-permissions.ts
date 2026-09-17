@@ -102,3 +102,32 @@ export function partitionByPermission(
 
   return { allowed, refused };
 }
+
+/**
+ * The order an import writes its tables in.
+ *
+ * Financial rows first because every screen reads them: a failure part-way
+ * then leaves a business with fewer records rather than with a broken set of
+ * them.
+ */
+export const WRITE_ORDER = [
+  'financial_records',
+  'sales_records',
+  'operational_records',
+  'opportunities',
+  'risks',
+] as const;
+
+/**
+ * The order an undo removes them in — the reverse, derived rather than typed
+ * out again.
+ *
+ * Two hand-written lists that must mirror each other stay mirrored until the
+ * day somebody adds a table to one of them. Reversing the first is the only
+ * version that cannot drift.
+ *
+ * Reverse because the same reasoning runs backwards: a failed undo should
+ * leave the financial rows standing, not remove them and then fail on
+ * something else.
+ */
+export const UNDO_ORDER = [...WRITE_ORDER].reverse() as readonly Draft['table'][];

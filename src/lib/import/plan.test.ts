@@ -334,3 +334,126 @@ describe('a sheet it cannot place', () => {
     expect(headerless.skipped[0]!.reason).toBeTruthy();
   });
 });
+
+/*
+ * All three of these come from one real import that reported itself complete
+ * and left every financial tile at R0.
+ */
+describe('the workbook that imported 158 rows and showed nothing', () => {
+  /*
+   * The year was read from "Company Profile", the first sheet, which says
+   * when the business was founded. Every financial line was then dated
+   * 2022-12-31 and a dashboard asking for this year's revenue correctly
+   * reported none.
+   */
+  it('takes the year from a sheet of figures, not from prose about the company', () => {
+    const profile = {
+      name: 'Company Profile',
+      records: [
+        ['Northstar Home & Living'],
+        ['Founded 2022 · Kimberley, Northern Cape'],
+        [],
+        ['Attribute', 'Detail'],
+        ['Sector', 'Retail'],
+      ],
+    };
+
+    expect(workbookYear([profile, monthly])).toBe(2026);
+  });
+
+  it('still falls back to any sheet when no mapped sheet states a year', () => {
+    const profile = {
+      name: 'Company Profile',
+      records: [['Northstar'], ['Founded 2022'], [], ['Attribute', 'Detail'], ['Sector', 'Retail']],
+    };
+    expect(workbookYear([profile])).toBe(2022);
+  });
+
+  /*
+   * A spreadsheet written for a person does not repeat the year twelve times
+   * across a header row — the title said it once. Requiring four digits in
+   * every heading refused every column of the one sheet the financial screens
+   * depend on.
+   */
+  it('reads bare month headings against the year the workbook states', () => {
+    const bare = {
+      name: 'Monthly Financial',
+      records: [
+        ['Monthly Financial & Performance Summary'],
+        ['Apr–Sep 2026, ZAR'],
+        [],
+        ['Metric', 'Apr', 'May'],
+        ['Revenue', '865000', '912000'],
+        ['COGS', '535000', '560000'],
+      ],
+    };
+
+    const rows = rowsFor(planWorkbook([bare]).drafts, 'financial_records') as Array<{
+      occurred_on: string;
+      subcategory: string | null;
+    }>;
+
+    expect(rows).toHaveLength(4);
+    expect(new Set(rows.map((r) => r.occurred_on))).toEqual(
+      new Set(['2026-04-30', '2026-05-31']),
+    );
+  });
+
+  it('reads a two-digit year in a heading as this century', () => {
+    const shorthand = {
+      name: 'Monthly Financial',
+      records: [
+        ['Monthly Financial'],
+        ['2026'],
+        [],
+        ['Metric', 'Apr-26', 'May-26'],
+        ['Revenue', '865000', '912000'],
+      ],
+    };
+
+    const rows = rowsFor(planWorkbook([shorthand]).drafts, 'financial_records') as Array<{
+      occurred_on: string;
+    }>;
+    expect(new Set(rows.map((r) => r.occurred_on))).toEqual(
+      new Set(['2026-04-30', '2026-05-31']),
+    );
+  });
+
+  /*
+   * A bare month with no year anywhere is still refused. The alternative is
+   * filing figures under a year nobody wrote down, which is the error this
+   * module exists to prevent.
+   */
+  it('refuses a bare month when the workbook states no year at all', () => {
+    const undated = {
+      name: 'Monthly Financial',
+      records: [['Monthly Financial'], [], ['Metric', 'Apr', 'May'], ['Revenue', '865000', '912000']],
+    };
+    const plan = planWorkbook([undated]);
+    expect(rowsFor(plan.drafts, 'financial_records')).toHaveLength(0);
+  });
+
+  /*
+   * "No month could be read from the column headings" is true of the pattern
+   * and says nothing about the sheet. This is the sheet every financial
+   * screen depends on, so its failure is the one that most needs to name what
+   * it saw — finding the real cause once meant reading the customer's file.
+   */
+  it('names the headings it could not read', () => {
+    const odd = {
+      name: 'Monthly Financial',
+      records: [
+        ['Monthly Financial'],
+        ['2026'],
+        [],
+        ['Metric', 'Period 1', 'Period 2'],
+        ['Revenue', '865000', '912000'],
+      ],
+    };
+
+    const reason = planWorkbook([odd]).skipped.map((s) => s.reason).join(' ');
+    expect(reason).toMatch(/"Period 1"/);
+    expect(reason).toMatch(/"Period 2"/);
+    expect(reason).toMatch(/Apr/);
+  });
+});

@@ -1788,6 +1788,7 @@ export interface Database {
           created_at: string;
           external_id: string | null;
           data_connection_id: string | null;
+          import_id: string | null;
         };
         Insert: {
           id?: string;
@@ -1805,6 +1806,7 @@ export interface Database {
           created_at?: string;
           external_id?: string | null;
           data_connection_id?: string | null;
+          import_id?: string | null;
         };
         Update: {
           id?: string;
@@ -1822,6 +1824,7 @@ export interface Database {
           created_at?: string;
           external_id?: string | null;
           data_connection_id?: string | null;
+          import_id?: string | null;
         };
         Relationships: [
           {
@@ -1850,6 +1853,13 @@ export interface Database {
             columns: ['department_id'];
             isOneToOne: false;
             referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'financial_records_import_id_fkey';
+            columns: ['import_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_imports';
             referencedColumns: ['id'];
           },
           {
@@ -2604,6 +2614,7 @@ export interface Database {
           unit: string | null;
           data_source_id: string | null;
           created_at: string;
+          import_id: string | null;
         };
         Insert: {
           id?: string;
@@ -2616,6 +2627,7 @@ export interface Database {
           unit?: string | null;
           data_source_id?: string | null;
           created_at?: string;
+          import_id?: string | null;
         };
         Update: {
           id?: string;
@@ -2628,6 +2640,7 @@ export interface Database {
           unit?: string | null;
           data_source_id?: string | null;
           created_at?: string;
+          import_id?: string | null;
         };
         Relationships: [
           {
@@ -2649,6 +2662,13 @@ export interface Database {
             columns: ['department_id'];
             isOneToOne: false;
             referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'operational_records_import_id_fkey';
+            columns: ['import_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_imports';
             referencedColumns: ['id'];
           },
           {
@@ -2691,6 +2711,7 @@ export interface Database {
           analysis_run_id: string | null;
           is_provisional: boolean;
           fidelity_id: string | null;
+          import_id: string | null;
         };
         Insert: {
           id?: string;
@@ -2722,6 +2743,7 @@ export interface Database {
           analysis_run_id?: string | null;
           is_provisional?: boolean;
           fidelity_id?: string | null;
+          import_id?: string | null;
         };
         Update: {
           id?: string;
@@ -2753,6 +2775,7 @@ export interface Database {
           analysis_run_id?: string | null;
           is_provisional?: boolean;
           fidelity_id?: string | null;
+          import_id?: string | null;
         };
         Relationships: [
           {
@@ -2774,6 +2797,13 @@ export interface Database {
             columns: ['fidelity_id'];
             isOneToOne: false;
             referencedRelation: 'twin_fidelity';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunities_import_id_fkey';
+            columns: ['import_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_imports';
             referencedColumns: ['id'];
           },
           {
@@ -3191,11 +3221,6 @@ export interface Database {
       };
       organisations: {
         Row: {
-          address_line1: string | null;
-          address_line2: string | null;
-          city: string | null;
-          province: string | null;
-          postal_code: string | null;
           id: string;
           name: string;
           slug: string;
@@ -3213,13 +3238,13 @@ export interface Database {
           dpa_accepted_at: string | null;
           dpa_version: string | null;
           dpa_accepted_by: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          city: string | null;
+          province: string | null;
+          postal_code: string | null;
         };
         Insert: {
-          address_line1?: string | null;
-          address_line2?: string | null;
-          city?: string | null;
-          province?: string | null;
-          postal_code?: string | null;
           id?: string;
           name: string;
           slug: string;
@@ -3237,13 +3262,13 @@ export interface Database {
           dpa_accepted_at?: string | null;
           dpa_version?: string | null;
           dpa_accepted_by?: string | null;
-        };
-        Update: {
           address_line1?: string | null;
           address_line2?: string | null;
           city?: string | null;
           province?: string | null;
           postal_code?: string | null;
+        };
+        Update: {
           id?: string;
           name?: string;
           slug?: string;
@@ -3261,6 +3286,11 @@ export interface Database {
           dpa_accepted_at?: string | null;
           dpa_version?: string | null;
           dpa_accepted_by?: string | null;
+          address_line1?: string | null;
+          address_line2?: string | null;
+          city?: string | null;
+          province?: string | null;
+          postal_code?: string | null;
         };
         Relationships: [
           {
@@ -3639,6 +3669,7 @@ export interface Database {
           review_on: string | null;
           created_at: string;
           updated_at: string;
+          import_id: string | null;
         };
         Insert: {
           id?: string;
@@ -3656,6 +3687,7 @@ export interface Database {
           review_on?: string | null;
           created_at?: string;
           updated_at?: string;
+          import_id?: string | null;
         };
         Update: {
           id?: string;
@@ -3673,6 +3705,7 @@ export interface Database {
           review_on?: string | null;
           created_at?: string;
           updated_at?: string;
+          import_id?: string | null;
         };
         Relationships: [
           {
@@ -3680,6 +3713,13 @@ export interface Database {
             columns: ['branch_id'];
             isOneToOne: false;
             referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'risks_import_id_fkey';
+            columns: ['import_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_imports';
             referencedColumns: ['id'];
           },
           {
@@ -3737,6 +3777,7 @@ export interface Database {
           margin_cents: number | null;
           data_source_id: string | null;
           created_at: string;
+          import_id: string | null;
         };
         Insert: {
           id?: string;
@@ -3753,6 +3794,7 @@ export interface Database {
           margin_cents?: number | null;
           data_source_id?: string | null;
           created_at?: string;
+          import_id?: string | null;
         };
         Update: {
           id?: string;
@@ -3769,6 +3811,7 @@ export interface Database {
           margin_cents?: number | null;
           data_source_id?: string | null;
           created_at?: string;
+          import_id?: string | null;
         };
         Relationships: [
           {
@@ -3790,6 +3833,13 @@ export interface Database {
             columns: ['department_id'];
             isOneToOne: false;
             referencedRelation: 'departments';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_records_import_id_fkey';
+            columns: ['import_id'];
+            isOneToOne: false;
+            referencedRelation: 'data_imports';
             referencedColumns: ['id'];
           },
           {
@@ -4206,11 +4256,11 @@ export interface Database {
           organisation_id: string;
           plan?: Enums['subscription_plan'];
           status?: Enums['subscription_status'];
-          seats?: number;
+          seats: number;
           data_source_limit?: number | null;
-          ai_credits_monthly?: number;
+          ai_credits_monthly: number;
           ai_credits_used?: number;
-          price_cents_monthly?: number;
+          price_cents_monthly: number;
           currency_code?: string;
           trial_ends_at?: string | null;
           current_period_start?: string;
@@ -4458,9 +4508,6 @@ export interface Database {
       };
       user_profiles: {
         Row: {
-          first_name: string | null;
-          last_name: string | null;
-          date_of_birth: string | null;
           id: string;
           email: string;
           full_name: string | null;
@@ -4477,11 +4524,11 @@ export interface Database {
           privacy_version: string | null;
           mfa_enabled: boolean;
           mfa_enabled_at: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          date_of_birth: string | null;
         };
         Insert: {
-          first_name?: string | null;
-          last_name?: string | null;
-          date_of_birth?: string | null;
           id: string;
           email: string;
           full_name?: string | null;
@@ -4498,11 +4545,11 @@ export interface Database {
           privacy_version?: string | null;
           mfa_enabled?: boolean;
           mfa_enabled_at?: string | null;
-        };
-        Update: {
           first_name?: string | null;
           last_name?: string | null;
           date_of_birth?: string | null;
+        };
+        Update: {
           id?: string;
           email?: string;
           full_name?: string | null;
@@ -4519,6 +4566,9 @@ export interface Database {
           privacy_version?: string | null;
           mfa_enabled?: boolean;
           mfa_enabled_at?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          date_of_birth?: string | null;
         };
         Relationships: [
           {
@@ -4627,12 +4677,6 @@ export interface Database {
         };
         Returns: Database['public']['Tables']['subscriptions']['Row'];
       };
-      clear_conversation: {
-        Args: {
-          p_conversation_id: string;
-        };
-        Returns: string | null;
-      };
       check_rate_limit: {
         Args: {
           p_bucket: string;
@@ -4640,6 +4684,12 @@ export interface Database {
           p_window: string;
         };
         Returns: boolean;
+      };
+      clear_conversation: {
+        Args: {
+          p_conversation_id: string;
+        };
+        Returns: string;
       };
       complete_imprint: {
         Args: {
