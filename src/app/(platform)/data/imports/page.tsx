@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { formatRelative, humanise } from '@/lib/utils/format';
 import { describeBytes } from '@/lib/files/kinds';
 import { UploadForm } from '@/features/data/upload-form';
+import { ImportForm } from '@/features/data/import-form';
 import { RemoveButton } from '@/features/data/remove-button';
 import type { Enums } from '@/types/database';
 import { SectionTabs } from '@/components/ui/section-tabs';
@@ -77,6 +78,32 @@ export default async function DataImportsPage() {
       />
       <SectionTabs tabs={visibleTabs('data', workspace.permissions)} />
 
+
+      {/*
+        The workbook importer, on the page people actually come to.
+
+        It was on Connected Sources, one tab across, and this page is the one
+        called "Files and imports" with an upload form on it. Somebody wanting
+        their figures in Amryn came here twice, uploaded through the file
+        store both times, and got a dashboard that stayed empty — because the
+        file store keeps a file and the importer fills the tables, and only
+        one of those pages offered the second.
+
+        First, above the files, because it is the one that changes what the
+        product shows. import_data, which is what the action and every policy
+        underneath it require.
+      */}
+      {mayUpload ? (
+        <Card className="mb-5" tone="brand">
+          <CardHeader
+            title="Import a workbook"
+            subtitle="Monthly figures, sales, expenses, opportunities and risks from a spreadsheet — this is what puts numbers on the Command Centre and the financial screens"
+          />
+          <div className="px-5 pb-5">
+            <ImportForm />
+          </div>
+        </Card>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-5">
