@@ -47,5 +47,6 @@
   "20260917090000_46_profile_names_dob_address.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'user_profiles' and column_name = 'date_of_birth')",
   "20260917090100_47_cleared_threads_hidden_by_rls.sql": "exists (select 1 from pg_policy p join pg_class c on c.oid = p.polrelid where c.relname = 'ai_conversations' and p.polname = 'ai_conversations_read')",
   "20260917120000_48_new_organisations_take_the_catalogue_price.sql": "(select column_default from information_schema.columns where table_schema = 'public' and table_name = 'subscriptions' and column_name = 'price_cents_monthly') is null",
-  "20260917180000_49_imported_rows_know_their_import.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'financial_records' and column_name = 'import_id')"
+  "20260917180000_49_imported_rows_know_their_import.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'financial_records' and column_name = 'import_id')",
+  "20260917200000_50_a_new_organisation_trials_the_plan_the_demo_runs_on.sql": "exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'subscription_plans' and column_name = 'is_trial_default')"
 }

@@ -4183,6 +4183,7 @@ export interface Database {
           price_cents_monthly_max: number | null;
           implementation_fee_cents_min: number | null;
           implementation_fee_cents_max: number | null;
+          is_trial_default: boolean;
         };
         Insert: {
           plan: Enums['subscription_plan'];
@@ -4203,6 +4204,7 @@ export interface Database {
           price_cents_monthly_max?: number | null;
           implementation_fee_cents_min?: number | null;
           implementation_fee_cents_max?: number | null;
+          is_trial_default?: boolean;
         };
         Update: {
           plan?: Enums['subscription_plan'];
@@ -4223,6 +4225,7 @@ export interface Database {
           price_cents_monthly_max?: number | null;
           implementation_fee_cents_min?: number | null;
           implementation_fee_cents_max?: number | null;
+          is_trial_default?: boolean;
         };
         Relationships: [
         ];
