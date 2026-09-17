@@ -44,8 +44,13 @@ export default async function DataSourcesPage() {
         title="Connected Sources"
         description="Where Amryn's picture of your business comes from. A source that has stopped syncing quietly degrades every finding drawn from it, so failures are stated first."
         actions={
-          <Button asChild variant="primary" size="sm">
-            <Link href="/data/imports">Upload a file</Link>
+          /* "Keep a file" rather than "Upload a file": this leads to the file
+             store, which files a document and reads what it can out of it. The
+             way to put figures on a dashboard is the workbook importer below,
+             and one button calling itself the generic name for both was how
+             somebody reached the wrong one. */
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/data/imports">Keep a file</Link>
           </Button>
         }
       />
@@ -78,8 +83,16 @@ export default async function DataSourcesPage() {
 
         Shown only to somebody who may actually do it: rendering a form that
         refuses on submit is a worse answer than not offering it.
+
+        import_data, which is what the action asks for and what every policy on
+        data_imports is written against. It used to read manage_integrations,
+        which is a different permission held by different people: an executive
+        and an analyst both hold import_data and neither holds that one, so the
+        two roles whose work this is were not offered the importer at all,
+        while the check that actually governs it would have let them through.
+        A gate that disagrees with the lock is worse than no gate.
       */}
-      {can(workspace, 'manage_integrations') ? (
+      {can(workspace, 'import_data') ? (
         <Card className="mb-5">
           <CardHeader
             title="Import a workbook"
@@ -94,12 +107,24 @@ export default async function DataSourcesPage() {
       <Card>
         <CardHeader title="Connections" subtitle={`${rows.length} configured`} />
         {rows.length === 0 ? (
+          /*
+            This used to read "upload what you already have — a spreadsheet, a
+            PDF, a statement" above a button to the file store, which keeps a
+            spreadsheet as a file and puts none of it on a dashboard. The
+            sentence promised the one thing the button did not do, and it was
+            the most prominent control on the page of a business that had
+            connected nothing — which is precisely the business whose figures
+            are not on screen yet.
+
+            The two routes are now named by what they produce rather than both
+            called "upload a file".
+          */
           <EmptyState
             title="No data connected yet"
-            description="Connect a system, or upload what you already have — a spreadsheet, a PDF, a statement. A file is the fastest way to give your AI DigitalTwin® something real to work from."
+            description="Connect a system, or import the workbook you already keep — that is what puts your own figures behind the Command Centre and the financial screens. Files of other kinds, like a PDF or a statement, can be kept and read separately."
             action={
-              <Button asChild variant="primary">
-                <Link href="/data/imports">Upload a file</Link>
+              <Button asChild variant="secondary">
+                <Link href="/data/imports">Keep a file</Link>
               </Button>
             }
           />

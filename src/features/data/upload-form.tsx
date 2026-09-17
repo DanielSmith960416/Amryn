@@ -110,6 +110,37 @@ export function UploadForm() {
                     ? state.readError
                     : 'It is kept as it is — Amryn has not read what is inside it.'}
           </p>
+
+          {/*
+            The correction that has to happen here, not later.
+
+            A spreadsheet dropped on this page is filed and its rows counted.
+            It does not reach financial_records, sales_records or any other
+            table a dashboard reads — that is the workbook importer's job, and
+            this page has no way to know whether somebody wanted a file kept or
+            their figures on screen.
+
+            Saying nothing is the expensive silence. Somebody uploads their
+            management pack here, sees "we read 210 rows", goes to the Command
+            Centre and finds it empty, and concludes the product is broken. The
+            upload worked exactly as designed and the person was never told
+            what it was designed to do.
+          */}
+          {state.handling === 'table' ? (
+            <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+              Those rows are kept as a file — they do not appear on the Command
+              Centre or the financial screens. To put a workbook&rsquo;s figures
+              behind your dashboards, use{' '}
+              <a
+                href="/data"
+                className="text-[var(--brand)] underline underline-offset-2"
+              >
+                Import a workbook
+              </a>{' '}
+              on Connected Sources.
+            </p>
+          ) : null}
+
           <a
             href={`/data/documents/${state.id}`}
             className="inline-block text-[0.75rem] text-[var(--brand)] underline underline-offset-2"
