@@ -23,3 +23,15 @@ export function label(table: string): string {
       return table;
   }
 }
+
+/**
+ * The same names with a capital, for the left-hand column of the report.
+ *
+ * That column otherwise holds a sheet name, which is a proper noun in the
+ * workbook — "Opportunities" beside "Monthly Financials" rather than
+ * "opportunities" beside it.
+ */
+export function heading(table: string): string {
+  const name = label(table);
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}

@@ -2,11 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requirePermission } from '@/lib/auth/session';
+import { can, requirePermission } from '@/lib/auth/session';
 import { recordEvent } from '@/lib/audit';
 import { isLegacyExcel, readWorkbook, SpreadsheetError } from '@/lib/files/xlsx';
 import { planWorkbook, type Draft, type Skipped } from '@/lib/import/plan';
 import { label } from './import-labels';
+import { partitionByPermission } from './import-permissions';
 
 /**
  * Loading a management workbook into the tables the product reads.
@@ -132,12 +133,23 @@ export async function importWorkbook(
 
   const plan = planWorkbook(sheets);
 
-  if (plan.drafts.length === 0) {
+  /*
+   * Which of the five tables this person may actually write to. import_data
+   * is not the whole answer — see import-permissions.ts for what the database
+   * asks for, and for the double count that discovering it mid-write caused.
+   */
+  const { allowed, refused } = partitionByPermission(plan.drafts, (permission) =>
+    can(workspace, permission),
+  );
+
+  const skipped = [...plan.skipped, ...refused];
+
+  if (allowed.length === 0) {
     return {
       status: 'done',
       imported: [],
       total: 0,
-      skipped: plan.skipped,
+      skipped,
       year: plan.year,
       filename: file.name,
     };
@@ -157,7 +169,7 @@ export async function importWorkbook(
    * instead of claiming the whole file.
    */
   for (const table of ORDER) {
-    const rows = plan.drafts.filter((draft) => draft.table === table).map((draft) => draft.row);
+    const rows = allowed.filter((draft) => draft.table === table).map((draft) => draft.row);
     if (rows.length === 0) continue;
 
     const { error } = await supabase
@@ -195,7 +207,7 @@ export async function importWorkbook(
     validation: {
       fingerprint,
       year: plan.year,
-      skipped: plan.skipped.map((entry) => ({ sheet: entry.sheet, reason: entry.reason })),
+      skipped: skipped.map((entry) => ({ sheet: entry.sheet, reason: entry.reason })),
     },
     uploaded_by: workspace.user.id,
     completed_at: new Date().toISOString(),
@@ -213,7 +225,7 @@ export async function importWorkbook(
     status: 'done',
     imported,
     total,
-    skipped: plan.skipped,
+    skipped,
     year: plan.year,
     filename: file.name,
   };
