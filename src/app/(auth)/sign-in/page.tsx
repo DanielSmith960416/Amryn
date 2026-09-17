@@ -3,6 +3,7 @@ import { SignInForm } from '@/features/auth/sign-in-form';
 import { isSupabaseConfigured } from '@/lib/env';
 import { NotAvailable } from '@/features/setup/not-available';
 import { safeNextPath } from '@/features/auth/next-path';
+import { ReturningGreeting } from '@/features/auth/returning-greeting';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
@@ -82,6 +83,13 @@ export default async function SignInPage({
           </p>
         </div>
       ) : null}
+
+      {/*
+        Above the form, and only when this browser has signed in before. It is
+        read from this device's own storage after mount — the server renders
+        nothing here, because it cannot know and should not guess.
+      */}
+      <ReturningGreeting />
 
       <div className="mt-6">
         <SignInForm next={params.next === undefined ? undefined : safeNextPath(params.next)} />

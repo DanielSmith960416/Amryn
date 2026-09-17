@@ -11,6 +11,9 @@ import { currentWorkspace } from '@/lib/workspace';
 import { NoDataYet } from '@/components/intelligence/no-data-yet';
 import { ImprintPrompt } from '@/features/imprint/prompt';
 import { AnalysisBanner } from '@/features/analysis/banner';
+import { Greeting } from '@/components/shell/greeting';
+import { requireWorkspace } from '@/lib/auth/session';
+import { hourInTimezone, timeOfDay } from '@/lib/greeting/greeting';
 
 export const metadata: Metadata = { title: 'Executive Command Centre' };
 
@@ -27,9 +30,25 @@ export const metadata: Metadata = { title: 'Executive Command Centre' };
  */
 export default async function CommandCentrePage() {
   const state = await currentWorkspace();
+
+  // Resolved before the empty branch, not after it. getWorkspace is cached per
+  // request, so this is the resolution the layout already made rather than a
+  // second trip — and reading it here means the greeting survives the early
+  // return below. A business with no figures yet is precisely the one whose
+  // first screen should still say good morning to somebody by name.
+  const workspace = await requireWorkspace();
+  const firstName = workspace.profile?.first_name ?? null;
+  const part = timeOfDay(hourInTimezone(workspace.organisation.timezone));
+
   if (state.kind === 'empty') {
-    return <NoDataYet what="The week in one view — health, opportunities, risks and what to do about them —" organisationName={state.organisationName} />;
+    return (
+      <>
+        <Greeting firstName={firstName} initialPart={part} />
+        <NoDataYet what="The week in one view — health, opportunities, risks and what to do about them —" organisationName={state.organisationName} />
+      </>
+    );
   }
+
   const w = state.workspace;
   const currency = w.profile.currency;
 
@@ -37,8 +56,15 @@ export default async function CommandCentrePage() {
     <>
       <ImprintPrompt />
       <AnalysisBanner />
+      {/*
+        The greeting takes the eyebrow slot rather than sitting above it. Two
+        small lines stacked before a heading is one line too many, and of the
+        two this is the one that belongs on somebody's own dashboard: "Detect →
+        Simulate → Act" describes the product to a stranger, and nobody reading
+        this screen is one. It still says so on the marketing site.
+      */}
       <PageHeader
-        eyebrow="Detect → Simulate → Act"
+        eyebrow={<Greeting firstName={firstName} initialPart={part} />}
         title="Executive Command Centre"
         description={`${w.profile.companyName} · ${w.profile.reportingPeriod} · ${w.profile.location}`}
         actions={

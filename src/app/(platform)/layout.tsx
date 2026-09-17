@@ -4,6 +4,8 @@ import { can, requireWorkspace } from '@/lib/auth/session';
 import { AccountNotice } from '@/features/billing/account-notice';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
 import { createClient } from '@/lib/supabase/server';
+import { RememberDevice } from '@/components/shell/remember-device';
+import { BirthdayBanner } from '@/features/profile/birthday-banner';
 
 /**
  * Every authenticated route sits inside this layout, so `requireWorkspace()`
@@ -45,6 +47,19 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       roleLabel={ROLE_LABELS[workspace.role] ?? workspace.role}
       unreadCount={count ?? 0}
     >
+      {/*
+        Both of these live here rather than on a page, and for the same reason:
+        this layout wraps every authenticated route, so the birthday is noticed
+        wherever somebody happens to land that morning, and the name is
+        remembered whichever page they opened. Neither renders anything on the
+        server — one is a date the browser owns, the other is storage only the
+        browser can reach.
+      */}
+      <RememberDevice firstName={workspace.profile?.first_name ?? null} />
+      <BirthdayBanner
+        dateOfBirth={workspace.profile?.date_of_birth ?? null}
+        firstName={workspace.profile?.first_name ?? null}
+      />
       <AccountNotice
         access={workspace.access}
         canManageBilling={can(workspace, 'manage_billing')}

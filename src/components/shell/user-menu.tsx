@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { LogOut, Settings } from 'lucide-react';
 import { clearProfile, initials } from '@/lib/profile';
+import { forgetDeviceName } from '@/lib/greeting/device-name';
 import { signOut } from '@/features/auth/actions';
 
 /**
@@ -103,7 +104,17 @@ export function UserMenu({
             <button
               type="submit"
               role="menuitem"
-              onClick={() => clearProfile()}
+              /*
+                Both stores, because both hold a name that belongs to whoever
+                just left. The device greeting survives a session expiring or a
+                browser being closed — which is what it is for, and the common
+                way somebody meets the sign-in page again — but not somebody
+                deliberately signing out of a machine they may be sharing.
+              */
+              onClick={() => {
+                clearProfile();
+                forgetDeviceName();
+              }}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-[0.8125rem] text-[var(--text-secondary)] hover:bg-[var(--card-inset)] hover:text-[var(--text-primary)]"
             >
               <LogOut className="size-4" />

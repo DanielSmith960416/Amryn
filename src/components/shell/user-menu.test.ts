@@ -42,4 +42,15 @@ describe('the user menu', () => {
   it('still clears the remembered name, which belongs to whoever just left', () => {
     expect(source).toContain('clearProfile()');
   });
+
+  /*
+   * The device greeting on the sign-in page is meant to survive a session
+   * expiring or a browser being closed — that is the returning device it
+   * exists for. It is not meant to survive somebody deliberately signing out
+   * of a machine they might be sharing, and leaving their first name on the
+   * next person's sign-in screen would be a small betrayal of that.
+   */
+  it('forgets the device greeting too, for the same reason', () => {
+    expect(source).toContain('forgetDeviceName()');
+  });
 });
