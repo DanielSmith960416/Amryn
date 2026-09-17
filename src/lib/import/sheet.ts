@@ -156,13 +156,47 @@ const MONTHS = [
  * Returned as the first and last day, because that is what metric_values
  * stores and what makes two sheets about the same month line up.
  */
-export function monthPeriod(label: string): { start: string; end: string } | null {
-  const match = /([a-z]{3,9})\s*[-/ ]?\s*(\d{4})/i.exec(label.trim());
+export function monthPeriod(
+  label: string,
+  fallbackYear?: number | null,
+): { start: string; end: string } | null {
+  const text = label.trim();
+
+  /*
+   * The year is optional, for the same reason it is optional in dayInYear:
+   * a column headed "Apr" on a sheet whose title says 2026 is April 2026, and
+   * a spreadsheet written for a person does not repeat the year twelve times
+   * across a header row.
+   *
+   * This function used to require four digits. A real management pack was
+   * imported with bare month headings, every column was refused, and the
+   * sheet reported "no month could be read" — which was true of the pattern
+   * and false about the sheet. Its twelve financial lines went nowhere and
+   * the dashboard stayed at zero.
+   *
+   * Two digits are read as 20xx. A management workbook headed "Apr-26" means
+   * 2026, and 1926 is not a year anybody is importing figures for.
+   */
+  const match = /([a-z]{3,9})\s*[-/ ]?\s*(\d{2,4})?/i.exec(text);
   if (!match) return null;
+
   const month = MONTHS.indexOf(match[1]!.slice(0, 3).toLowerCase());
   if (month < 0) return null;
 
-  const year = Number(match[2]);
+  const stated = match[2];
+  let year: number;
+  if (stated === undefined) {
+    // No year in the heading at all, so the sheet's own year decides. Without
+    // one there is nothing to place this against, and a guess would file the
+    // figures under a year nobody wrote down.
+    if (fallbackYear === undefined || fallbackYear === null) return null;
+    year = fallbackYear;
+  } else if (stated.length === 2) {
+    year = 2000 + Number(stated);
+  } else {
+    year = Number(stated);
+  }
+
   const start = new Date(Date.UTC(year, month, 1));
   const end = new Date(Date.UTC(year, month + 1, 0));
   return { start: iso(start), end: iso(end) };
