@@ -36,6 +36,7 @@ import {
 } from './schemas';
 import { siteUrl } from '@/lib/env';
 import {
+  authAttempt,
   authErrorMessage,
   classifyAuthError,
   reportAuthFault,
@@ -65,7 +66,7 @@ export async function signInWithPassword(
   if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const error = await authAttempt(() => supabase.auth.signInWithPassword(parsed.data));
   // Not every failure here is a wrong password. Sending someone to retype
   // correct details because a rejected key was the real problem is worse than
   // saying so.
@@ -74,8 +75,8 @@ export async function signInWithPassword(
     // address is not written down, so this counts failures without building a
     // list of who tried. A log of only the successful sign-ins would miss the
     // one pattern worth looking for.
-    await recordAccountEvent('account.sign_in_failed', classifyAuthError(error.message).kind);
-    return { status: 'error', message: signInErrorMessage(error.message) };
+    await recordAccountEvent('account.sign_in_failed', classifyAuthError(error).kind);
+    return { status: 'error', message: signInErrorMessage(error) };
   }
 
   await recordAccountEvent('account.signed_in', 'Signed in with a password');
@@ -111,7 +112,8 @@ export async function signUpWithPassword(
   const acceptedAt = new Date().toISOString();
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const error = await authAttempt(() =>
+    supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
@@ -122,13 +124,14 @@ export async function signUpWithPassword(
         privacy_version: LEGAL_VERSION,
         privacy_accepted_at: acceptedAt,
       },
-      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(formData.get('next')))}`,
-    },
-  });
+        emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(formData.get('next')))}`,
+      },
+    }),
+  );
 
   // error.message verbatim is how "Invalid API key" came to be printed under
   // the password field, as though the reader had typed one.
-  if (error) return { status: 'error', message: authErrorMessage(error.message) };
+  if (error) return { status: 'error', message: authErrorMessage(error) };
 
   return {
     status: 'sent',
@@ -149,16 +152,18 @@ export async function signInWithMagicLink(
   if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email: parsed.data.email,
-    options: {
-      emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(formData.get('next')))}`,
-    },
-  });
+  const error = await authAttempt(() =>
+    supabase.auth.signInWithOtp({
+      email: parsed.data.email,
+      options: {
+        emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(formData.get('next')))}`,
+      },
+    }),
+  );
 
   if (error) {
-    const fault = classifyAuthError(error.message);
-    reportAuthFault(fault, error.message);
+    const fault = classifyAuthError(error);
+    reportAuthFault(fault, error);
     // A configuration fault is not an enumeration risk — the request never
     // reached the point of looking an address up — so it is reported plainly.
     if (fault.kind === 'configuration' || fault.kind === 'service') {
@@ -193,17 +198,22 @@ export async function requestPasswordReset(
   if (!limit.allowed) return { status: 'error', message: limit.message! };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    // The link lands on the callback, which exchanges the code for a session
-    // and forwards to the form that sets the new password.
-    redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent('/reset-password')}`,
-  });
+  const error = await authAttempt(() =>
+    supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      // The link lands on the callback, which exchanges the code for a session
+      // and forwards to the form that sets the new password.
+      redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent('/reset-password')}`,
+    }),
+  );
 
   if (error) {
-    const fault = classifyAuthError(error.message);
-    reportAuthFault(fault, error.message);
+    const fault = classifyAuthError(error);
+    reportAuthFault(fault, error);
     // A configuration or service fault is ours, and saying so is not an
-    // enumeration risk — the request never got as far as looking an address up.
+    // enumeration risk — the request never got as far as looking an address
+    // up. An unreachable service classifies as configuration, so a thrown
+    // failure lands here too: silence would tell somebody their reset link is
+    // on its way when nothing was sent.
     if (fault.kind === 'configuration' || fault.kind === 'service') {
       return { status: 'error', message: fault.message };
     }
@@ -244,9 +254,11 @@ export async function setNewPassword(
     };
   }
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  const error = await authAttempt(() =>
+    supabase.auth.updateUser({ password: parsed.data.password }),
+  );
   if (error) {
-    return { status: 'error', message: authErrorMessage(error.message) };
+    return { status: 'error', message: authErrorMessage(error) };
   }
 
   await recordAccountEvent('account.password_changed', 'Password set from a reset link');

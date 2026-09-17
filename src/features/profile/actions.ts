@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireUser, requireWorkspace } from '@/lib/auth/session';
 import { recordAccountEvent } from '@/lib/audit';
 import { checkAuthLimit } from '@/lib/auth/rate-limit';
-import { authErrorMessage } from '@/features/auth/errors';
+import { authAttempt, authErrorMessage, classifyAuthError } from '@/features/auth/errors';
 import {
   changePasswordSchema,
   dateOfBirthSchema,
@@ -141,17 +141,30 @@ export async function changePassword(
 
   const supabase = await createClient();
 
-  const { error: wrong } = await supabase.auth.signInWithPassword({
-    email,
-    password: parsed.data.current,
-  });
+  const wrong = await authAttempt(() =>
+    supabase.auth.signInWithPassword({ email, password: parsed.data.current }),
+  );
   if (wrong) {
+    /*
+     * Which failure it was matters here more than anywhere else on this form.
+     * "That is not your current password" is the right answer to a wrong
+     * password and a lie about a dropped connection — and it is a lie that
+     * sends somebody off to reset a password that was never wrong. Only a
+     * refusal about the credentials is reported as one; anything else keeps
+     * its own words.
+     */
+    const fault = classifyAuthError(wrong);
+    if (fault.kind !== 'credentials') {
+      return { status: 'error', message: fault.message };
+    }
     await recordAccountEvent('account.sign_in_failed', 'Password change refused: current password');
     return { status: 'error', message: 'That is not your current password.' };
   }
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
-  if (error) return { status: 'error', message: authErrorMessage(error.message) };
+  const error = await authAttempt(() =>
+    supabase.auth.updateUser({ password: parsed.data.password }),
+  );
+  if (error) return { status: 'error', message: authErrorMessage(error) };
 
   await recordAccountEvent('account.password_changed', 'Password changed from settings');
 

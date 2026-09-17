@@ -1,10 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  INVALID_CREDENTIALS,
-  classifyAuthError,
-  reportAuthFault,
-  signInErrorMessage,
-} from './errors';
+import { INVALID_CREDENTIALS, authAttempt, classifyAuthError, reportAuthFault, signInErrorMessage } from './errors';
 
 /**
  * Words that belong in a server log and never under a password field. A
@@ -141,5 +136,107 @@ describe('signInErrorMessage', () => {
     expect(message).toContain('fault on our side');
     assertReadable(message);
     spy.mockRestore();
+  });
+});
+
+/**
+ * The failure that never reached this file until now.
+ *
+ * Every auth call was written as `const { error } = await supabase.auth.…`,
+ * which is right for anything the auth server replies with and wrong for the
+ * cases where it never replies: supabase-js throws. Those went straight past
+ * the classifier, out of the server action, and into Next's error boundary —
+ * so a dropped connection mid-sign-in showed "Something failed on the server"
+ * over a form that had been working a second earlier.
+ */
+describe('authAttempt', () => {
+  it('passes a returned error through unchanged', async () => {
+    const failure = await authAttempt(async () => ({
+      error: { message: 'Invalid login credentials' },
+    }));
+    expect(failure).toBe('Invalid login credentials');
+  });
+
+  it('reports success as null, so the caller reads `if (failure)`', async () => {
+    expect(await authAttempt(async () => ({ error: null }))).toBeNull();
+  });
+
+  it('catches a throw instead of letting it reach the error boundary', async () => {
+    const failure = await authAttempt(async () => {
+      throw new TypeError('fetch failed');
+    });
+    expect(failure).toContain('fetch failed');
+    // Classified as ours rather than as the reader's, by the pattern that has
+    // always been there — what changed is that a *thrown* failure now reaches
+    // it at all instead of escaping to the error boundary.
+    expect(classifyAuthError(failure).kind).toBe('configuration');
+  });
+
+  /*
+   * "fetch failed" on its own names nothing. undici puts the real reason on
+   * Error.cause, and that is what tells a connection refused from a name that
+   * does not resolve when somebody reads the log.
+   */
+  it('keeps the cause, which is where the real reason lives', async () => {
+    const thrown = new TypeError('fetch failed', {
+      cause: new Error('connect ECONNREFUSED 127.0.0.1:443'),
+    });
+    const failure = await authAttempt(async () => {
+      throw thrown;
+    });
+    expect(failure).toContain('fetch failed');
+    expect(failure).toContain('ECONNREFUSED');
+  });
+
+  it('survives something thrown that is not an Error at all', async () => {
+    const failure = await authAttempt(async () => {
+      throw 'nope';
+    });
+    expect(typeof failure).toBe('string');
+  });
+});
+
+describe('a network fault reads differently from a wrong password', () => {
+  it('does not blame what was typed', () => {
+    const network = classifyAuthError('fetch failed (connect ECONNREFUSED)');
+    expect(network.kind).toBe('configuration');
+    expect(network.message).toMatch(/fault on our side/i);
+    expect(network.message).not.toMatch(/password|credential/i);
+    // And it says where to look, for whoever runs the deployment.
+    expect(network.detail).toMatch(/diagnostics/i);
+  });
+
+  it('covers the shapes a thrown failure actually arrives in', () => {
+    for (const thrown of [
+      'fetch failed',
+      'fetch failed (connect ECONNREFUSED 127.0.0.1:443)',
+      'fetch failed (getaddrinfo ENOTFOUND db.example.supabase.co)',
+      'fetch failed (read ECONNRESET)',
+      'fetch failed (connect ETIMEDOUT)',
+      'socket hang up',
+    ]) {
+      expect(classifyAuthError(thrown).kind, thrown).toBe('configuration');
+    }
+  });
+
+  it('is a different sentence from every other failure the forms can show', () => {
+    const messages = [
+      classifyAuthError('Invalid login credentials').message,
+      classifyAuthError('Email not confirmed').message,
+      classifyAuthError('fetch failed').message,
+      classifyAuthError('some unrecognised thing').message,
+      classifyAuthError('Request rate limit reached').message,
+    ];
+    expect(new Set(messages).size).toBe(messages.length);
+  });
+
+  /*
+   * Order matters: "fetch failed" is generic enough that a more specific
+   * message must still win, or a misconfigured key would be reported as a
+   * network problem and nobody would fix the key.
+   */
+  it('does not swallow a more specific fault that happens to mention a timeout', () => {
+    expect(classifyAuthError('Invalid API key').kind).not.toBe('network');
+    expect(classifyAuthError('Email not confirmed').kind).toBe('unconfirmed');
   });
 });

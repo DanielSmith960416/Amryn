@@ -86,7 +86,20 @@ const PATTERNS: ReadonlyArray<{
       'The database rejected the API key. Check NEXT_PUBLIC_SUPABASE_ANON_KEY, then open /diagnostics.',
   },
   {
-    test: /failed to fetch|network|econnrefused|enotfound|fetch failed/i,
+    /*
+     * Unreachable. This pattern was written for an error the auth server
+     * *returned*, and it now catches the far more common case as well: the one
+     * where supabase-js threw because the request could not be made at all.
+     * Those used to bypass this file entirely — see authAttempt below, which
+     * is what routes them here.
+     *
+     * Still classified as ours rather than as the reader's. On a server whose
+     * network is otherwise steady, "cannot reach Supabase" is a paused
+     * project or a wrong address far more often than it is a passing blip, and
+     * the detail says where to look. Either way the reader is told it is not
+     * something they typed, which is the part that matters to them.
+     */
+    test: /failed to fetch|network|econnrefused|econnreset|enotfound|eai_again|etimedout|socket hang up|fetch failed/i,
     kind: 'configuration',
     message: OUR_FAULT,
     detail:
@@ -191,6 +204,44 @@ export function classifyAuthError(message: string | undefined | null): AuthFault
     // goes where somebody can use it rather than under the password field.
     detail: text.length > 0 ? `Unrecognised auth error: ${text}` : 'Auth failed with no message.',
   };
+}
+
+/**
+ * Runs an auth call and reports its failure the same way whether the service
+ * answered with an error or never answered at all.
+ *
+ * ── the gap this closes ──────────────────────────────────────────────────
+ * Every auth call in this product was written as `const { error } = await
+ * supabase.auth.…`, which is right for every failure the auth server *replies*
+ * with. supabase-js does not reply when the request cannot be made: it throws.
+ * A refused connection, a DNS failure, a dropped socket, a Supabase project
+ * that has been paused — all of them threw straight through the server action
+ * and out to Next's error boundary, so somebody whose wifi dropped mid-sign-in
+ * was shown "Something failed on the server" over a form that had been working
+ * a second earlier.
+ *
+ * The brief asked that a network error read differently from a wrong password.
+ * It could not, because it never reached the code that writes the messages.
+ * Now it does: the thrown value is turned into text, classified like any other
+ * fault, and comes back through the same form.
+ *
+ * Returns the failure's message, or null when the call succeeded — so a caller
+ * reads `if (failure) …`, which is the shape the actions already had.
+ */
+export async function authAttempt(
+  run: () => Promise<{ error: { message: string } | null }>,
+): Promise<string | null> {
+  try {
+    const { error } = await run();
+    return error?.message ?? null;
+  } catch (thrown) {
+    // Error.cause is where undici puts the real reason — "fetch failed" on its
+    // own names nothing, and the cause carries ECONNREFUSED or ENOTFOUND.
+    const error = thrown as { message?: unknown; cause?: { message?: unknown } };
+    const said = typeof error?.message === 'string' ? error.message : String(thrown);
+    const because = typeof error?.cause?.message === 'string' ? ` (${error.cause.message})` : '';
+    return `${said}${because}`;
+  }
 }
 
 /**
