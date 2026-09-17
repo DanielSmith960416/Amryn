@@ -93,7 +93,7 @@ describe('riskyStatements', () => {
 describe('the migrations in this repository', () => {
   const files = readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
 
-  it('are classified, and only the three that rewrite rows are flagged', () => {
+  it('are classified, and only the four that rewrite rows are flagged', () => {
     // Pinned deliberately. A migration becoming risky is a real event that
     // should change this list rather than pass unnoticed — and a new migration
     // that trips the classifier by accident is worth seeing in a diff.
@@ -102,11 +102,21 @@ describe('the migrations in this repository', () => {
     // already exist, so migrate.mjs will refuse to apply it without a recent
     // verified backup. That is the gate doing its job, not a fault to route
     // around — the entry below is the record that it was considered.
+    //
+    // 46 likewise, and for a smaller reason: it splits every existing
+    // full_name into first_name and last_name, which is an update of rows that
+    // already exist however carefully it is written. It touches only profiles
+    // that have a full name and neither part of one, so it cannot overwrite a
+    // name somebody has set and it is safe to run twice — but "cannot lose
+    // anything" is a judgement, and this classifier deliberately does not make
+    // judgements. The deploy takes its own backup before applying it, which is
+    // the behaviour that exists precisely for this case.
     const risky = files.filter((f) => riskyStatements(readFileSync(join(migrations, f), 'utf8')).length > 0);
     expect(risky).toEqual([
       '20260830080000_07_sector_policy.sql',
       '20260901090000_16_subscription_entitlements.sql',
       '20260910120000_36_pricing_and_connector_entitlements.sql',
+      '20260917090000_46_profile_names_dob_address.sql',
     ]);
   });
 

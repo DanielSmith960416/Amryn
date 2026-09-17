@@ -3191,6 +3191,11 @@ export interface Database {
       };
       organisations: {
         Row: {
+          address_line1: string | null;
+          address_line2: string | null;
+          city: string | null;
+          province: string | null;
+          postal_code: string | null;
           id: string;
           name: string;
           slug: string;
@@ -3210,6 +3215,11 @@ export interface Database {
           dpa_accepted_by: string | null;
         };
         Insert: {
+          address_line1?: string | null;
+          address_line2?: string | null;
+          city?: string | null;
+          province?: string | null;
+          postal_code?: string | null;
           id?: string;
           name: string;
           slug: string;
@@ -3229,6 +3239,11 @@ export interface Database {
           dpa_accepted_by?: string | null;
         };
         Update: {
+          address_line1?: string | null;
+          address_line2?: string | null;
+          city?: string | null;
+          province?: string | null;
+          postal_code?: string | null;
           id?: string;
           name?: string;
           slug?: string;
@@ -4443,6 +4458,9 @@ export interface Database {
       };
       user_profiles: {
         Row: {
+          first_name: string | null;
+          last_name: string | null;
+          date_of_birth: string | null;
           id: string;
           email: string;
           full_name: string | null;
@@ -4461,6 +4479,9 @@ export interface Database {
           mfa_enabled_at: string | null;
         };
         Insert: {
+          first_name?: string | null;
+          last_name?: string | null;
+          date_of_birth?: string | null;
           id: string;
           email: string;
           full_name?: string | null;
@@ -4479,6 +4500,9 @@ export interface Database {
           mfa_enabled_at?: string | null;
         };
         Update: {
+          first_name?: string | null;
+          last_name?: string | null;
+          date_of_birth?: string | null;
           id?: string;
           email?: string;
           full_name?: string | null;
@@ -4602,6 +4626,12 @@ export interface Database {
           p_period_end?: string | null;
         };
         Returns: Database['public']['Tables']['subscriptions']['Row'];
+      };
+      clear_conversation: {
+        Args: {
+          p_conversation_id: string;
+        };
+        Returns: string | null;
       };
       check_rate_limit: {
         Args: {

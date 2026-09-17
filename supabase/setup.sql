@@ -9417,6 +9417,350 @@ create trigger ai_messages_touch_conversation
 notify pgrst, 'reload schema';
 
 -- ══════════════════════════════════════════════════════════════════════
+-- 20260917090000_46_profile_names_dob_address.sql
+-- ══════════════════════════════════════════════════════════════════════
+do $setup$ begin raise notice 'applying 20260917090000_46_profile_names_dob_address.sql'; end $setup$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 46 — a name in two parts, a birthday, and where the business is
+--
+-- Three additions, all optional, none destructive. No table is created, no
+-- column is dropped, no policy is rewritten.
+--
+--   user_profiles.first_name, .last_name   so somebody can be greeted
+--   user_profiles.date_of_birth            so a birthday can be noticed
+--   organisations.address_line1 …          where the business actually is
+--
+-- ── why full_name stays, and is not replaced by a generated column ────────
+-- The obvious shape is `full_name generated always as (first || ' ' || last)`.
+-- It cannot be done here without losing data: full_name already exists and
+-- already holds every name in the product, and Postgres cannot convert a
+-- populated ordinary column into a generated one — it has to be dropped and
+-- re-added. Dropping a column holding client data is exactly what this
+-- project's migration rule forbids.
+--
+-- So full_name remains an ordinary column and a trigger keeps it in step. That
+-- also solves a second problem a generated column would have created:
+-- amryn.handle_new_user (migration 10) writes full_name straight from the
+-- sign-up metadata and knows nothing about the two new columns. A generated
+-- column would have made that insert fail. The trigger instead splits what it
+-- wrote, so a new account arrives with all three columns populated and nothing
+-- upstream has to change.
+--
+-- ── on the date of birth ──────────────────────────────────────────────────
+-- Nullable, with no default, and nothing in the product requires it. It is
+-- collected for one stated purpose — a birthday greeting — and POPIA makes
+-- that promise binding: it is not used to segment, to price, or to verify
+-- anybody's age. The column comment says so, because the schema is where
+-- somebody looks when the interface copy has long since been rewritten.
+--
+-- ── on the address ────────────────────────────────────────────────────────
+-- On the organisation, not the person: this is where the business trades, and
+-- every member of that business shares it. South African shape — a suburb
+-- line, a city, a province and a four-digit postal code.
+--
+-- country_code is deliberately NOT added: organisations has carried one since
+-- migration 01, defaulting to ZA. A second country column would have been two
+-- answers to one question.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ── 1. the name, in two parts ─────────────────────────────────────────────
+alter table public.user_profiles
+  add column if not exists first_name text,
+  add column if not exists last_name  text;
+
+comment on column public.user_profiles.first_name is
+  'Given name. What the product greets somebody by. Kept in step with full_name by amryn.sync_profile_name.';
+comment on column public.user_profiles.last_name is
+  'Family name. Optional: one name is a whole name in plenty of places.';
+
+-- ── 2. the birthday ───────────────────────────────────────────────────────
+alter table public.user_profiles
+  add column if not exists date_of_birth date;
+
+comment on column public.user_profiles.date_of_birth is
+  'Optional, and collected for one purpose only: a birthday greeting on the day. Never used to segment, price, or verify age. Nothing in the product requires it and it can be cleared at any time (POPIA).';
+
+-- ── 3. where the business is ──────────────────────────────────────────────
+alter table public.organisations
+  add column if not exists address_line1 text,
+  add column if not exists address_line2 text,
+  add column if not exists city          text,
+  add column if not exists province      text,
+  add column if not exists postal_code   text;
+
+comment on column public.organisations.address_line1 is 'Street address.';
+comment on column public.organisations.address_line2 is 'Suburb, or a second line where there is one.';
+comment on column public.organisations.province is
+  'South African province, held as text rather than an enum: an organisation outside South Africa has a state or a county, and country_code already says which country this is.';
+
+-- ── 4. keeping the three name columns telling one story ───────────────────
+--
+-- Whichever side is written, the other follows:
+--
+--   first/last given  → full_name is rebuilt from them (they are the truth)
+--   only full_name    → split on the first space, best effort
+--
+-- Best effort is the honest description. "Anna-Marie van der Merwe" splits
+-- into "Anna-Marie" and "van der Merwe", which is right; plenty of names in
+-- the world do not work that way, which is why both halves stay editable by
+-- hand afterwards and nothing here overwrites a value somebody has set.
+create or replace function amryn.sync_profile_name()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  whole text;
+begin
+  if (new.first_name is not null or new.last_name is not null)
+     and (tg_op = 'INSERT'
+          or new.first_name is distinct from old.first_name
+          or new.last_name  is distinct from old.last_name) then
+    new.full_name := nullif(
+      btrim(concat_ws(' ',
+        nullif(btrim(new.first_name), ''),
+        nullif(btrim(new.last_name), ''))),
+      '');
+
+  -- Deliberately not "and full_name changed": the backfill at the end of this
+  -- migration rewrites full_name to itself, which is not a change, and the
+  -- rows it exists for are exactly the ones with neither part set. Testing the
+  -- parts rather than the change also makes it idempotent — once first_name is
+  -- populated this branch never fires again.
+  elsif new.full_name is not null
+     and new.first_name is null
+     and new.last_name is null then
+    whole := btrim(new.full_name);
+    if position(' ' in whole) > 0 then
+      new.first_name := split_part(whole, ' ', 1);
+      new.last_name  := nullif(btrim(substr(whole, position(' ' in whole) + 1)), '');
+    else
+      new.first_name := nullif(whole, '');
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+comment on function amryn.sync_profile_name() is
+  'Keeps first_name, last_name and full_name agreeing with each other, whichever one was written.';
+
+drop trigger if exists user_profiles_sync_name on public.user_profiles;
+create trigger user_profiles_sync_name
+  before insert or update on public.user_profiles
+  for each row execute function amryn.sync_profile_name();
+
+-- ── 5. the backfill ───────────────────────────────────────────────────────
+--
+-- Only rows that have a full name and neither part of one, so this cannot
+-- overwrite anything and is safe to run again. The trigger above does the
+-- splitting, so the rule lives in exactly one place.
+update public.user_profiles
+   set full_name = full_name
+ where full_name is not null
+   and first_name is null
+   and last_name is null;
+
+-- ══════════════════════════════════════════════════════════════════════
+-- 20260917090100_47_cleared_threads_hidden_by_rls.sql
+-- ══════════════════════════════════════════════════════════════════════
+do $setup$ begin raise notice 'applying 20260917090100_47_cleared_threads_hidden_by_rls.sql'; end $setup$;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 47 — a cleared conversation is hidden by the database, not only by the query
+--
+-- Migration 45 gave ai_conversations a nullable deleted_at, a partial index for
+-- the live ones, and the convention that every list filters on it. The
+-- application does: the assistant page and both list queries in
+-- features/assistant/actions.ts carry `.is('deleted_at', null)`, and clearing a
+-- thread is an update that sets the column rather than a delete.
+--
+-- What was never true is that the *database* hid them. ai_conversations_own was
+-- a single FOR ALL policy on (user_id, is_member) that said nothing about
+-- deleted_at, so a query written next year that forgets the filter reads
+-- cleared threads back — with every question and figure in them — and looks
+-- like it is working. The filter belongs where it cannot be forgotten.
+--
+-- ── why this is four policies and a function, and not one line ──────────
+-- The obvious change is to add `deleted_at is null` to the existing FOR ALL
+-- policy's USING and leave its WITH CHECK alone, on the reasoning that USING
+-- is evaluated against the existing row and WITH CHECK against the new one, so
+-- the update that clears a thread would still pass.
+--
+-- It does not. Postgres also requires the *result* of an UPDATE to satisfy the
+-- table's SELECT policies — an update may not make a row invisible to the
+-- person performing it. Measured here, on a throwaway table with one SELECT
+-- policy carrying `deleted_at is null` and an UPDATE policy carrying only
+-- ownership:
+--
+--   update t set label = 'renamed'     → accepted
+--   update t set deleted_at = now()    → REFUSED, "new row violates row-level
+--                                         security policy"
+--
+-- The only difference is the column that appears in the read policy and
+-- nowhere else. Tried again with FORCE ROW LEVEL SECURITY off: refused
+-- identically, so this is the general rule and not a quirk of this table.
+--
+-- The consequence is worth stating plainly, because it is not obvious and it
+-- will come up again: **a row cannot be soft-deleted by the same user the
+-- read policy will then hide it from.** Any table in this schema that hides
+-- deleted_at rows from SELECT needs its soft delete performed by something
+-- that is not subject to that policy.
+--
+-- So: the read hides cleared threads, and clearing one goes through
+-- public.clear_conversation() — SECURITY DEFINER, with the ownership check the
+-- policy would have made, written out where it can be read. The same shape as
+-- create_organisation, ensure_user_profile and record_account_event already
+-- use in this schema, and for the same reason.
+--
+--   select → yours, in your organisation, not cleared
+--   insert → yours, in your organisation
+--   update → yours, in your organisation   (renaming a thread; the ordinary
+--                                           path, which never sets deleted_at)
+--   delete → yours, in your organisation   (unchanged: nothing in the product
+--                                           hard-deletes a thread, and this
+--                                           migration is not the place to
+--                                           start removing capabilities)
+--
+-- Nothing widens. All four carry the same ownership and membership test the
+-- single policy carried; the read carries one more; and the one operation that
+-- can no longer be done directly is done by a function that checks the same
+-- thing first.
+--
+-- ── the caller this changes ──────────────────────────────────────────────
+-- clearConversation() updated the row directly and read it back with
+-- `.select('id, title')` to name the thread in the audit entry. Both halves of
+-- that stop working here: the update is refused by the rule above, and the
+-- RETURNING would come back empty even if it were not. It now calls
+-- clear_conversation(), which returns the title it cleared so the audit entry
+-- still names the thread without a second read. Changed in the same commit as
+-- this file.
+--
+-- ── and the messages ─────────────────────────────────────────────────────
+-- ai_messages keeps no deleted_at of its own — nothing in the product deletes
+-- an individual message, and a column nothing writes is a column that lies.
+-- Its policy already reaches through conversation_id to check ownership, so
+-- the parent's deleted_at joins that same reach: clearing a thread takes its
+-- messages out of view in the same instant, through one column. Here the
+-- condition is safe in USING and WITH CHECK alike, because a message row never
+-- changes its parent — and writing a new message into a thread you have
+-- already cleared is not something to allow.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ── the conversations ─────────────────────────────────────────────────────
+drop policy if exists ai_conversations_own on public.ai_conversations;
+
+create policy ai_conversations_read on public.ai_conversations
+  for select
+  using (
+    user_id = (select auth.uid())
+    and amryn.is_member(organisation_id)
+    and deleted_at is null
+  );
+
+create policy ai_conversations_insert on public.ai_conversations
+  for insert
+  with check (
+    user_id = (select auth.uid())
+    and amryn.is_member(organisation_id)
+  );
+
+create policy ai_conversations_update on public.ai_conversations
+  for update
+  using (
+    user_id = (select auth.uid())
+    and amryn.is_member(organisation_id)
+  )
+  with check (
+    user_id = (select auth.uid())
+    and amryn.is_member(organisation_id)
+  );
+
+create policy ai_conversations_delete on public.ai_conversations
+  for delete
+  using (
+    user_id = (select auth.uid())
+    and amryn.is_member(organisation_id)
+  );
+
+comment on policy ai_conversations_read on public.ai_conversations is
+  'Your own live threads. deleted_at appears here and in no other policy on this table: in an update policy it would refuse the update that clears a thread.';
+
+-- ── the messages in them ──────────────────────────────────────────────────
+drop policy if exists ai_messages_own on public.ai_messages;
+
+create policy ai_messages_own on public.ai_messages
+  for all
+  using (
+    amryn.is_member(organisation_id)
+    and exists (
+      select 1 from public.ai_conversations c
+       where c.id = ai_messages.conversation_id
+         and c.user_id = (select auth.uid())
+         and c.deleted_at is null
+    )
+  )
+  with check (
+    amryn.is_member(organisation_id)
+    and exists (
+      select 1 from public.ai_conversations c
+       where c.id = ai_messages.conversation_id
+         and c.user_id = (select auth.uid())
+         and c.deleted_at is null
+    )
+  );
+
+comment on policy ai_messages_own on public.ai_messages is
+  'Messages in your own live threads. The parent thread is reached through conversation_id, so clearing the thread hides its messages through one column rather than a second deleted_at here.';
+
+-- ── clearing a thread ─────────────────────────────────────────────────────
+--
+-- The one operation the read policy above makes impossible to perform
+-- directly. SECURITY DEFINER, so it is not subject to that policy, with the
+-- check the policy would have made written out in full: the caller must be
+-- signed in, must own the thread, must belong to the organisation it is in,
+-- and the thread must still be live.
+--
+-- It returns the title it cleared, so the caller can name the thread in the
+-- audit entry without reading a row it is no longer allowed to see. Null means
+-- nothing was cleared — not yours, not there, or already gone — and the caller
+-- cannot tell which, which is the same answer the read policy would give.
+create or replace function public.clear_conversation(p_conversation_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  caller uuid := (select auth.uid());
+  cleared text;
+begin
+  if caller is null then
+    return null;
+  end if;
+
+  update public.ai_conversations
+     set deleted_at = now()
+   where id = p_conversation_id
+     and user_id = caller
+     and deleted_at is null
+     and amryn.is_member(organisation_id)
+  returning title into cleared;
+
+  return cleared;
+end;
+$$;
+
+comment on function public.clear_conversation(uuid) is
+  'Clears one of your own assistant threads out of your list by setting deleted_at. SECURITY DEFINER because the read policy hides the result, which Postgres will not let an ordinary update produce. Returns the title cleared, or null if there was nothing to clear.';
+
+revoke all on function public.clear_conversation(uuid) from public, anon;
+grant execute on function public.clear_conversation(uuid) to authenticated;
+
+-- ══════════════════════════════════════════════════════════════════════
 -- Did it work?
 -- ══════════════════════════════════════════════════════════════════════
 do $setup$
