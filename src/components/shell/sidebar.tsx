@@ -16,16 +16,18 @@ const COLLAPSED_KEY = 'amryn.nav.collapsed';
  * because two implementations of one navigation is how they drift apart.
  *
  * ── what sits outside the scrolling list ─────────────────────────────────
- * Billing and Settings are above the groups; the version is below them. All
- * three are outside the scroll, so they stay put whether the reader is at the
- * top of the list, at the bottom of it, or has collapsed every section.
+ * Billing and Settings are above the groups, outside the scroll, so they stay
+ * put whether the reader is at the top of the list, at the bottom of it, or
+ * has collapsed every section.
  *
- * Billing and Settings were under the groups at first, which reads as tidy
- * and puts them last — with five sections open, most of a phone screen from
- * the top, with the way to pay under the fold. They belong to the account
- * rather than to the work, so they sit beside the statement of whose account
- * it is. The version stays at the bottom: it is for reading out over the
- * phone, not for finding.
+ * They were under the groups at first, which reads as tidy and puts them last
+ * — with five sections open, most of a phone screen from the top, with the way
+ * to pay under the fold. They belong to the account rather than to the work,
+ * so they sit beside the statement of whose account it is.
+ *
+ * The version used to close the rail. It is in the page footer now, with the
+ * privacy and cookie links: that is where the small print lives, and a rail is
+ * for the places somebody is going.
  *
  * ── collapsing, and what is remembered ───────────────────────────────────
  * Each heading is a button. What is collapsed is kept in this browser, per
@@ -45,7 +47,6 @@ const COLLAPSED_KEY = 'amryn.nav.collapsed';
 export function Sidebar({
   groups,
   pinned,
-  version,
   open,
   onClose,
   scopeLabel,
@@ -53,7 +54,6 @@ export function Sidebar({
 }: {
   groups: NavGroup[];
   pinned: NavItem[];
-  version: string;
   open: boolean;
   onClose: () => void;
   scopeLabel: string;
@@ -188,18 +188,6 @@ export function Sidebar({
             );
           })}
         </nav>
-
-        <div className="border-t border-[var(--border)] px-2 py-2">
-          {/*
-            Small, quiet, and selectable. It is here to be read out over the
-            phone when somebody is describing a problem, so it has to be
-            legible and copyable; it is not here to be looked at, so it is the
-            lowest-contrast text in the rail.
-          */}
-          <p className="px-2.5 pt-2 font-mono text-[0.625rem] text-[var(--text-tertiary)]">
-            v{version}
-          </p>
-        </div>
       </aside>
     </>
   );
