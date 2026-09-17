@@ -51,6 +51,11 @@ export type SecurityEvent =
   | 'proposal.accepted'
   | 'proposal.declined'
   | 'stocktake.imported'
+  // A management workbook loaded into the tables every screen reads. Worth its
+  // own row: it is the one act that can change six months of reported figures
+  // at once, and afterwards the only way to tell an imported figure from a
+  // typed one is that somebody wrote this down.
+  | 'workbook.imported'
   | 'document.uploaded'
   | 'document.removed'
   // Clearing a thread out of the assistant's list. The thread is kept and

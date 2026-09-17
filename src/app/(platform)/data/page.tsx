@@ -5,7 +5,8 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/states';
-import { requirePermission } from '@/lib/auth/session';
+import { can, requirePermission } from '@/lib/auth/session';
+import { ImportForm } from '@/features/data/import-form';
 import { createClient } from '@/lib/supabase/server';
 import { formatRelative, humanise } from '@/lib/utils/format';
 import type { Enums } from '@/types/database';
@@ -64,6 +65,28 @@ export default async function DataSourcesPage() {
                 .join(', ')}{' '}
               is working from stale figures until this is fixed.
             </p>
+          </div>
+        </Card>
+      ) : null}
+
+      {/*
+        Above the connections, because it is the way in that needs no setting
+        up. A business that has not connected anything yet can still put six
+        months of its own figures into Amryn from the workbook it already
+        keeps, and that is the difference between an empty product and a
+        useful one on the first afternoon.
+
+        Shown only to somebody who may actually do it: rendering a form that
+        refuses on submit is a worse answer than not offering it.
+      */}
+      {can(workspace, 'manage_integrations') ? (
+        <Card className="mb-5">
+          <CardHeader
+            title="Import a workbook"
+            subtitle="Monthly figures, sales, expenses, opportunities and risks from a spreadsheet"
+          />
+          <div className="px-5 pb-5">
+            <ImportForm />
           </div>
         </Card>
       ) : null}
