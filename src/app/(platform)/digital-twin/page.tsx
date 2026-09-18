@@ -7,7 +7,7 @@ import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { ProductWordmark } from '@/components/shell/product-wordmark';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { EmptyRow, Table, TableWrap, Td, Th } from '@/components/ui/table';
-import { HealthBreakdown, HealthDial } from '@/components/intelligence/health-dial';
+import { HealthExplorer } from '@/components/intelligence/health-explorer';
 import { RevenueChart } from '@/components/intelligence/revenue-chart';
 import { branchStatus } from '@/lib/intelligence/finance';
 import { compactMoney, count, money, percent, score } from '@/lib/format';
@@ -174,15 +174,13 @@ export default async function DigitalTwinPage() {
           <Card>
             <CardHeader title="Business Health Score" subtitle="Eight weighted components" />
             <CardBody>
-              <HealthDial health={w.health} />
-              <div className="mt-6 border-t border-[var(--border)] pt-4">
-                <HealthBreakdown health={w.health} />
-              </div>
-              <p className="mt-4 text-[0.75rem] leading-relaxed text-[var(--text-tertiary)]">
-                Components marked <em className="not-italic">assumed</em> are standing assessments
-                rather than measurements from connected data. Connecting their sources moves them
-                from assumed to measured without changing the weights.
-              </p>
+              {/*
+                The dial and its breakdown, linked. Pointing at a component
+                turns the centre into what that component contributes and
+                lights its share of the ring — the arithmetic that makes eight
+                raw scores add up to the number above them.
+              */}
+              <HealthExplorer health={w.health} />
             </CardBody>
           </Card>
 
