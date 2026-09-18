@@ -78,6 +78,21 @@ describe('the band a series is drawn in', () => {
     expect(band.top).toBeGreaterThan(band.bottom);
   });
 
+  /*
+   * Which decides whether the area under the line may be shaded. A fill
+   * measures from wherever it stops, so one stopping at 680,900 would say
+   * 869,000 is several times 742,000 — the line telling the truth and the
+   * shaded region under it saying something else, louder.
+   */
+  it('knows when its floor is a real nought', () => {
+    // Revenue clustered high: the axis is truncated, so a fill would lie.
+    expect(bandFor([742_000, 698_000, 869_000]).baselineIsZero).toBe(false);
+    // Reaching down to nought, so the fill measures from nought.
+    expect(bandFor([50, 1_000]).baselineIsZero).toBe(true);
+    // Crossing nought: the fill is cut at the zero line, which means something.
+    expect(bandFor([198_000, -18_000, 258_000]).baselineIsZero).toBe(true);
+  });
+
   it('survives a series of nothing but zeroes', () => {
     const band = bandFor([0, 0]);
     expect(Number.isFinite(band.top)).toBe(true);
@@ -130,6 +145,20 @@ describe('the chart as something to read', () => {
     expect(screen.getByRole('img', { name: /Revenue by month from January to September/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Net profit' }));
     expect(screen.getByRole('img', { name: /Net profit by month/ })).toBeTruthy();
+  });
+
+  /*
+   * The same decision, in the picture rather than in the numbers. Revenue is
+   * drawn on a truncated axis and carries no fill; net profit crosses nought
+   * and keeps one.
+   */
+  it('shades under the line only where the floor is nought', () => {
+    const { container } = render(<RevenueChart months={months} currency="ZAR" />);
+    const filled = () => container.querySelectorAll('path[fill^="url("]').length;
+
+    expect(filled()).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Net profit' }));
+    expect(filled()).toBe(1);
   });
 
   it('refuses to draw a trend through one point', () => {
