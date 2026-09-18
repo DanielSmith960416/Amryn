@@ -419,6 +419,43 @@
 .animate-rise { animation: amryn-rise 0.35s ease-out both; }
 .animate-soft-pulse { animation: amryn-pulse 1.8s ease-in-out infinite; }
 
+/* ── the OpportunityRadar® dial ─────────────────────────────────────────────
+   The sweep turns, and each blip answers as the leading edge crosses it.
+
+   Both are deliberately quiet. The wedge and its edge are the only things on
+   the page in constant motion, and they carry no value — a figure that moved
+   would be a figure nobody could read. The return lasts two thirds of a second
+   out of every six, so a blip is at rest for nine tenths of the time it is on
+   screen.
+
+   The delay per blip is set inline from its own angle, so the answers follow
+   the picture rather than the order of the list.
+
+   The reduced-motion rule in @layer base stops both: it sets every animation
+   on the page to a single 0.01ms iteration, which leaves the wedge parked at
+   twelve o'clock exactly where it was drawn before any of this moved. */
+
+.amryn-dial-sweep {
+  transform-origin: 150px 150px;
+  animation: amryn-radar 6s linear infinite;
+}
+
+.amryn-dial-ping {
+  /* fill-box so the circle scales about itself rather than the viewBox origin.
+     Scaling the radius directly would be simpler and is not reliably animatable
+     as a CSS property across browsers. */
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: amryn-dial-ping 6s linear infinite;
+}
+
+@keyframes amryn-dial-ping {
+  0%   { opacity: 0.55; transform: scale(1); }
+  11%  { opacity: 0;    transform: scale(2.8); }
+  100% { opacity: 0;    transform: scale(2.8); }
+}
+
 /* ── legal documents ────────────────────────────────────────────────────────
    These are pages people are asked to actually read, so they are set like
    prose rather than like interface: a comfortable measure, generous leading,

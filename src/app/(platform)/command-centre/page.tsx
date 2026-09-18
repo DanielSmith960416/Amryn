@@ -46,13 +46,16 @@ export default async function CommandCentrePage() {
   // the country, which would be a confident wrong answer about where somebody
   // is rather than an honest blank.
   const city = workspace.organisation.city;
+  // Which town of that name — Kimberley is in three countries, and plenty of
+  // South African town names repeat across provinces.
+  const province = workspace.organisation.province;
   const countryCode = workspace.organisation.country_code;
 
   if (state.kind === 'empty') {
     return (
       <>
         <Greeting firstName={firstName} initialPart={part} />
-        <WeatherPanel city={city} countryCode={countryCode} />
+        <WeatherPanel city={city} province={province} countryCode={countryCode} />
         <NoDataYet what="The week in one view — health, opportunities, risks and what to do about them —" organisationName={state.organisationName} />
       </>
     );
@@ -86,7 +89,7 @@ export default async function CommandCentrePage() {
       {/* Under the heading, so the greeting still comes first — the same order
           the empty state above uses. */}
       <div className="mb-6 -mt-1">
-        <WeatherPanel city={city} countryCode={countryCode} />
+        <WeatherPanel city={city} province={province} countryCode={countryCode} />
       </div>
 
       {w.isDemo ? (

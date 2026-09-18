@@ -74,7 +74,7 @@ export default async function OpportunityRadarPage() {
         <Card className="self-start">
           <CardHeader title="The radar" subtitle="Urgency by distance, value by size" />
           <CardBody>
-            <OpportunityDial opportunities={w.opportunities} />
+            <OpportunityDial opportunities={w.opportunities} currency={currency} />
             <ul className="mt-4 space-y-1.5 border-t border-[var(--border)] pt-3">
               {(['HIGH', 'MEDIUM', 'MONITOR'] as const).map((c) => (
                 <li key={c} className="flex items-center gap-2 text-[0.75rem]">
@@ -101,7 +101,18 @@ export default async function OpportunityRadarPage() {
 
         <div className="min-w-0 space-y-4">
           {w.opportunities.map((o) => (
-            <Card key={o.id} className="px-5 py-4">
+            /*
+              The id is what a blip on the dial links to. scroll-mt keeps the
+              card clear of the sticky top bar when it is jumped to, and
+              target:ring marks which one was asked for — without it the page
+              scrolls and the reader has to work out which of several cards
+              they just arrived at.
+            */
+            <Card
+              key={o.id}
+              id={`opportunity-${o.id}`}
+              className="scroll-mt-24 px-5 py-4 target:ring-2 target:ring-[var(--brand)]"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="eyebrow">

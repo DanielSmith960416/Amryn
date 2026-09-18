@@ -3,8 +3,8 @@ import { getCurrentUser } from '@/lib/auth/session';
 import {
   forecastUrl,
   geocodeUrl,
+  pickPlace,
   readConditions,
-  readPlace,
   weatherGlyph,
 } from '@/lib/weather/open-meteo';
 
@@ -15,10 +15,10 @@ import {
  * ── why the server and not the browser ───────────────────────────────────
  * Three reasons, in order of how much they matter:
  *
- *   · Caching. Next caches this fetch for half an hour, so a hundred people in
- *     one company looking at the Command Centre on a Monday morning produce
- *     one request to Open-Meteo rather than a hundred. A free service asked
- *     politely stays free.
+ *   · Caching. Next caches this fetch, so a hundred people in one company
+ *     looking at the Command Centre on a Monday morning produce one request to
+ *     Open-Meteo rather than a hundred. A free service asked politely stays
+ *     free. See CACHE_SECONDS for how long, and why that number changed.
  *   · It keeps a third-party host out of the page's connection list, which
  *     matters for a product that will eventually want a strict content policy.
  *   · The geocode and the forecast are two calls; doing them here makes them
@@ -38,15 +38,28 @@ import {
  * serves it differently. A route that relies on something else having already
  * refused is a route that stops refusing the day that something else changes.
  *
- * It takes a place, not a person: either `city` (with an optional `country`) or
- * a `lat`/`lon` pair. Nothing here reads the caller's organisation, so this
- * cannot be used to discover where somebody else's business is.
+ * It takes a place, not a person: either `city` (with an optional `country`
+ * and `province`) or a `lat`/`lon` pair. Nothing here reads the caller's
+ * organisation, so this cannot be used to discover where somebody else's
+ * business is — the panel passes the address it was already given to render.
  */
 
 export const dynamic = 'force-dynamic';
 
-/** Half an hour. Weather does not move faster than a dashboard is read. */
-const CACHE_SECONDS = 1800;
+/*
+ * Fifteen minutes, which is how often Open-Meteo updates `current`.
+ *
+ * It was half an hour, on the reasoning that weather does not move faster than
+ * a dashboard is read. That is true of the weather and was not true of the
+ * tile: with the browser holding an answer for a further quarter of an hour on
+ * top, a reading could be the better part of an hour old and still be shown as
+ * though it were now.
+ *
+ * Matching the provider's own cadence means the cache never holds a reading
+ * that the provider has already replaced, and the response now carries the
+ * observation time so the rest is visible rather than assumed.
+ */
+const CACHE_SECONDS = 900;
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -57,6 +70,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const city = searchParams.get('city')?.trim();
   const country = searchParams.get('country')?.trim() || null;
+  // Which of several towns of one name. Optional: an address without a
+  // province still resolves, to the largest match, exactly as before.
+  const province = searchParams.get('province')?.trim() || null;
   const lat = Number(searchParams.get('lat'));
   const lon = Number(searchParams.get('lon'));
 
@@ -83,7 +99,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ place: city, conditions: null });
     }
 
-    const resolved = readPlace(found);
+    const resolved = pickPlace(found, province);
     if (!resolved) {
       return NextResponse.json({ error: `No place called ${city}.` }, { status: 404 });
     }
@@ -105,7 +121,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     place: place.name,
-    conditions: { ...conditions, glyph: weatherGlyph(conditions.code) },
+    conditions: { ...conditions, glyph: weatherGlyph(conditions.code, conditions.isDay) },
   });
 }
 
