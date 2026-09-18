@@ -7,9 +7,9 @@ import { compactMoney, money, percent } from '@/lib/format';
 /**
  * The trend, as the marketing site's Command Centre draws it.
  *
- * Hand-written SVG, and deliberately so: this is one series with a filled area
- * beneath it. A charting runtime would ship a few hundred kilobytes to draw a
- * line this page already has the numbers for.
+ * Hand-written SVG, and deliberately so: this is one series, filled beneath
+ * where the scale earns it. A charting runtime would ship a few hundred
+ * kilobytes to draw a line this page already has the numbers for.
  *
  * Only reported months are plotted. A twelve-point line that flatlines to zero
  * in September would read as a collapse rather than as a year still in progress.
@@ -45,6 +45,15 @@ export interface Band {
   bottom: number;
   /** Where zero sits in the band, or null when the band does not contain it. */
   zero: number | null;
+  /**
+   * Whether the foot of the plot is the value nought.
+   *
+   * It is what decides whether the area under the line may be filled. A fill
+   * measures from wherever it stops, so a fill stopping at 680,900 tells the
+   * reader that 869,000 is several times 742,000 — the trend line says the
+   * truth and the shaded region under it says something else, louder.
+   */
+  baselineIsZero: boolean;
 }
 
 /**
@@ -68,7 +77,10 @@ export function bandFor(values: number[]): Band {
   // Only clamped at zero when the series never goes below it: a floor of zero
   // under a negative series would put the loss off the bottom of the picture.
   const bottom = min < 0 ? min - span * 0.1 : Math.max(0, min - span * 0.1);
-  return { top, bottom, zero: bottom < 0 && top > 0 ? 0 : null };
+  const zero = bottom < 0 && top > 0 ? 0 : null;
+  // Either the band rests on nought, or it crosses it and the fill is cut at
+  // the zero line. Both give the shaded region a floor that means something.
+  return { top, bottom, zero, baselineIsZero: bottom === 0 || zero !== null };
 }
 
 const WIDTH = 640;
@@ -204,7 +216,20 @@ export function RevenueChart({
           />
         ) : null}
 
-        <path d={area} fill={`url(#${gradientId})`} />
+        {/*
+          The fill, only where its floor is nought.
+
+          A line whose axis starts just under its own minimum is the ordinary
+          way to draw a trend, and it is what this chart has always done — the
+          alternative flattens the month-to-month movement the card exists to
+          show. But an area fill is read as quantity, and one measured from a
+          floor that is not zero overstates every point above it. Revenue
+          swinging 20% looked like several times the area.
+
+          So the line keeps its scale and the fill gives way. Where the series
+          does rest on nought, or crosses it, the fill is honest and stays.
+        */}
+        {band.baselineIsZero ? <path d={area} fill={`url(#${gradientId})`} /> : null}
         <path
           d={line}
           fill="none"
