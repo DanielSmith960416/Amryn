@@ -22,10 +22,25 @@ import { percent, score as fmtScore } from '@/lib/format';
  * card a reader could not get. Eight rows of raw scores do not add up to the
  * total, so the list read as unrelated to the dial above it.
  *
- * Now pointing at a row does three things at once: the dial's centre becomes
- * that component's contribution, an arc on the ring shows the share of the
- * total it occupies, and the row states the multiplication. Pointing at the
- * ring does the same in reverse.
+ * Pointing at a row does three things at once: the dial's centre becomes that
+ * component's contribution, an arc on the ring shows the share of the total it
+ * occupies, and the row states the multiplication. Pointing at the ring does
+ * the same in reverse — each component's arc carries its own hit band, so the
+ * picture answers as readily as the list does.
+ *
+ * ── the ring was decoration for a day ────────────────────────────────────
+ * It said all of the above from the start and only half of it was built: the
+ * rows responded and the ring did not, which made the dial a picture of the
+ * interaction rather than part of it. Two things were in the way, and the
+ * second is why it could not have worked by accident — the centre readout is
+ * an absolutely positioned overlay across the whole square, so it sat over the
+ * ring and swallowed every pointer event aimed at it. It is pointer-events:
+ * none now, and the arcs beneath it are reachable.
+ *
+ * The hit bands are pointer-only and stay outside the tab order. Every one of
+ * them has a row below carrying the same figures, already focusable and
+ * already announced; a second tab stop per component would be eight more stops
+ * to reach the same eight answers.
  *
  * ── what it does not do ──────────────────────────────────────────────────
  * It does not recompute anything. weightedScore is already on every component
@@ -125,9 +140,45 @@ export function HealthExplorer({ health, size = 148 }: { health: HealthScore; si
                 strokeDashoffset={-shownSegment.offset}
               />
             ) : null}
+
+            {/*
+              One invisible band per component, last so nothing is drawn over
+              them. Wider than the ring they cover — a component contributing
+              six points is about nine pixels of arc, and a band the width of
+              the stroke would be a target only a mouse could hit.
+
+              pointerEvents: 'stroke' so the band catches along the arc and the
+              disc inside it stays inert; without it the circle's fill area
+              would take every event in the middle of the dial.
+            */}
+            {segments.map((seg) =>
+              seg.length > 0 ? (
+                <circle
+                  key={seg.component}
+                  data-segment={seg.component}
+                  cx="60"
+                  cy="60"
+                  r={RADIUS}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth="18"
+                  strokeDasharray={`${seg.length} ${CIRCUMFERENCE}`}
+                  strokeDashoffset={-seg.offset}
+                  style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                  onPointerEnter={() => setActive(seg.component)}
+                  onPointerLeave={() =>
+                    setActive((current) => (current === seg.component ? null : current))
+                  }
+                />
+              ) : null,
+            )}
           </svg>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {/*
+            pointer-events-none, or this overlay covers the ring it sits inside
+            and the arcs below never see a pointer at all.
+          */}
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <span className="numeric text-[2rem] leading-none font-semibold text-[var(--text-primary)]">
               {shown ? fmtScore(shown.weightedScore, 1) : fmtScore(health.overall)}
             </span>
