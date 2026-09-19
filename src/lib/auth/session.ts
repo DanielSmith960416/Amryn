@@ -17,10 +17,12 @@ import { isSupabaseConfigured } from '@/lib/env';
 import { isPermission, PermissionError, type Permission } from './permissions';
 import { mfaChallengeOutstanding } from './mfa';
 import {
+  entitlementsFrom,
   loadEntitlements,
   subscriptionAccess,
   EntitlementError,
   type Entitlement,
+  type EntitlementRow,
   type Entitlements,
   type SubscriptionAccess,
 } from '@/lib/billing/entitlements';
@@ -46,6 +48,13 @@ export interface Workspace {
   access: SubscriptionAccess;
   /** Every organisation the user belongs to, for the switcher. */
   organisations: { id: string; name: string; slug: string; role: Enums['org_role'] }[];
+  /**
+   * Unread alerts, for the bell in the shell — resolved with everything else
+   * rather than in a call of its own. Null where the workspace came from the
+   * separate queries, which have no count to give; the shell asks for itself
+   * in that case, exactly as it always did.
+   */
+  unreadAlerts: number | null;
 }
 
 /**
@@ -106,6 +115,116 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
   const user = await getCurrentUser();
   if (!user) return null;
 
+  const cookieStore = await cookies();
+  const preferred = cookieStore.get(ACTIVE_ORG_COOKIE)?.value ?? null;
+
+  const snapshot = await workspaceFromSnapshot(user, preferred);
+  if (snapshot !== UNAVAILABLE) return snapshot;
+
+  return workspaceFromQueries(user, preferred);
+});
+
+/**
+ * The workspace in one round trip.
+ *
+ * ── what this is worth, measured rather than assumed ──────────────────────
+ * Resolving the workspace used to be six PostgREST calls in two waves: the
+ * memberships, then — once the organisation id was known — the organisation,
+ * the profile, the role's permissions, the member's overrides, the
+ * subscription and the entitlement view. Every authenticated page paid for
+ * them before rendering anything.
+ *
+ * The database was never the cost. On production, EXPLAIN ANALYZE puts the
+ * membership query at 6.6 ms of execution and the web container's CPU at
+ * 0.015% of two cores over twenty-four hours, while Supabase's own edge log —
+ * which excludes the network between Amsterdam and Ireland entirely — puts the
+ * same calls at 288 ms, 312 ms, 184 ms, 120 ms, 98 ms and 96 ms on average.
+ * A query answered in six milliseconds cost three hundred to ask.
+ *
+ * So the lever is the number of times we ask, and this asks once. See
+ * migration 51 for the function and for why it is SECURITY INVOKER: it reads
+ * under exactly the row level security the six calls read under, so it can
+ * return nothing they could not.
+ *
+ * Returns UNAVAILABLE — distinct from null, which means "this person has no
+ * workspace" — when the function is not in the database. A web release can
+ * reach a database the worker has not migrated yet, and the platform going
+ * blank in that window would be a far worse fault than the latency this fixes.
+ */
+const UNAVAILABLE = Symbol('workspace-snapshot-unavailable');
+
+interface Snapshot {
+  organisations: Workspace['organisations'];
+  membership: Row<'organisation_members'>;
+  organisation: Row<'organisations'>;
+  profile: Row<'user_profiles'> | null;
+  subscription: Row<'subscriptions'> | null;
+  permissions: string[];
+  entitlements: EntitlementRow[];
+  scope_names: string[];
+  unread_alerts: number | null;
+}
+
+async function workspaceFromSnapshot(
+  user: User,
+  preferred: string | null,
+): Promise<Workspace | null | typeof UNAVAILABLE> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc('workspace_snapshot', {
+    p_preferred_org: preferred,
+  });
+
+  if (error) {
+    /*
+     * PGRST202 is PostgREST saying the function is not in its schema cache —
+     * which is what an un-migrated database looks like from here. Anything
+     * else is a real failure and is worth one line in the log before the old
+     * path answers the question instead.
+     */
+    if (error.code !== 'PGRST202') {
+      console.error('[amryn:auth] workspace snapshot failed, falling back', error.message);
+    }
+    return UNAVAILABLE;
+  }
+
+  if (!data) return null;
+  const snapshot = data as unknown as Snapshot;
+  if (!snapshot.organisation || !snapshot.membership) return null;
+
+  return {
+    user,
+    // The profile is written by a trigger on auth.users that a hosted project
+    // may refuse to install, so it can legitimately be missing. Repaired once
+    // per account, and only when it actually is.
+    profile: snapshot.profile ?? (await repairProfile(user)),
+    organisation: snapshot.organisation,
+    membership: snapshot.membership,
+    role: snapshot.membership.role,
+    scope: {
+      kind: snapshot.membership.scope_kind,
+      ids: snapshot.membership.scope_ids,
+      label: scopeLabel(snapshot.membership.scope_kind, snapshot.scope_names ?? []),
+    },
+    permissions: new Set(snapshot.permissions.filter(isPermission)),
+    subscription: snapshot.subscription ?? null,
+    entitlements: entitlementsFrom(snapshot.entitlements ?? []),
+    access: subscriptionAccess(snapshot.subscription ?? null),
+    organisations: snapshot.organisations ?? [],
+    unreadAlerts: snapshot.unread_alerts ?? 0,
+  };
+}
+
+/**
+ * The same workspace, assembled from the separate queries.
+ *
+ * Kept, not left behind: this is what answers on a database that does not yet
+ * have migration 51, and it is the definition the snapshot is tested against.
+ */
+async function workspaceFromQueries(
+  user: User,
+  preferred: string | null,
+): Promise<Workspace | null> {
   const supabase = await createClient();
 
   const { data: memberships } = await supabase
@@ -135,8 +254,6 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
   if (available.length === 0) return null;
 
   // Honour the switcher's choice if it is still a live membership.
-  const cookieStore = await cookies();
-  const preferred = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
   const membership =
     memberships.find((m) => m.organisation_id === preferred) ?? memberships[0];
   if (!membership) return null;
@@ -161,32 +278,9 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
 
   if (!organisation) return null;
 
-  // A profile is normally written by a trigger on auth.users, which a hosted
-  // Supabase project may refuse to install — the SQL editor does not own that
-  // table. Where it is absent, nothing else creates the row, and the name and
-  // avatar are missing everywhere for the life of the account.
-  //
-  // Only when it is actually missing, which is once per account at most.
-  let profile = existingProfile;
-  if (!profile) {
-    const { error } = await supabase.rpc('ensure_user_profile');
-    if (error) {
-      // Not worth failing the page over: the profile is presentation, and the
-      // rest of the workspace is already loaded.
-      console.error('[amryn:auth] could not create the user profile', error.message);
-    } else {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-      profile = data;
-    }
-  }
-
   return {
     user,
-    profile: profile ?? null,
+    profile: existingProfile ?? (await repairProfile(user)),
     organisation,
     membership,
     role: membership.role,
@@ -200,8 +294,42 @@ export const getWorkspace = cache(async (): Promise<Workspace | null> => {
     entitlements,
     access: subscriptionAccess(subscription ?? null),
     organisations: available,
+    unreadAlerts: null,
   };
-});
+}
+
+/**
+ * A profile is normally written by a trigger on auth.users, which a hosted
+ * Supabase project may refuse to install — the SQL editor does not own that
+ * table. Where it is absent, nothing else creates the row, and the name and
+ * avatar are missing everywhere for the life of the account.
+ *
+ * Only reached when one is actually missing, which is once per account at most.
+ */
+async function repairProfile(user: User): Promise<Row<'user_profiles'> | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('ensure_user_profile');
+  if (error) {
+    // Not worth failing the page over: the profile is presentation, and the
+    // rest of the workspace is already loaded.
+    console.error('[amryn:auth] could not create the user profile', error.message);
+    return null;
+  }
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/** The phrasing describeScope() produces, from names already in hand. */
+function scopeLabel(kind: Enums['scope_kind'], names: string[]): string {
+  if (kind === 'organisation') return 'Whole organisation';
+  if (names.length === 0) return 'No assigned scope';
+  if (names.length <= 2) return names.join(' and ');
+  return `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
+}
 
 export async function requireWorkspace(): Promise<Workspace> {
   if (!isSupabaseConfigured()) redirect('/sign-in');

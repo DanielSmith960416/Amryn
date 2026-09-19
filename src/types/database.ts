@@ -4839,6 +4839,12 @@ export interface Database {
         };
         Returns: string;
       };
+      workspace_snapshot: {
+        Args: {
+          p_preferred_org?: string | null;
+        };
+        Returns: Json;
+      };
     };
     Enums: Enums;
     CompositeTypes: { [_ in never]: never };
