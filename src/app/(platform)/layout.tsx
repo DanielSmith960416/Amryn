@@ -24,13 +24,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   const workspace = await requireWorkspace();
-  const supabase = await createClient();
 
-  const { count } = await supabase
-    .from('alerts')
-    .select('id', { count: 'exact', head: true })
-    .eq('organisation_id', workspace.organisation.id)
-    .eq('status', 'new');
+  /*
+    Normally already counted: workspace_snapshot() returns it alongside
+    everything else, so the bell costs nothing. The query below is for a
+    database that predates migration 51, where the workspace comes from the
+    separate queries and has no count to hand back.
+  */
+  const unread = workspace.unreadAlerts ?? (await countUnreadAlerts(workspace.organisation.id));
 
   const name =
     workspace.profile?.full_name ?? workspace.user.email?.split('@')[0] ?? 'Account';
@@ -55,7 +56,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       organisationName={workspace.organisation.name}
       scopeLabel={workspace.scope.label}
       roleLabel={ROLE_LABELS[workspace.role] ?? workspace.role}
-      unreadCount={count ?? 0}
+      unreadCount={unread}
       /*
         The subscription, in the chrome. The AccountNotice below explains a
         subscription that needs attention, but only inside the last fortnight;
@@ -87,4 +88,15 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       {children}
     </AppShell>
   );
+}
+
+/** The bell's count, for a database that predates migration 51. */
+async function countUnreadAlerts(organisationId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from('alerts')
+    .select('id', { count: 'exact', head: true })
+    .eq('organisation_id', organisationId)
+    .eq('status', 'new');
+  return count ?? 0;
 }
