@@ -9,11 +9,17 @@ import { percent, score as fmtScore } from '@/lib/format';
  * The Business Health Score, and what it is made of.
  *
  * ── why this is a new component rather than an edit ──────────────────────
- * HealthDial renders on the Command Centre on its own, with no breakdown
- * beside it and nothing to link to. Teaching it about a list it does not
- * always have would have made every caller carry the cost of one caller's
- * feature. This wraps both instead, so the Command Centre keeps the dial it
- * has and the Digital Twin gets the pair that talk to each other.
+ * HealthDial used to render on the Command Centre on its own, with no
+ * breakdown beside it and nothing to link to. Teaching it about a list it did
+ * not always have would have made every caller carry the cost of one caller's
+ * feature, so this was written beside it instead.
+ *
+ * The Command Centre now renders this too, with breakdown={false} — a dial
+ * that answers, without the eight rows its rail has no room for. That leaves
+ * health-dial.tsx with no callers. It is left in place rather than deleted:
+ * it is the marketing site's dial, carried over for parity, and removing a
+ * working component is a decision for whoever owns that parity rather than
+ * for the change that happened to make it idle.
  *
  * ── the arithmetic that was missing ──────────────────────────────────────
  * The breakdown showed each component as "82 × 15%" and never the product.
@@ -77,6 +83,21 @@ export interface Segment {
  * points occupies 12.3/100 of the circumference, because the dial is a
  * percentage and the contributions are percentage points of it.
  */
+/**
+ * What a component says to somebody who cannot see the ring.
+ *
+ * One function because two controls use it — the rows when the breakdown is
+ * shown, the ring's bands when it is not — and a component announced two
+ * different ways depending on which page it is on is two things to keep
+ * right instead of one.
+ */
+function labelFor(c: HealthComponent): string {
+  return (
+    `${c.component}: ${fmtScore(c.rawScore, 0)} of 100, weighted ${percent(c.weight, 0)}, ` +
+    `contributing ${fmtScore(c.weightedScore, 1)} points. ${c.description}`
+  );
+}
+
 export function segmentsFor(components: HealthComponent[]): Segment[] {
   let run = 0;
   return components.map((c) => {
@@ -87,7 +108,28 @@ export function segmentsFor(components: HealthComponent[]): Segment[] {
   });
 }
 
-export function HealthExplorer({ health, size = 148 }: { health: HealthScore; size?: number }) {
+export function HealthExplorer({
+  health,
+  size = 148,
+  /**
+   * Whether the eight rows are shown beneath the dial.
+   *
+   * The Digital Twin has room for them; the Command Centre's side rail does
+   * not, and a second copy of the same eight rows on the page that links to
+   * the first is not a summary.
+   *
+   * It also decides where the keyboard route lives, which is the part that
+   * matters. With the list, the rows are focusable and the ring's bands are
+   * pointer-only — eight more tab stops would reach the same eight answers.
+   * Without it, the ring is the only route there is, so the bands take the
+   * tab stops and the readout beneath states what a row would have.
+   */
+  breakdown = true,
+}: {
+  health: HealthScore;
+  size?: number;
+  breakdown?: boolean;
+}) {
   const [active, setActive] = useState<string | null>(null);
 
   const filled = (Math.min(100, Math.max(0, health.overall)) / 100) * CIRCUMFERENCE;
@@ -99,7 +141,18 @@ export function HealthExplorer({ health, size = 148 }: { health: HealthScore; si
     <div>
       <div className="flex flex-col items-center">
         <div className="relative" style={{ width: size, height: size }}>
-          <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden>
+          {/*
+            aria-hidden only while the rows carry the semantics. With the
+            bands focusable it must not be — a control that takes focus inside
+            hidden content is reachable by tab and announced as nothing.
+          */}
+          <svg
+            viewBox="0 0 120 120"
+            className="size-full -rotate-90"
+            aria-hidden={breakdown || undefined}
+            role={breakdown ? undefined : 'group'}
+            aria-label={breakdown ? undefined : 'Business Health Score, by component'}
+          >
             <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="var(--card-inset)" strokeWidth="9" />
             <circle
               cx="60"
@@ -150,6 +203,11 @@ export function HealthExplorer({ health, size = 148 }: { health: HealthScore; si
               pointerEvents: 'stroke' so the band catches along the arc and the
               disc inside it stays inert; without it the circle's fill area
               would take every event in the middle of the dial.
+
+              Where these take focus, what shows it is the arc lighting and the
+              readout changing — not an outline. An outline on a circle of this
+              radius is a box around the whole dial, drawn identically for all
+              six stops, which says a control has focus and not which one.
             */}
             {segments.map((seg) =>
               seg.length > 0 ? (
@@ -162,6 +220,18 @@ export function HealthExplorer({ health, size = 148 }: { health: HealthScore; si
                   fill="none"
                   stroke="transparent"
                   strokeWidth="18"
+                  {...(breakdown
+                    ? {}
+                    : {
+                        tabIndex: 0,
+                        role: 'button',
+                        'aria-label': labelFor(
+                          health.components.find((c) => c.component === seg.component)!,
+                        ),
+                        onFocus: () => setActive(seg.component),
+                        onBlur: () =>
+                          setActive((current) => (current === seg.component ? null : current)),
+                      })}
                   strokeDasharray={`${seg.length} ${CIRCUMFERENCE}`}
                   strokeDashoffset={-seg.offset}
                   style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
@@ -188,19 +258,47 @@ export function HealthExplorer({ health, size = 148 }: { health: HealthScore; si
           </div>
         </div>
 
-        {/* The status badge is about the whole score, so while a component is
-            singled out it gives way to that component's name. */}
-        {shown ? (
-          <span className="mt-3 max-w-full truncate text-[0.8125rem] text-[var(--text-secondary)]">
-            {shown.component.replace(' Health', '')}
-          </span>
-        ) : (
-          <Badge tone={HEALTH_TONE[health.status]} className="mt-3">
-            {health.status}
-          </Badge>
-        )}
+        {/*
+          The status badge is about the whole score, so while a component is
+          singled out it gives way to that component.
+
+          Without the breakdown below, this line is the only place the
+          multiplication can appear, so it carries it. With the breakdown, the
+          row states it and repeating it here would be the same sum twice.
+          Fixed height either way, so the card does not resize under the
+          pointer.
+        */}
+        <div
+          className={
+            'mt-3 flex flex-col items-center ' + (breakdown ? 'min-h-[1.75rem]' : 'min-h-[3rem]')
+          }
+        >
+          {shown ? (
+            <>
+              <span className="max-w-full truncate text-[0.8125rem] text-[var(--text-secondary)]">
+                {shown.component.replace(' Health', '')}
+              </span>
+              {/*
+                The sum, without its answer. The centre of the dial is already
+                showing the product in two-rem type directly above this, and
+                "82 × 25% = 20.5" under a 20.5 is the same number twice, a
+                centimetre apart. The line states the working and the dial
+                states the result.
+              */}
+              {!breakdown ? (
+                <span className="numeric mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
+                  {fmtScore(shown.rawScore, 0)} × {percent(shown.weight, 0)}
+                  {!shown.derived ? ' · assumed' : ''}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <Badge tone={HEALTH_TONE[health.status]}>{health.status}</Badge>
+          )}
+        </div>
       </div>
 
+      {breakdown ? (
       <div className="mt-6 border-t border-[var(--border)] pt-4">
         <ul className="space-y-2.5">
           {health.components.map((c) => {
@@ -224,7 +322,7 @@ export function HealthExplorer({ health, size = 148 }: { health: HealthScore; si
                   type="button"
                   onFocus={() => setActive(c.component)}
                   onBlur={() => setActive((current) => (current === c.component ? null : current))}
-                  aria-label={`${c.component}: ${fmtScore(c.rawScore, 0)} of 100, weighted ${percent(c.weight, 0)}, contributing ${fmtScore(c.weightedScore, 1)} points. ${c.description}`}
+                  aria-label={labelFor(c)}
                   className="block w-full cursor-default text-left"
                 >
                   <div className="flex items-baseline justify-between gap-3">
@@ -280,6 +378,7 @@ export function HealthExplorer({ health, size = 148 }: { health: HealthScore; si
             : 'Components marked assumed are standing assessments rather than measurements from connected data.'}
         </p>
       </div>
+      ) : null}
     </div>
   );
 }

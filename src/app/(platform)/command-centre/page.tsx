@@ -4,7 +4,7 @@ import { Badge, BRANCH_TONE, HEALTH_TONE, OPPORTUNITY_TONE, RISK_TONE } from '@/
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Stat, StatGrid } from '@/components/ui/stat';
-import { HealthDial } from '@/components/intelligence/health-dial';
+import { HealthExplorer } from '@/components/intelligence/health-explorer';
 import { branchStatus } from '@/lib/intelligence/finance';
 import { compactMoney, count, date, money, percent, score } from '@/lib/format';
 import { currentWorkspace } from '@/lib/workspace';
@@ -169,7 +169,13 @@ export default async function CommandCentrePage() {
           <Card>
             <CardHeader title="Business health" subtitle="Eight weighted components" />
             <CardBody>
-              <HealthDial health={w.health} />
+              {/*
+                The same dial as the Digital Twin's, without the eight rows —
+                the rail has no room for them and the page links through to
+                where they are. breakdown={false} moves the keyboard route
+                onto the ring, which is the only route there is here.
+              */}
+              <HealthExplorer health={w.health} breakdown={false} />
               <Link
                 href="/digital-twin"
                 className="mt-4 block text-center text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
