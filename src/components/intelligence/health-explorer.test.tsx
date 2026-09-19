@@ -122,6 +122,53 @@ describe('the dial and the list, linked', () => {
     ).toBeTruthy();
   });
 
+  /*
+   * The ring itself, which for a day was a picture of the interaction rather
+   * than part of it: the rows responded and the arcs did not, while the file's
+   * own comment claimed both did.
+   */
+  it('answers when the ring is pointed at, not only the list', () => {
+    const { container } = render(<HealthExplorer health={health} />);
+    const arc = container.querySelector('[data-segment="Financial Health"]')!;
+    expect(arc).toBeTruthy();
+
+    fireEvent.pointerEnter(arc);
+    expect(screen.getByText('20.5')).toBeTruthy();
+    expect(screen.getByText('points')).toBeTruthy();
+
+    fireEvent.pointerLeave(arc);
+    expect(screen.getByText('/100')).toBeTruthy();
+  });
+
+  it('gives every component with something to contribute a band to point at', () => {
+    const { container } = render(<HealthExplorer health={health} />);
+    expect(container.querySelectorAll('[data-segment]')).toHaveLength(components.length);
+  });
+
+  /*
+   * A component contributing nothing occupies no arc, so a band for it would
+   * be an invisible target sitting on top of its neighbour's.
+   */
+  it('gives no band to a component that contributes nothing', () => {
+    const withEmpty: HealthScore = {
+      ...health,
+      components: [...components, part('Nothing Health', 0, 0)],
+    };
+    const { container } = render(<HealthExplorer health={withEmpty} />);
+    expect(container.querySelector('[data-segment="Nothing Health"]')).toBeNull();
+  });
+
+  /*
+   * The reason the ring could not have worked by accident. The centre readout
+   * is absolutely positioned across the whole square, so without this it sits
+   * over the arcs and takes every pointer event aimed at them.
+   */
+  it('does not let the centre readout swallow the ring', () => {
+    const { container } = render(<HealthExplorer health={health} />);
+    const overlay = container.querySelector('.absolute.inset-0')!;
+    expect(overlay.className).toContain('pointer-events-none');
+  });
+
   it('still marks a component whose figure is assumed rather than measured', () => {
     render(<HealthExplorer health={health} />);
     expect(screen.getAllByText('assumed')).toHaveLength(2);
