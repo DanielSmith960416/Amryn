@@ -174,3 +174,89 @@ describe('the dial and the list, linked', () => {
     expect(screen.getAllByText('assumed')).toHaveLength(2);
   });
 });
+
+/*
+ * The Command Centre's rail has no room for eight rows, and the page links
+ * through to where they are. Without them the ring is the only route to any
+ * of this, so what was a convenience there becomes the whole interface here.
+ */
+describe('the compact dial, with no breakdown beneath it', () => {
+  it('shows no rows', () => {
+    render(<HealthExplorer health={health} breakdown={false} />);
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  it('still answers when the ring is pointed at', () => {
+    const { container } = render(<HealthExplorer health={health} breakdown={false} />);
+    fireEvent.pointerEnter(container.querySelector('[data-segment="Financial Health"]')!);
+    expect(screen.getByText('20.5')).toBeTruthy();
+    expect(screen.getByText('Financial')).toBeTruthy();
+  });
+
+  /*
+   * The dial's centre is showing the product in two-rem type. A line beneath
+   * it reading "= 20.5" would be the same number twice, a centimetre apart —
+   * so the line states the working and the dial states the result.
+   */
+  it('does not print the contribution twice', () => {
+    const { container } = render(<HealthExplorer health={health} breakdown={false} />);
+    fireEvent.pointerEnter(container.querySelector('[data-segment="Financial Health"]')!);
+    expect(screen.getAllByText('20.5')).toHaveLength(1);
+  });
+
+  /*
+   * The arithmetic has nowhere else to go here, so the line under the dial
+   * carries it — the same multiplication the row would have stated.
+   */
+  it('states the working under the dial, where the rows would have', () => {
+    const { container } = render(<HealthExplorer health={health} breakdown={false} />);
+    fireEvent.pointerEnter(container.querySelector('[data-segment="Financial Health"]')!);
+    expect(screen.getByText(/82 × 25%/)).toBeTruthy();
+  });
+
+  it('says so where the figure is assumed rather than measured', () => {
+    const { container } = render(<HealthExplorer health={health} breakdown={false} />);
+    fireEvent.pointerEnter(container.querySelector('[data-segment="Operational Health"]')!);
+    expect(screen.getByText(/assumed/)).toBeTruthy();
+  });
+
+  /*
+   * The route the rows were carrying. With them gone the bands take the tab
+   * stops, or the dial is reachable by pointer and by nothing else.
+   */
+  it('puts the ring in the tab order, since nothing else is', () => {
+    const { container } = render(<HealthExplorer health={health} breakdown={false} />);
+    const bands = container.querySelectorAll('[data-segment]');
+    expect(bands.length).toBe(components.length);
+    for (const band of bands) {
+      expect(band.getAttribute('tabindex')).toBe('0');
+      expect(band.getAttribute('aria-label')).toMatch(/of 100, weighted .*, contributing/);
+    }
+  });
+
+  it('answers on focus, not only on hover', () => {
+    const { container } = render(<HealthExplorer health={health} breakdown={false} />);
+    fireEvent.focus(container.querySelector('[data-segment="Strategic Health"]')!);
+    expect(screen.getByText(/59 × 10%/)).toBeTruthy();
+  });
+
+  /*
+   * A focusable control inside aria-hidden content is reachable by tab and
+   * announced as nothing, which is worse than not being reachable at all.
+   */
+  it('does not hide the ring from a screen reader once it holds focus', () => {
+    const { container } = render(<HealthExplorer health={health} breakdown={false} />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('aria-hidden')).toBeNull();
+    expect(svg.getAttribute('role')).toBe('group');
+  });
+
+  // And the reverse: with the rows carrying it, the ring stays out of the way.
+  it('leaves the ring out of the tab order when the rows are there', () => {
+    const { container } = render(<HealthExplorer health={health} />);
+    for (const band of container.querySelectorAll('[data-segment]')) {
+      expect(band.getAttribute('tabindex')).toBeNull();
+    }
+    expect(container.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
+  });
+});
