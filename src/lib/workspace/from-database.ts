@@ -331,24 +331,29 @@ function toDecisions(rows: Row<'goals'>[]): Decision[] {
 async function latestInventory(organisationId: string, asOf: Date) {
   const supabase = await createClient();
 
+  /*
+   * The count and its lines in one call.
+   *
+   * This was two: find the audit, then — having waited for it — read the items
+   * under it. It sat inside the batch below, so the first query was already
+   * running alongside the other six and only the second one cost a wave of its
+   * own. That wave was still a journey to Ireland to fetch rows whose parent
+   * had just been named, which is exactly what an embed is for.
+   */
   const { data: audit } = await supabase
     .from('stock_audits')
-    .select('*')
+    .select('*, stock_items(*)')
     .eq('organisation_id', organisationId)
     .eq('status', 'complete')
     .order('audit_date', { ascending: false })
+    .order('position', { referencedTable: 'stock_items' })
     .limit(1)
     .maybeSingle();
 
   if (!audit) return emptyInventory(asOf);
 
-  const { data: rows } = await supabase
-    .from('stock_items')
-    .select('*')
-    .eq('audit_id', audit.id)
-    .order('position');
-
-  return inventoryFromAudit(audit, rows ?? [], asOf);
+  const { stock_items: rows, ...record } = audit;
+  return inventoryFromAudit(record, rows ?? [], asOf);
 }
 
 /* ── the loader ────────────────────────────────────────────────────────── */
