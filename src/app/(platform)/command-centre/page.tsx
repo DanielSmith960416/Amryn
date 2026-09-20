@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Badge, BRANCH_TONE, HEALTH_TONE, OPPORTUNITY_TONE, RISK_TONE } from '@/components/ui/badge';
+import { Badge, BRANCH_TONE, HEALTH_TONE } from '@/components/ui/badge';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { DemoNotice, PageHeader } from '@/components/ui/page-header';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { HealthExplorer } from '@/components/intelligence/health-explorer';
+import { RevenueChart } from '@/components/intelligence/revenue-chart';
+import { CompositionDonut, type Slice } from '@/components/intelligence/composition-donut';
+import { OpportunityTable, RiskTable } from '@/features/command-centre/flagship-tables';
+import { ProductWordmark } from '@/components/shell/product-wordmark';
 import { branchStatus } from '@/lib/intelligence/finance';
 import { compactMoney, count, date, money, percent, score } from '@/lib/format';
 import { currentWorkspace } from '@/lib/workspace';
@@ -15,6 +19,7 @@ import { Greeting } from '@/components/shell/greeting';
 import { WeatherPanel } from '@/features/weather/weather-panel';
 import { requireWorkspace } from '@/lib/auth/session';
 import { hourInTimezone, timeOfDay } from '@/lib/greeting/greeting';
+import type { Branch, OpportunityStatus, ScoredOpportunity } from '@/lib/intelligence/types';
 
 export const metadata: Metadata = { title: 'Executive Command Centre' };
 
@@ -28,7 +33,55 @@ export const metadata: Metadata = { title: 'Executive Command Centre' };
  * The prototype writes those six as fixed sentences. Here they are produced by
  * the briefing engine from the figures on this page, which is the only way the
  * "AI-SIMULATED" label stays honest as the data changes.
+ *
+ * ── and then it became the centre of the two flagships ────────────────────
+ * For a long time DigitalTwin® and OpportunityRadar® appeared here as three
+ * rows each and a link out. That is a table of contents, not a command centre:
+ * the page named the two products the platform is sold on and showed neither.
+ *
+ * So each now has a band of its own, and each band is the same shape — a
+ * picture on one side and a table on the other. The picture answers "what is
+ * this made of" at a glance; the table is where somebody sorts by value, or by
+ * score, and finds the row they came for. Neither replaces the module: both
+ * bands still link through, and /digital-twin and /opportunity-radar are
+ * unchanged and remain the fuller view.
+ *
+ * Everything that was on this page is still on it. The bands are additions,
+ * placed above the intelligence cards because a flagship shown below six
+ * paragraphs is not being led with.
  */
+/**
+ * The pipeline, split by the stage each opportunity is at.
+ *
+ * Composed by value rather than by count, because a pipeline's shape is a
+ * question about money: four small evaluations and one large active deal is a
+ * different business from the reverse, and counting them makes the two look
+ * identical. The count is kept in the label so neither is lost.
+ */
+function pipelineSlices(opportunities: ScoredOpportunity[], currency: string): Slice[] {
+  const stages: OpportunityStatus[] = ['Active', 'Evaluating', 'Planning'];
+  return stages.map((stage) => {
+    const inStage = opportunities.filter((o) => o.status === stage);
+    const value = inStage.reduce((sum, o) => sum + o.estValue, 0);
+    return {
+      key: stage,
+      label: `${stage} · ${inStage.length}`,
+      value,
+      display: compactMoney(value, currency),
+    };
+  });
+}
+
+/** Where the year's revenue came from. */
+function branchSlices(branches: Branch[], currency: string): Slice[] {
+  return branches.map((b) => ({
+    key: b.name,
+    label: b.name,
+    value: b.revenueYtd,
+    display: compactMoney(b.revenueYtd, currency),
+  }));
+}
+
 export default async function CommandCentrePage() {
   const state = await currentWorkspace();
 
@@ -129,6 +182,101 @@ export default async function CommandCentrePage() {
         />
       </StatGrid>
 
+      {/* ── DigitalTwin® ─────────────────────────────────────────────── */}
+      <FlagshipHeading
+        wordmark={<ProductWordmark name="digital-twin" priority />}
+        blurb="The business as the model has it — what it earns, and how healthy that makes it."
+        href="/digital-twin"
+        cta="Open the twin"
+      />
+
+      <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_19rem] [&>*]:min-w-0">
+        <Card>
+          <CardHeader
+            title="Revenue, gross profit and net profit"
+            subtitle={`${w.ytd.monthsReported} reported months · switch the measure, point at a month`}
+          />
+          <CardBody>
+            <RevenueChart months={w.months} currency={currency} />
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader title="Business health" subtitle="Eight weighted components" />
+          <CardBody>
+            {/*
+              The same dial as the Digital Twin's, without the eight rows —
+              the rail has no room for them and the page links through to
+              where they are. breakdown={false} moves the keyboard route
+              onto the ring, which is the only route there is here.
+            */}
+            <HealthExplorer health={w.health} breakdown={false} />
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* ── OpportunityRadar® ────────────────────────────────────────── */}
+      <FlagshipHeading
+        wordmark={<ProductWordmark name="opportunity-radar" />}
+        blurb="What is in front of the business, what it is worth, and how far along it is."
+        href="/opportunity-radar"
+        cta="Open the radar"
+      />
+
+      <div className="mb-8 grid gap-5 lg:grid-cols-[19rem_1fr] [&>*]:min-w-0">
+        <Card>
+          <CardHeader
+            title="Pipeline by stage"
+            subtitle={`${w.pipeline.total} tracked`}
+          />
+          <CardBody>
+            <CompositionDonut
+              slices={pipelineSlices(w.opportunities, currency)}
+              total={compactMoney(w.pipeline.totalEstValue, currency)}
+              totalLabel="pipeline"
+              caption={`The ${money(w.pipeline.totalEstValue, currency)} pipeline, split by the stage each opportunity has reached. The figures are listed beneath.`}
+            />
+          </CardBody>
+        </Card>
+
+        <div className="min-w-0">
+          <OpportunityTable opportunities={w.opportunities} currency={currency} />
+        </div>
+      </div>
+
+      {/* ── Where the revenue comes from, and what threatens it ───────── */}
+      <div className="mb-8 grid gap-5 lg:grid-cols-[19rem_1fr] [&>*]:min-w-0">
+        <Card>
+          <CardHeader
+            title="Revenue by branch"
+            subtitle={`${w.branches.length} locations · year to date`}
+          />
+          <CardBody>
+            <CompositionDonut
+              slices={branchSlices(w.branches, currency)}
+              total={compactMoney(w.ytd.revenue, currency)}
+              totalLabel="YTD revenue"
+              caption={`Year-to-date revenue of ${money(w.ytd.revenue, currency)}, split across ${w.branches.length} branches. The figures are listed beneath.`}
+            />
+          </CardBody>
+        </Card>
+
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-[1.0625rem] font-semibold text-[var(--text-primary)]">
+              Risk register
+            </h2>
+            <Link
+              href="/risk-radar"
+              className="text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
+            >
+              {w.riskSummary.open} open · {w.riskSummary.worsening} worsening →
+            </Link>
+          </div>
+          <RiskTable risks={w.risks} />
+        </div>
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
         {/* ── Today's intelligence ────────────────────────────────────── */}
         <div className="min-w-0 space-y-4">
@@ -166,25 +314,6 @@ export default async function CommandCentrePage() {
 
         {/* ── Side rail ───────────────────────────────────────────────── */}
         <div className="min-w-0 space-y-5">
-          <Card>
-            <CardHeader title="Business health" subtitle="Eight weighted components" />
-            <CardBody>
-              {/*
-                The same dial as the Digital Twin's, without the eight rows —
-                the rail has no room for them and the page links through to
-                where they are. breakdown={false} moves the keyboard route
-                onto the ring, which is the only route there is here.
-              */}
-              <HealthExplorer health={w.health} breakdown={false} />
-              <Link
-                href="/digital-twin"
-                className="mt-4 block text-center text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
-              >
-                Open DigitalTwin<sup className="tm">®</sup> →
-              </Link>
-            </CardBody>
-          </Card>
-
           <Card>
             <CardHeader
               title="Priority actions"
@@ -249,72 +378,51 @@ export default async function CommandCentrePage() {
         </div>
       </div>
 
-      {/* ── Pipeline and register summaries ─────────────────────────── */}
-      <div className="mt-6 grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
-        <Card>
-          <CardHeader
-            title={
-              <>
-                OpportunityRadar<sup className="tm">®</sup>
-              </>
-            }
-            subtitle={`${w.pipeline.total} tracked · ${money(w.pipeline.totalEstValue, currency)} pipeline`}
-          />
-          <CardBody>
-            <ul className="space-y-3">
-              {w.opportunities.slice(0, 3).map((o) => (
-                <li key={o.id} className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[0.8125rem] leading-snug text-[var(--text-primary)]">
-                      {o.title}
-                    </p>
-                    <p className="numeric mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
-                      {o.id} · {money(o.estValue, currency)} · {o.status}
-                    </p>
-                  </div>
-                  <Badge tone={OPPORTUNITY_TONE[o.classification]}>{score(o.score, 0)}</Badge>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/opportunity-radar"
-              className="mt-4 block text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
-            >
-              Open the radar →
-            </Link>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Risk Radar"
-            subtitle={`${w.riskSummary.open} open · ${w.riskSummary.worsening} worsening`}
-          />
-          <CardBody>
-            <ul className="space-y-3">
-              {w.risks.slice(0, 3).map((r) => (
-                <li key={r.id} className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[0.8125rem] leading-snug text-[var(--text-primary)]">
-                      {r.risk}
-                    </p>
-                    <p className="numeric mt-0.5 text-[0.75rem] text-[var(--text-tertiary)]">
-                      {r.id} · {r.owner} · {r.trend}
-                    </p>
-                  </div>
-                  <Badge tone={RISK_TONE[r.classification]}>{r.score.toFixed(2)}</Badge>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/risk-radar"
-              className="mt-4 block text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
-            >
-              Open the register →
-            </Link>
-          </CardBody>
-        </Card>
-      </div>
+      {/*
+        The three-row OpportunityRadar® and Risk Radar summaries that used to
+        sit here are gone, and this note is here so nobody re-adds them by
+        accident. They showed the same three opportunities and the same three
+        risks that the bands above now show in full, sortable tables — keeping
+        both would print the same rows twice on one screen and make the page
+        look like it had lost track of itself.
+        Nothing was removed from the platform: /opportunity-radar and
+        /risk-radar are untouched, and both bands link to them.
+      */}
     </>
+  );
+}
+
+/**
+ * The band heading for one flagship.
+ *
+ * The wordmark rather than the name set in type: these are registered marks
+ * with supplied artwork, and typing "DigitalTwin®" in the page font is the
+ * one thing the brand rules say not to do. ProductWordmark carries the
+ * accessible name, so the heading reads correctly aloud while showing the art.
+ */
+function FlagshipHeading({
+  wordmark,
+  blurb,
+  href,
+  cta,
+}: {
+  wordmark: React.ReactNode;
+  blurb: string;
+  href: string;
+  cta: string;
+}) {
+  return (
+    <div className="mt-2 mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-[var(--border)] pb-3">
+      <div className="min-w-0">
+        <h2 className="flex items-center">{wordmark}</h2>
+        <p className="mt-1.5 text-[0.8125rem] text-[var(--text-secondary)]">{blurb}</p>
+      </div>
+      <Link
+        href={href}
+        className="shrink-0 text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
+      >
+        {cta} &rarr;
+      </Link>
+    </div>
   );
 }

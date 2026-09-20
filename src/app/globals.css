@@ -156,6 +156,41 @@
   --chart-5: #00c9a7;
   --chart-grid: #eef2f7;
 
+  /*
+   * Series colours, for a chart where the colour says *which* rather than
+   * *how much*.
+   *
+   * ── why these are new tokens rather than the --chart-* above ───────────
+   * --chart-3 and --chart-4 are #6366f1 and #8b5cf6: an indigo and a violet
+   * one step apart. Run through the contrast and colour-vision checks they
+   * come out at ΔE 0.8 under protanopia — the same colour to a red-blind
+   * reader — and 6.3 under ordinary vision, which is below the floor where
+   * two neighbours can be told apart at all. They were never a problem while
+   * nothing plotted more than one series against another; a pie chart is
+   * exactly the thing that makes it one.
+   *
+   * The existing tokens are left alone rather than redefined, because they
+   * are in use and changing them would repaint charts nobody asked about.
+   * These four are what anything plotting categories against each other
+   * reaches for, and the order is load-bearing: swapping slots 2 and 4 drops
+   * the worst adjacent pair to ΔE 0.7. Slot 1 is the brand, slot 2 is the
+   * accent at the strength that clears contrast on paper.
+   *
+   *   worst adjacent pair  ΔE 19.3 protanopia · 23.5 ordinary vision
+   *   contrast on card     all four at or above 3:1
+   *
+   * Checked with the palette validator rather than by eye. Anything past
+   * four folds into "Other" — a fifth hue that passes does not exist in this
+   * family, and one invented to fill the slot is indistinguishable from one
+   * already here.
+   */
+  --series-1: #004aad;
+  --series-2: #00987f;
+  --series-3: #7c3aed;
+  --series-4: #c2557f;
+  /* The tail, and anything that is deliberately not a category. */
+  --series-rest: #94a3b8;
+
   --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
   --shadow-lift: 0 4px 12px rgb(16 24 40 / 0.08), 0 2px 4px rgb(16 24 40 / 0.04);
   --shadow-pop: 0 12px 32px rgb(16 24 40 / 0.14);
@@ -226,6 +261,41 @@
   --chart-4: #8b5cf6;
   --chart-5: #00c9a7;
   --chart-grid: #dde5ee;
+
+  /*
+   * Series colours, for a chart where the colour says *which* rather than
+   * *how much*.
+   *
+   * ── why these are new tokens rather than the --chart-* above ───────────
+   * --chart-3 and --chart-4 are #6366f1 and #8b5cf6: an indigo and a violet
+   * one step apart. Run through the contrast and colour-vision checks they
+   * come out at ΔE 0.8 under protanopia — the same colour to a red-blind
+   * reader — and 6.3 under ordinary vision, which is below the floor where
+   * two neighbours can be told apart at all. They were never a problem while
+   * nothing plotted more than one series against another; a pie chart is
+   * exactly the thing that makes it one.
+   *
+   * The existing tokens are left alone rather than redefined, because they
+   * are in use and changing them would repaint charts nobody asked about.
+   * These four are what anything plotting categories against each other
+   * reaches for, and the order is load-bearing: swapping slots 2 and 4 drops
+   * the worst adjacent pair to ΔE 0.7. Slot 1 is the brand, slot 2 is the
+   * accent at the strength that clears contrast on paper.
+   *
+   *   worst adjacent pair  ΔE 19.3 protanopia · 23.5 ordinary vision
+   *   contrast on card     all four at or above 3:1
+   *
+   * Checked with the palette validator rather than by eye. Anything past
+   * four folds into "Other" — a fifth hue that passes does not exist in this
+   * family, and one invented to fill the slot is indistinguishable from one
+   * already here.
+   */
+  --series-1: #004aad;
+  --series-2: #00987f;
+  --series-3: #7c3aed;
+  --series-4: #c2557f;
+  /* The tail, and anything that is deliberately not a category. */
+  --series-rest: #94a3b8;
 
   --shadow-card: 0 1px 2px rgb(8 27 51 / 0.06), 0 1px 3px rgb(8 27 51 / 0.08);
   --shadow-lift: 0 4px 14px rgb(8 27 51 / 0.10), 0 2px 4px rgb(8 27 51 / 0.06);

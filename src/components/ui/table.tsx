@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -48,14 +48,12 @@ export function Th({
   children,
   numeric = false,
   className,
-}: {
-  children?: ReactNode;
-  numeric?: boolean;
-  className?: string;
-}) {
+  ...rest
+}: ComponentPropsWithoutRef<'th'> & { numeric?: boolean }) {
   return (
     <th
       scope="col"
+      {...rest}
       className={cn(
         'border-b border-[var(--border)] bg-[var(--card-inset)] px-3 py-2.5 font-label',
         'text-[0.6875rem] font-medium tracking-wide whitespace-nowrap text-[var(--text-secondary)] uppercase',
