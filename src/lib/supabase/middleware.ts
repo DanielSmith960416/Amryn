@@ -97,6 +97,51 @@ export function needsIdentity(pathname: string): boolean {
 }
 
 /**
+ * Whether this request is the browser guessing rather than somebody arriving.
+ *
+ * ── the largest single cost on the platform, measured ─────────────────────
+ * One load of the Command Centre made thirteen calls to /auth/v1/user — more
+ * than every data table on the page combined — at 24 to 343 ms each. Twelve of
+ * them arrived in a burst one to two seconds *after* the page had finished
+ * rendering, which is the tell: Next prefetches the links in the viewport, the
+ * sidebar alone carries about thirty, and this middleware runs on every one of
+ * them. Each prefetch was buying a round trip to the auth server to answer a
+ * question nobody had asked yet.
+ *
+ * ── why skipping it is safe, which is the part that matters ───────────────
+ * The redirect below is a courtesy, not the control. Three things are true
+ * independently of it:
+ *
+ *   · a private page calls requireWorkspace() itself, which redirects a
+ *     signed-out caller before rendering anything;
+ *   · row level security is keyed to the token on the request, not to any
+ *     decision made here, so the database refuses a stranger regardless;
+ *   · a prefetch that is never navigated to is discarded unread.
+ *
+ * So a prefetch admitted without checking meets the page's own guard and the
+ * database's, and the worst case is a prefetched redirect that gets thrown
+ * away. That is the same reasoning needsIdentity() already relies on, written
+ * out above: a mistake here fails closed.
+ *
+ * The cost is that the session cookie is not rotated by a prefetch. Real
+ * navigations, form posts and server actions all still rotate it, and a
+ * browser that only ever prefetched would never have been using the
+ * application in the first place.
+ *
+ * ── the headers, and why there are three of them ──────────────────────────
+ * Next sends Next-Router-Prefetch on its own prefetches. Purpose and
+ * Sec-Purpose are the platform-level equivalents a browser sends for
+ * speculative loads it started itself, and they carry "prefetch" among other
+ * words rather than alone. Checking all three costs nothing and means a
+ * speculative load from either source is treated the same way.
+ */
+export function isPrefetch(headers: Headers): boolean {
+  if (headers.get('next-router-prefetch') === '1') return true;
+  const purpose = `${headers.get('purpose') ?? ''} ${headers.get('sec-purpose') ?? ''}`;
+  return purpose.toLowerCase().includes('prefetch');
+}
+
+/**
  * Refreshes the Supabase session on every request and guards the dashboard.
  *
  * The session cookie has to be written onto the response that is actually
@@ -110,6 +155,13 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // page explains what is missing. Throwing here would 500 every route in the
   // application, including the one page able to describe the problem.
   if (!isSupabaseConfigured()) return response;
+
+  /*
+   * Before the client is built, so a prefetch costs nothing at all rather than
+   * merely costing less. See isPrefetch above for why this is safe: the page's
+   * own guard and the database's both still apply.
+   */
+  if (isPrefetch(request.headers)) return response;
 
   const env = publicEnv();
   const supabase = createServerClient<Database>(

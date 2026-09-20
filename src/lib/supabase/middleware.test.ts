@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bounceSignedIn, needsIdentity } from './middleware';
+import { bounceSignedIn, isPrefetch, needsIdentity } from './middleware';
 import { config } from '@/middleware';
 
 /*
@@ -132,5 +132,55 @@ describe('bounceSignedIn', () => {
     expect(bounceSignedIn('GET', '/command-centre', true)).toBe(false);
     expect(bounceSignedIn('GET', '/forgot-password', true)).toBe(false);
     expect(bounceSignedIn('GET', '/sign-in/extra', true)).toBe(false);
+  });
+});
+
+/*
+ * The twelve calls nobody asked for.
+ *
+ * One load of the Command Centre made thirteen calls to the auth server, and
+ * twelve of them landed in a burst after the page had already rendered — Next
+ * prefetching the links in the viewport, each one admitted by the matcher and
+ * each one buying a round trip.
+ */
+describe('isPrefetch', () => {
+  const headers = (h: Record<string, string>) => new Headers(h);
+
+  it('knows Next’s own prefetch', () => {
+    expect(isPrefetch(headers({ 'Next-Router-Prefetch': '1' }))).toBe(true);
+  });
+
+  /*
+   * A browser's own speculative load says so in Purpose or Sec-Purpose, and
+   * says it among other words rather than alone — "prefetch;prerender" is a
+   * real value, so an equality check would miss it.
+   */
+  it('knows a browser’s own speculative load, however it is worded', () => {
+    expect(isPrefetch(headers({ Purpose: 'prefetch' }))).toBe(true);
+    expect(isPrefetch(headers({ 'Sec-Purpose': 'prefetch;prerender' }))).toBe(true);
+    expect(isPrefetch(headers({ 'Sec-Purpose': 'PREFETCH' }))).toBe(true);
+  });
+
+  /*
+   * The half that matters more: a real navigation must never be mistaken for a
+   * guess, or it would skip the session refresh and the sign-in redirect for
+   * somebody who is actually arriving.
+   */
+  it('does not mistake a real navigation for a guess', () => {
+    expect(isPrefetch(headers({}))).toBe(false);
+    expect(isPrefetch(headers({ RSC: '1' }))).toBe(false);
+    expect(isPrefetch(headers({ 'Next-Router-Prefetch': '0' }))).toBe(false);
+    expect(isPrefetch(headers({ Purpose: 'navigate' }))).toBe(false);
+    expect(isPrefetch(headers({ 'Sec-Fetch-Mode': 'navigate' }))).toBe(false);
+  });
+
+  /*
+   * An RSC request that is *also* a prefetch is still a prefetch. Next sends
+   * both headers together, and reading only RSC would have caught every
+   * client-side navigation as well.
+   */
+  it('treats an RSC prefetch as a prefetch and an RSC navigation as a navigation', () => {
+    expect(isPrefetch(headers({ RSC: '1', 'Next-Router-Prefetch': '1' }))).toBe(true);
+    expect(isPrefetch(headers({ RSC: '1' }))).toBe(false);
   });
 });
