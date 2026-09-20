@@ -249,7 +249,16 @@ export function HealthExplorer({
             and the arcs below never see a pointer at all.
           */}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="numeric text-[2rem] leading-none font-semibold text-[var(--text-primary)]">
+            {/*
+              The page's own sans with proportional figures, not .numeric.
+              That class is a mono face with equal-width digits — right for a
+              column of numbers lining up under each other, wrong at two rem
+              standing alone, where "70.8" comes out visibly gappy and in a
+              typeface nothing else on the card uses. The same fix the
+              composition ring needed; this dial sits beside it in the same
+              row, so the two were visibly disagreeing.
+            */}
+            <span className="text-[2rem] leading-none font-semibold tracking-tight text-[var(--text-primary)] proportional-nums">
               {shown ? fmtScore(shown.weightedScore, 1) : fmtScore(health.overall)}
             </span>
             <span className="numeric text-[0.75rem] text-[var(--text-tertiary)]">

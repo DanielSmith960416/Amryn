@@ -7,6 +7,7 @@ import { Stat, StatGrid } from '@/components/ui/stat';
 import { HealthExplorer } from '@/components/intelligence/health-explorer';
 import { RevenueChart } from '@/components/intelligence/revenue-chart';
 import { CompositionDonut, type Slice } from '@/components/intelligence/composition-donut';
+import { MagnitudeBars, type Bar } from '@/components/intelligence/magnitude-bars';
 import { OpportunityTable, RiskTable } from '@/features/command-centre/flagship-tables';
 import { ProductWordmark } from '@/components/shell/product-wordmark';
 import { branchStatus } from '@/lib/intelligence/finance';
@@ -72,8 +73,8 @@ function pipelineSlices(opportunities: ScoredOpportunity[], currency: string): S
   });
 }
 
-/** Where the year's revenue came from. */
-function branchSlices(branches: Branch[], currency: string): Slice[] {
+/** Where the year's revenue came from, largest first. */
+function branchBars(branches: Branch[], currency: string): Bar[] {
   return branches.map((b) => ({
     key: b.name,
     label: b.name,
@@ -190,23 +191,60 @@ export default async function CommandCentrePage() {
         cta="Open the twin"
       />
 
-      <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_19rem] [&>*]:min-w-0">
+      {/*
+        Three charts across, and three different shapes on purpose: a line for
+        how the year has gone, bars for which branch is carrying it, a ring for
+        what the health score is made of. Each shape answers the question it is
+        good at — a trend needs a line, a comparison needs a shared baseline,
+        and a composition needs a whole.
+
+        Two up on a tablet and one up on a phone, because three charts at a
+        third of a phone's width are three sparklines nobody can read.
+      */}
+      <div className="mb-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
         <Card>
           <CardHeader
             title="Revenue, gross profit and net profit"
-            subtitle={`${w.ytd.monthsReported} reported months · switch the measure, point at a month`}
+            subtitle={`${w.ytd.monthsReported} reported months · switch the measure`}
           />
           <CardBody>
             <RevenueChart months={w.months} currency={currency} />
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="flex flex-col">
+          <CardHeader
+            title="Revenue by branch"
+            subtitle={`${w.branches.length} locations · year to date`}
+          />
+          {/*
+            flex-1 and centred: the trend chart beside this one is the tallest
+            of the three, and a grid row stretches the other two to match it.
+            Left alone, the bars sit at the top of a card with a hand's width
+            of nothing under them, which reads as a card that failed to finish
+            loading rather than one with less to say.
+          */}
+          <CardBody className="flex flex-1 flex-col justify-center">
+            {/*
+              Bars rather than the ring this replaced. The question asked of
+              branch revenue is which branch is carrying the year, and that is
+              a comparison — the one thing a ring cannot do, because two slices
+              a few points apart read as equal. Bars share a baseline, so it is
+              a length against a length.
+            */}
+            <MagnitudeBars
+              bars={branchBars(w.branches, currency)}
+              caption={`Year-to-date revenue of ${money(w.ytd.revenue, currency)} across ${w.branches.length} branches, largest first.`}
+            />
+          </CardBody>
+        </Card>
+
+        <Card className="flex flex-col">
           <CardHeader title="Business health" subtitle="Eight weighted components" />
-          <CardBody>
+          <CardBody className="flex flex-1 flex-col justify-center">
             {/*
               The same dial as the Digital Twin's, without the eight rows —
-              the rail has no room for them and the page links through to
+              there is no room for them here and the page links through to
               where they are. breakdown={false} moves the keyboard route
               onto the ring, which is the only route there is here.
             */}
@@ -244,37 +282,20 @@ export default async function CommandCentrePage() {
         </div>
       </div>
 
-      {/* ── Where the revenue comes from, and what threatens it ───────── */}
-      <div className="mb-8 grid gap-5 lg:grid-cols-[19rem_1fr] [&>*]:min-w-0">
-        <Card>
-          <CardHeader
-            title="Revenue by branch"
-            subtitle={`${w.branches.length} locations · year to date`}
-          />
-          <CardBody>
-            <CompositionDonut
-              slices={branchSlices(w.branches, currency)}
-              total={compactMoney(w.ytd.revenue, currency)}
-              totalLabel="YTD revenue"
-              caption={`Year-to-date revenue of ${money(w.ytd.revenue, currency)}, split across ${w.branches.length} branches. The figures are listed beneath.`}
-            />
-          </CardBody>
-        </Card>
-
-        <div className="min-w-0 space-y-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-[1.0625rem] font-semibold text-[var(--text-primary)]">
-              Risk register
-            </h2>
-            <Link
-              href="/risk-radar"
-              className="text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
-            >
-              {w.riskSummary.open} open · {w.riskSummary.worsening} worsening →
-            </Link>
-          </div>
-          <RiskTable risks={w.risks} />
+      {/* ── The register ──────────────────────────────────────────────── */}
+      <div className="mb-8 space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-[1.0625rem] font-semibold text-[var(--text-primary)]">
+            Risk register
+          </h2>
+          <Link
+            href="/risk-radar"
+            className="text-[0.8125rem] font-medium text-[var(--brand)] hover:underline"
+          >
+            {w.riskSummary.open} open · {w.riskSummary.worsening} worsening &rarr;
+          </Link>
         </div>
+        <RiskTable risks={w.risks} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
